@@ -19,6 +19,7 @@ class WilayahTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Data Wilayah Indonesia');
+        $response->assertSee('Tambah Wilayah');
     }
 
     public function test_wilayah_datatable_returns_hierarchical_json_data(): void
@@ -62,19 +63,24 @@ class WilayahTest extends TestCase
                 ['data' => 'city_name', 'name' => 'city_name', 'searchable' => 'true', 'orderable' => 'true'],
                 ['data' => 'district_name', 'name' => 'district_name', 'searchable' => 'true', 'orderable' => 'true'],
                 ['data' => 'village_name', 'name' => 'village_name', 'searchable' => 'true', 'orderable' => 'true'],
+                ['data' => 'actions', 'name' => 'actions', 'searchable' => 'false', 'orderable' => 'false'],
             ],
         ]));
 
         $response->assertOk()
             ->assertJsonPath('recordsTotal', 4)
             ->assertJsonPath('data.0.code', '11')
+            ->assertJsonPath('data.0.level', 'province')
             ->assertJsonPath('data.0.province_name', 'ACEH')
             ->assertJsonPath('data.0.city_name', '')
             ->assertJsonPath('data.1.code', '11.01')
+            ->assertJsonPath('data.1.level', 'city')
             ->assertJsonPath('data.1.city_name', 'KABUPATEN ACEH SELATAN')
             ->assertJsonPath('data.2.code', '11.01.01')
+            ->assertJsonPath('data.2.level', 'district')
             ->assertJsonPath('data.2.district_name', 'BAKONGAN')
             ->assertJsonPath('data.3.code', '11.01.01.2001')
+            ->assertJsonPath('data.3.level', 'village')
             ->assertJsonPath('data.3.village_name', 'KEUDE BAKONGAN');
 
         $citiesResponse = $this->actingAs($user)->getJson(route('master.wilayah.index', [
@@ -101,6 +107,7 @@ class WilayahTest extends TestCase
                 ['data' => 'city_name', 'name' => 'city_name', 'searchable' => 'true', 'orderable' => 'true'],
                 ['data' => 'district_name', 'name' => 'district_name', 'searchable' => 'true', 'orderable' => 'true'],
                 ['data' => 'village_name', 'name' => 'village_name', 'searchable' => 'true', 'orderable' => 'true'],
+                ['data' => 'actions', 'name' => 'actions', 'searchable' => 'false', 'orderable' => 'false'],
             ],
         ]));
 
@@ -108,5 +115,111 @@ class WilayahTest extends TestCase
             ->assertJsonPath('recordsFiltered', 2)
             ->assertJsonPath('data.0.code', '11.01.01')
             ->assertJsonPath('data.1.code', '11.01.01.2001');
+    }
+
+    public function test_wilayah_can_be_created_updated_and_deleted_with_hierarchical_code_validation(): void
+    {
+        $user = User::factory()->create();
+        $prefix = config('laravolt.indonesia.table_prefix', 'indonesia_');
+
+        DB::table($prefix.'provinces')->insert([
+            'code' => '11',
+            'name' => 'ACEH',
+        ]);
+
+        DB::table($prefix.'cities')->insert([
+            'code' => '1101',
+            'province_code' => '11',
+            'name' => 'KABUPATEN ACEH SELATAN',
+        ]);
+
+        DB::table($prefix.'districts')->insert([
+            'code' => '110101',
+            'city_code' => '1101',
+            'name' => 'BAKONGAN',
+        ]);
+
+        // Reject village code that does not start with parent district code (110101)
+        $invalidPrefixResponse = $this->actingAs($user)->postJson(route('master.wilayah.store'), [
+            'level' => 'village',
+            'province_code' => '11',
+            'city_code' => '1101',
+            'district_code' => '110101',
+            'village_name' => 'DESA BARU',
+            'code' => '11.01.02.2001',
+        ]);
+
+        $invalidPrefixResponse->assertStatus(422)
+            ->assertJsonValidationErrors(['code']);
+
+        // Create valid village under district 110101, city 1101, province 11
+        $createResponse = $this->actingAs($user)->postJson(route('master.wilayah.store'), [
+            'level' => 'village',
+            'province_code' => '11',
+            'city_code' => '1101',
+            'district_code' => '110101',
+            'village_name' => 'Desa Baru Bakongan',
+            'code' => '11.01.01.2099',
+        ]);
+
+        $createResponse->assertCreated();
+
+        $this->assertDatabaseHas($prefix.'villages', [
+            'code' => '1101012099',
+            'district_code' => '110101',
+            'name' => 'DESA BARU BAKONGAN',
+        ]);
+
+        // Reject duplicate code
+        $duplicateResponse = $this->actingAs($user)->postJson(route('master.wilayah.store'), [
+            'level' => 'village',
+            'province_code' => '11',
+            'city_code' => '1101',
+            'district_code' => '110101',
+            'village_name' => 'Desa Duplikat',
+            'code' => '1101012099',
+        ]);
+
+        $duplicateResponse->assertStatus(422)
+            ->assertJsonValidationErrors(['code']);
+
+        // Update village
+        $updateResponse = $this->actingAs($user)->putJson(route('master.wilayah.update', [
+            'level' => 'village',
+            'code' => '1101012099',
+        ]), [
+            'level' => 'village',
+            'province_code' => '11',
+            'city_code' => '1101',
+            'district_code' => '110101',
+            'village_name' => 'Desa Baru Bakongan Raya',
+            'code' => '1101012099',
+        ]);
+
+        $updateResponse->assertOk();
+
+        $this->assertDatabaseHas($prefix.'villages', [
+            'code' => '1101012099',
+            'name' => 'DESA BARU BAKONGAN RAYA',
+        ]);
+
+        // Prevent deleting parent district while it still has child village
+        $deleteParentResponse = $this->actingAs($user)->deleteJson(route('master.wilayah.destroy', [
+            'level' => 'district',
+            'code' => '110101',
+        ]));
+
+        $deleteParentResponse->assertStatus(422);
+
+        // Delete child village succeeds
+        $deleteVillageResponse = $this->actingAs($user)->deleteJson(route('master.wilayah.destroy', [
+            'level' => 'village',
+            'code' => '1101012099',
+        ]));
+
+        $deleteVillageResponse->assertOk();
+        $this->assertDatabaseMissing($prefix.'villages', [
+            'code' => '1101012099',
+        ]);
     }
 }

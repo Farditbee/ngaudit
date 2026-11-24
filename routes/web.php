@@ -15,6 +15,9 @@ Route::get('/dashboard', function () {
 
 Route::middleware('auth')->group(function () {
     Route::get('/master/wilayah', [WilayahController::class, 'index'])->name('master.wilayah.index');
+    Route::post('/master/wilayah', [WilayahController::class, 'store'])->name('master.wilayah.store');
+    Route::put('/master/wilayah/{level}/{code}', [WilayahController::class, 'update'])->name('master.wilayah.update');
+    Route::delete('/master/wilayah/{level}/{code}', [WilayahController::class, 'destroy'])->name('master.wilayah.destroy');
 
     Route::get('/master/plotting', [PlottingController::class, 'index'])->name('master.plotting.index');
     Route::post('/master/plotting', [PlottingController::class, 'store'])->name('master.plotting.store');

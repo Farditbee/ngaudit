@@ -4,6 +4,8 @@
     'itemsExpr',
     'valueModel',
     'changeAction',
+    'disabledExpr' => 'false',
+    'disabledMessage' => '',
 ])
 
 <div
@@ -11,6 +13,10 @@
     x-data="{
         open: false,
         query: '',
+        parentHint: false,
+        get isDisabled() {
+            return Boolean({{ $disabledExpr }});
+        },
         get items() {
             return {{ $itemsExpr }} || [];
         },
@@ -26,6 +32,12 @@
             return found ? found.name : '{{ $placeholder }}';
         },
         toggle() {
+            if (this.isDisabled) {
+                this.open = false;
+                this.parentHint = true;
+                return;
+            }
+            this.parentHint = false;
             this.open = !this.open;
             if (this.open) {
                 this.query = '';
@@ -36,11 +48,13 @@
             {{ $valueModel }} = code;
             this.open = false;
             this.query = '';
+            this.parentHint = false;
             {{ $changeAction }};
         }
     }"
-    x-on:click.outside="open = false"
-    x-on:keydown.escape.window="open = false"
+    x-effect="if (!isDisabled) parentHint = false"
+    x-on:click.outside="open = false; parentHint = false"
+    x-on:keydown.escape.window="open = false; parentHint = false"
 >
     <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400">{{ $label }}</label>
 
@@ -104,4 +118,16 @@
             </template>
         </ul>
     </div>
+
+    @if ($disabledMessage !== '')
+        <p
+            x-show="parentHint && isDisabled"
+            x-cloak
+            x-transition.opacity
+            class="flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400"
+        >
+            <x-lucide-info class="h-3.5 w-3.5 shrink-0" />
+            <span>{{ $disabledMessage }}</span>
+        </p>
+    @endif
 </div>

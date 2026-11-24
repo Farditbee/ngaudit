@@ -10,6 +10,37 @@ use Yajra\DataTables\Facades\DataTables;
 
 class WilayahDataTable
 {
+    /**
+     * @return list<array{data: string, name: string, label: string, sortable: bool, searchable: bool, align?: string, width?: string, mono?: bool}>
+     */
+    public function columns(): array
+    {
+        return [
+            ['data' => 'DT_RowIndex', 'name' => 'DT_RowIndex', 'label' => '#', 'sortable' => false, 'searchable' => false, 'align' => 'center', 'width' => 'w-16'],
+            ['data' => 'code', 'name' => 'code', 'label' => 'KODE', 'sortable' => true, 'searchable' => true, 'mono' => true],
+            ['data' => 'province_name', 'name' => 'province_name', 'label' => 'PROVINSI', 'sortable' => true, 'searchable' => true],
+            ['data' => 'city_name', 'name' => 'city_name', 'label' => 'KABUPATEN/KOTA', 'sortable' => true, 'searchable' => true],
+            ['data' => 'district_name', 'name' => 'district_name', 'label' => 'KECAMATAN', 'sortable' => true, 'searchable' => true],
+            ['data' => 'village_name', 'name' => 'village_name', 'label' => 'DESA/KELURAHAN', 'sortable' => true, 'searchable' => true],
+            ['data' => 'actions', 'name' => 'actions', 'label' => 'AKSI', 'sortable' => false, 'searchable' => false, 'align' => 'center', 'width' => 'w-28'],
+        ];
+    }
+
+    /**
+     * @param  iterable<int, object>  $provinces
+     * @return array<string, mixed>
+     */
+    public function config(iterable $provinces): array
+    {
+        return [
+            'indexUrl' => route('master.wilayah.index'),
+            'storeUrl' => route('master.wilayah.store'),
+            'baseUrl' => url('/master/wilayah'),
+            'provinces' => $provinces,
+            'columns' => $this->columns(),
+        ];
+    }
+
     public function toJson(Request $request): JsonResponse
     {
         $prefix = config('laravolt.indonesia.table_prefix', 'indonesia_');
@@ -48,14 +79,14 @@ class WilayahDataTable
 
         $provinces = $applyFilters(
             DB::table($prefix.'provinces')
-                ->selectRaw("code, name as province_name, '' as city_name, '' as district_name, '' as village_name"),
+                ->selectRaw("code, code as raw_code, 'province' as level, code as province_code, '' as city_code, '' as district_code, name as province_name, '' as city_name, '' as district_name, '' as village_name"),
             'province'
         );
 
         $cities = $applyFilters(
             DB::table($prefix.'cities as c')
                 ->join($prefix.'provinces as p', 'p.code', '=', 'c.province_code')
-                ->selectRaw("c.code, p.name as province_name, c.name as city_name, '' as district_name, '' as village_name"),
+                ->selectRaw("c.code, c.code as raw_code, 'city' as level, p.code as province_code, c.code as city_code, '' as district_code, p.name as province_name, c.name as city_name, '' as district_name, '' as village_name"),
             'city'
         );
 
@@ -63,7 +94,7 @@ class WilayahDataTable
             DB::table($prefix.'districts as d')
                 ->join($prefix.'cities as c', 'c.code', '=', 'd.city_code')
                 ->join($prefix.'provinces as p', 'p.code', '=', 'c.province_code')
-                ->selectRaw("d.code, p.name as province_name, c.name as city_name, d.name as district_name, '' as village_name"),
+                ->selectRaw("d.code, d.code as raw_code, 'district' as level, p.code as province_code, c.code as city_code, d.code as district_code, p.name as province_name, c.name as city_name, d.name as district_name, '' as village_name"),
             'district'
         );
 
@@ -72,7 +103,7 @@ class WilayahDataTable
                 ->join($prefix.'districts as d', 'd.code', '=', 'v.district_code')
                 ->join($prefix.'cities as c', 'c.code', '=', 'd.city_code')
                 ->join($prefix.'provinces as p', 'p.code', '=', 'c.province_code')
-                ->selectRaw('v.code, p.name as province_name, c.name as city_name, d.name as district_name, v.name as village_name'),
+                ->selectRaw("v.code, v.code as raw_code, 'village' as level, p.code as province_code, c.code as city_code, d.code as district_code, p.name as province_name, c.name as city_name, d.name as district_name, v.name as village_name"),
             'village'
         );
 

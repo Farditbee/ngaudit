@@ -10,6 +10,35 @@ use Yajra\DataTables\Facades\DataTables;
 
 class PlottingDataTable
 {
+    /**
+     * @return list<array{data: string, name: string, label: string, sortable: bool, searchable: bool, align?: string, width?: string}>
+     */
+    public function columns(): array
+    {
+        return [
+            ['data' => 'DT_RowIndex', 'name' => 'DT_RowIndex', 'label' => '#', 'sortable' => false, 'searchable' => false, 'align' => 'center', 'width' => 'w-16'],
+            ['data' => 'plot', 'name' => 'plot', 'label' => 'NAMA PLOT', 'sortable' => true, 'searchable' => true, 'width' => 'w-48'],
+            ['data' => 'provinces_names', 'name' => 'provinces_names', 'label' => 'DAFTAR PROVINSI', 'sortable' => false, 'searchable' => true],
+            ['data' => 'provinces_count', 'name' => 'provinces_count', 'label' => 'JUMLAH PROVINSI', 'sortable' => true, 'searchable' => false, 'align' => 'center', 'width' => 'w-40'],
+            ['data' => 'actions', 'name' => 'actions', 'label' => 'AKSI', 'sortable' => false, 'searchable' => false, 'align' => 'center', 'width' => 'w-32'],
+        ];
+    }
+
+    /**
+     * @param  iterable<int, object>  $provinces
+     * @return array<string, mixed>
+     */
+    public function config(iterable $provinces): array
+    {
+        return [
+            'indexUrl' => route('master.plotting.index'),
+            'storeUrl' => route('master.plotting.store'),
+            'baseUrl' => url('/master/plotting'),
+            'provinces' => $provinces,
+            'columns' => $this->columns(),
+        ];
+    }
+
     public function toJson(Request $request): JsonResponse
     {
         $provinsiId = (int) $request->query('provinsi_id', 0);

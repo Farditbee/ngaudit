@@ -24,7 +24,9 @@ class PlottingController extends Controller
             ->orderBy('code')
             ->get(['id', 'code', 'name']);
 
-        return view('master.plotting.index', compact('provinces'));
+        $tableConfig = $dataTable->config($provinces);
+
+        return view('master.plotting.index', compact('provinces', 'tableConfig'));
     }
 
     public function store(PlottingRequest $request): JsonResponse
