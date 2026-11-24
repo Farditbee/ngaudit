@@ -12,7 +12,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class UserController extends Controller
@@ -27,25 +29,42 @@ class UserController extends Controller
             return $dataTable->toJson($request);
         }
 
-        $prefix = config('laravolt.indonesia.table_prefix', 'indonesia_');
+        $authUser = $request->user();
 
-        $plottings = Plotting::query()
-            ->with('provinces:id,code,name')
-            ->orderBy('plot')
+        $plottingsQuery = Plotting::query()
+            ->with('provinces:id,kode_wilayah,provinsi')
+            ->orderBy('plot');
+
+        if ($authUser?->role === 'Admin Nasional' && $authUser->plotting_id) {
+            $plottingsQuery->whereKey($authUser->plotting_id);
+        }
+
+        $plottings = $plottingsQuery
             ->get()
             ->map(fn (Plotting $plotting): array => [
                 'id' => $plotting->id,
                 'code' => (string) $plotting->id,
                 'name' => $plotting->plot,
                 'provinces' => $plotting->provinces->map(fn (object $p): array => [
-                    'code' => (string) $p->code,
-                    'name' => (string) $p->name,
+                    'code' => (string) $p->kode_wilayah,
+                    'name' => (string) $p->provinsi,
                 ])->values()->all(),
-            ]);
+            ])
+            ->values();
 
-        $provinces = DB::table($prefix.'provinces')
-            ->orderBy('code')
-            ->get(['code', 'name']);
+        $provincesQuery = DB::table('wilayah')
+            ->whereRaw('CHAR_LENGTH(kode_wilayah) = 2')
+            ->whereNull('deleted_at')
+            ->orderBy('kode_wilayah');
+
+        if ($authUser?->role === 'Admin Wilayah' && $authUser->kode_wilayah) {
+            $authProvinceCode = substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2);
+            if ($authProvinceCode !== '') {
+                $provincesQuery->where('kode_wilayah', $authProvinceCode);
+            }
+        }
+
+        $provinces = $provincesQuery->get(['kode_wilayah as code', 'provinsi as name']);
 
         $tableConfig = $dataTable->config($plottings, $provinces);
 
@@ -56,6 +75,36 @@ class UserController extends Controller
     {
         $validated = $request->validated();
         $payload = $this->buildUserPayload($request, $validated);
+
+        if ($payload['role'] === 'Auditee' && ($validated['bidang'] ?? null) === 'SEMUA_BIDANG') {
+            $baseName = trim((string) $payload['name']);
+            $baseUsername = trim((string) $payload['username']);
+            $baseEmail = trim((string) $payload['email']);
+            [$emailLocal, $emailDomain] = explode('@', $baseEmail, 2);
+            $hashedPassword = Hash::make((string) $validated['password']);
+
+            $createdUsers = DB::transaction(function () use ($payload, $baseName, $baseUsername, $emailLocal, $emailDomain, $hashedPassword): array {
+                $users = [];
+                foreach (User::BIDANGS as $bidang) {
+                    $slug = Str::slug($bidang, '_');
+                    $rowPayload = $payload;
+                    $rowPayload['name'] = "{$baseName} {$bidang}";
+                    $rowPayload['username'] = "{$baseUsername}_{$slug}";
+                    $rowPayload['email'] = "{$emailLocal}_{$slug}@{$emailDomain}";
+                    $rowPayload['bidang'] = $bidang;
+                    $rowPayload['password'] = $hashedPassword;
+
+                    $users[] = User::query()->create($rowPayload);
+                }
+
+                return $users;
+            });
+
+            return response()->json([
+                'message' => '4 akun Auditee untuk semua bidang berhasil ditambahkan.',
+                'data' => $createdUsers,
+            ], 201);
+        }
 
         $user = User::query()->create($payload);
 
@@ -110,15 +159,19 @@ class UserController extends Controller
 
     public function impersonate(Request $request, User $user): JsonResponse
     {
+        if (Auth::user()?->role !== 'Super Admin' || $request->session()->has('impersonator_id')) {
+            return response()->json([
+                'message' => 'Hanya Super Admin yang dapat melakukan impersonate (tidak dapat impersonate saat sedang dalam sesi impersonate).',
+            ], 403);
+        }
+
         if ($user->id === Auth::id()) {
             return response()->json([
                 'message' => 'Anda sedang login menggunakan akun ini.',
             ], 422);
         }
 
-        if (! $request->session()->has('impersonator_id')) {
-            $request->session()->put('impersonator_id', Auth::id());
-        }
+        $request->session()->put('impersonator_id', Auth::id());
 
         Auth::login($user);
 
@@ -148,8 +201,23 @@ class UserController extends Controller
      */
     protected function buildUserPayload(UserRequest $request, array $validated, ?User $user = null): array
     {
+        $authUser = $request->user();
+        $isAdminNasional = $authUser?->role === 'Admin Nasional';
+        $isAdminWilayah = $authUser?->role === 'Admin Wilayah';
+        $authProvinceCode = ($isAdminWilayah && $authUser?->kode_wilayah)
+            ? substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2)
+            : null;
+
         $role = (string) $validated['role'];
+        $isAuditTeamRole = in_array($role, [
+            'Auditor',
+            'Ketua Tim',
+            'Koordinator dan Pengendali',
+            'Pengawas Tim',
+        ], true);
         $needsScope = in_array($role, [
+            'Admin Nasional',
+            'Admin Wilayah',
             'Auditor',
             'Auditee',
             'Ketua Tim',
@@ -157,7 +225,33 @@ class UserController extends Controller
             'Pengawas Tim',
         ], true);
         $isAuditee = $role === 'Auditee';
-        $level = $needsScope ? (string) ($validated['level'] ?? '') : null;
+        $level = $needsScope
+            ? match (true) {
+                $isAdminNasional || $role === 'Admin Nasional' => 'Nasional',
+                $isAdminWilayah && $isAuditTeamRole => 'Wilayah',
+                default => (string) ($validated['level'] ?? ''),
+            }
+        : null;
+
+        $provinceCode = ($isAdminWilayah && $authProvinceCode)
+            ? $authProvinceCode
+            : ($validated['province_code'] ?? null);
+
+        $kodeWilayah = match (true) {
+            ! $needsScope || $level === 'Nasional' => null,
+            in_array($level, ['Wilayah', 'Provinsi'], true) => $provinceCode,
+            $level === 'Kabupaten' => $validated['city_code'] ?? null,
+            $level === 'Kecamatan' => $validated['district_code'] ?? null,
+            $level === 'Desa' => $validated['village_code'] ?? null,
+            default => null,
+        };
+
+        $plottingId = null;
+        if ($needsScope && $level === 'Nasional') {
+            $plottingId = ($isAdminNasional && $authUser?->plotting_id)
+                ? $authUser->plotting_id
+                : ($validated['plotting_id'] ?? null);
+        }
 
         $payload = [
             'name' => $validated['name'],
@@ -166,21 +260,8 @@ class UserController extends Controller
             'phone' => $validated['phone'],
             'role' => $role,
             'level' => $level,
-            'plotting_id' => $needsScope && $level === 'Nasional'
-                ? ($validated['plotting_id'] ?? null)
-                : null,
-            'province_code' => $needsScope && in_array($level, ['Provinsi', 'Kabupaten', 'Kecamatan', 'Desa'], true)
-                ? ($validated['province_code'] ?? null)
-                : null,
-            'city_code' => $needsScope && in_array($level, ['Kabupaten', 'Kecamatan', 'Desa'], true)
-                ? ($validated['city_code'] ?? null)
-                : null,
-            'district_code' => $needsScope && in_array($level, ['Kecamatan', 'Desa'], true)
-                ? ($validated['district_code'] ?? null)
-                : null,
-            'village_code' => $needsScope && $level === 'Desa'
-                ? ($validated['village_code'] ?? null)
-                : null,
+            'plotting_id' => $plottingId,
+            'kode_wilayah' => $kodeWilayah,
             'bidang' => $isAuditee ? ($validated['bidang'] ?? null) : null,
             'jabatan' => $validated['jabatan'] ?? null,
         ];
@@ -201,23 +282,28 @@ class UserController extends Controller
 
     protected function options(Request $request): JsonResponse
     {
-        $prefix = config('laravolt.indonesia.table_prefix', 'indonesia_');
         $type = (string) $request->query('options');
         $parent = (string) $request->query('parent');
 
         $items = match ($type) {
-            'cities' => DB::table($prefix.'cities')
-                ->where('province_code', $parent)
-                ->orderBy('code')
-                ->get(['code', 'name']),
-            'districts' => DB::table($prefix.'districts')
-                ->where('city_code', $parent)
-                ->orderBy('code')
-                ->get(['code', 'name']),
-            'villages' => DB::table($prefix.'villages')
-                ->where('district_code', $parent)
-                ->orderBy('code')
-                ->get(['code', 'name']),
+            'cities' => DB::table('wilayah')
+                ->whereRaw('CHAR_LENGTH(kode_wilayah) = 4')
+                ->where('kode_wilayah', 'like', $parent.'%')
+                ->whereNull('deleted_at')
+                ->orderBy('kode_wilayah')
+                ->get(['kode_wilayah as code', 'kabupaten_kota as name']),
+            'districts' => DB::table('wilayah')
+                ->whereRaw('CHAR_LENGTH(kode_wilayah) = 6')
+                ->where('kode_wilayah', 'like', $parent.'%')
+                ->whereNull('deleted_at')
+                ->orderBy('kode_wilayah')
+                ->get(['kode_wilayah as code', 'kecamatan as name']),
+            'villages' => DB::table('wilayah')
+                ->whereRaw('CHAR_LENGTH(kode_wilayah) = 10')
+                ->where('kode_wilayah', 'like', $parent.'%')
+                ->whereNull('deleted_at')
+                ->orderBy('kode_wilayah')
+                ->get(['kode_wilayah as code', 'desa_kelurahan as name']),
             default => collect(),
         };
 

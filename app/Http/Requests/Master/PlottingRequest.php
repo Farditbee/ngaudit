@@ -17,7 +17,6 @@ class PlottingRequest extends FormRequest
      */
     public function rules(): array
     {
-        $prefix = config('laravolt.indonesia.table_prefix', 'indonesia_');
         $plotting = $this->route('plotting');
 
         return [
@@ -28,7 +27,7 @@ class PlottingRequest extends FormRequest
                 Rule::unique('plottings', 'plot')->ignore($plotting),
             ],
             'provinsi_ids' => ['required', 'array', 'min:1'],
-            'provinsi_ids.*' => ['integer', 'distinct', Rule::exists($prefix.'provinces', 'id')],
+            'provinsi_ids.*' => ['integer', 'distinct', Rule::exists('wilayah', 'id')],
         ];
     }
 

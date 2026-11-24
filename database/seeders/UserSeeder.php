@@ -16,7 +16,6 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        $prefix = config('laravolt.indonesia.table_prefix', 'indonesia_');
         $defaultPassword = Hash::make('Password123');
 
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
@@ -26,7 +25,11 @@ class UserSeeder extends Seeder
         // Pastikan data Plotting WIL I - WIL IV tersedia
         $plottings = Plotting::query()->orderBy('id')->get();
         if ($plottings->isEmpty()) {
-            $provinceIds = DB::table($prefix.'provinces')->orderBy('code')->pluck('id')->all();
+            $provinceIds = DB::table('wilayah')
+                ->whereRaw('CHAR_LENGTH(kode_wilayah) = 2')
+                ->orderBy('kode_wilayah')
+                ->pluck('id')
+                ->all();
             $chunks = ! empty($provinceIds) ? array_chunk($provinceIds, max(1, (int) ceil(count($provinceIds) / 4))) : [];
 
             foreach (['WIL I', 'WIL II', 'WIL III', 'WIL IV'] as $idx => $plotName) {
@@ -40,29 +43,27 @@ class UserSeeder extends Seeder
         }
 
         // Ambil 1 desa lengkap dengan hirarki kecamatan, kabupaten, dan provinsi beserta namanya
-        $sharedVillage = DB::table($prefix.'villages as v')
-            ->join($prefix.'districts as d', 'd.code', '=', 'v.district_code')
-            ->join($prefix.'cities as c', 'c.code', '=', 'd.city_code')
-            ->join($prefix.'provinces as p', 'p.code', '=', 'c.province_code')
+        $sharedVillage = DB::table('wilayah')
+            ->whereRaw('CHAR_LENGTH(kode_wilayah) = 10')
             ->select([
-                'p.code as province_code',
-                'p.name as province_name',
-                'c.code as city_code',
-                'c.name as city_name',
-                'd.code as district_code',
-                'd.name as district_name',
-                'v.code as village_code',
-                'v.name as village_name',
+                DB::raw('SUBSTRING(kode_wilayah, 1, 2) as province_code'),
+                'provinsi as province_name',
+                DB::raw('SUBSTRING(kode_wilayah, 1, 4) as city_code'),
+                'kabupaten_kota as city_name',
+                DB::raw('SUBSTRING(kode_wilayah, 1, 6) as district_code'),
+                'kecamatan as district_name',
+                'kode_wilayah as village_code',
+                'desa_kelurahan as village_name',
             ])
-            ->orderBy('v.code')
+            ->orderBy('kode_wilayah')
             ->first();
 
         // Fallback jika tabel wilayah belum di-seed
         if (! $sharedVillage) {
-            DB::table($prefix.'provinces')->updateOrInsert(['code' => '32'], ['name' => 'JAWA BARAT']);
-            DB::table($prefix.'cities')->updateOrInsert(['code' => '3209'], ['province_code' => '32', 'name' => 'KABUPATEN CIREBON']);
-            DB::table($prefix.'districts')->updateOrInsert(['code' => '320919'], ['city_code' => '3209', 'name' => 'WERU']);
-            DB::table($prefix.'villages')->updateOrInsert(['code' => '3209192004'], ['district_code' => '320919', 'name' => 'SETU WETAN']);
+            DB::table('wilayah')->updateOrInsert(['kode_wilayah' => '32'], ['provinsi' => 'JAWA BARAT']);
+            DB::table('wilayah')->updateOrInsert(['kode_wilayah' => '3209'], ['provinsi' => 'JAWA BARAT', 'kabupaten_kota' => 'KABUPATEN CIREBON']);
+            DB::table('wilayah')->updateOrInsert(['kode_wilayah' => '320919'], ['provinsi' => 'JAWA BARAT', 'kabupaten_kota' => 'KABUPATEN CIREBON', 'kecamatan' => 'WERU']);
+            DB::table('wilayah')->updateOrInsert(['kode_wilayah' => '3209192004'], ['provinsi' => 'JAWA BARAT', 'kabupaten_kota' => 'KABUPATEN CIREBON', 'kecamatan' => 'WERU', 'desa_kelurahan' => 'SETU WETAN']);
 
             $sharedVillage = (object) [
                 'province_code' => '32',
@@ -88,12 +89,10 @@ class UserSeeder extends Seeder
                 'password' => $defaultPassword,
                 'level' => null,
                 'plotting_id' => null,
-                'province_code' => null,
-                'city_code' => null,
-                'district_code' => null,
-                'village_code' => null,
+                'kode_wilayah' => null,
                 'bidang' => null,
                 'jabatan' => 'Super Administrator',
+                'created_by' => null,
             ]
         );
 
@@ -125,12 +124,10 @@ class UserSeeder extends Seeder
                     'password' => $defaultPassword,
                     'level' => 'Nasional',
                     'plotting_id' => $randomPlot->id,
-                    'province_code' => null,
-                    'city_code' => null,
-                    'district_code' => null,
-                    'village_code' => null,
+                    'kode_wilayah' => null,
                     'bidang' => null,
                     'jabatan' => 'Auditor',
+                    'created_by' => 1,
                 ]
             );
         }
@@ -154,12 +151,10 @@ class UserSeeder extends Seeder
                     'password' => $defaultPassword,
                     'level' => 'Desa',
                     'plotting_id' => null,
-                    'province_code' => $sharedVillage->province_code,
-                    'city_code' => $sharedVillage->city_code,
-                    'district_code' => $sharedVillage->district_code,
-                    'village_code' => $sharedVillage->village_code,
+                    'kode_wilayah' => $sharedVillage->village_code,
                     'bidang' => $bidang,
                     'jabatan' => "Kepala Bidang {$bidang}",
+                    'created_by' => 1,
                 ]
             );
         }
@@ -185,12 +180,10 @@ class UserSeeder extends Seeder
                     'password' => $defaultPassword,
                     'level' => 'Nasional',
                     'plotting_id' => $plot->id,
-                    'province_code' => null,
-                    'city_code' => null,
-                    'district_code' => null,
-                    'village_code' => null,
+                    'kode_wilayah' => null,
                     'bidang' => null,
                     'jabatan' => 'Koordinator dan Pengendali',
+                    'created_by' => 1,
                 ]
             );
         }
@@ -223,12 +216,10 @@ class UserSeeder extends Seeder
                     'password' => $defaultPassword,
                     'level' => 'Nasional',
                     'plotting_id' => $randomPlot->id,
-                    'province_code' => null,
-                    'city_code' => null,
-                    'district_code' => null,
-                    'village_code' => null,
+                    'kode_wilayah' => null,
                     'bidang' => null,
                     'jabatan' => 'Ketua Tim Audit',
+                    'created_by' => 1,
                 ]
             );
         }
@@ -256,12 +247,10 @@ class UserSeeder extends Seeder
                     'password' => $defaultPassword,
                     'level' => 'Nasional',
                     'plotting_id' => $randomPlot->id,
-                    'province_code' => null,
-                    'city_code' => null,
-                    'district_code' => null,
-                    'village_code' => null,
+                    'kode_wilayah' => null,
                     'bidang' => null,
                     'jabatan' => 'Pengawas Tim Audit',
+                    'created_by' => 1,
                 ]
             );
         }

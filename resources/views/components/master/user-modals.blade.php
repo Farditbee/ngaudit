@@ -154,17 +154,33 @@
                         </h3>
                     </div>
 
-                    {{-- Pilihan Level (Nasional, Provinsi, Kabupaten, Kecamatan, Desa) --}}
+                    {{-- Pilihan Level --}}
                     <div class="space-y-1.5">
-                        <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300">
-                            Level <span class="text-red-500">*</span>
-                        </label>
-                        <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                            <template x-for="lvl in levels" :key="lvl">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                                Level <span class="text-red-500">*</span>
+                            </label>
+                            <template x-if="isLevelReadonly()">
+                                <span class="text-[11px] italic text-neutral-400 dark:text-neutral-500">
+                                    Readonly (Otomatis <span x-text="form.level"></span>)
+                                </span>
+                            </template>
+                        </div>
+                        <div
+                            class="grid gap-2"
+                            :class="{
+                                'grid-cols-1': availableLevels.length === 1,
+                                'grid-cols-2 sm:grid-cols-2': availableLevels.length === 2,
+                                'grid-cols-2 sm:grid-cols-4': availableLevels.length === 4,
+                                'grid-cols-2 sm:grid-cols-5': availableLevels.length >= 5
+                            }"
+                        >
+                            <template x-for="lvl in availableLevels" :key="lvl">
                                 <button
                                     type="button"
-                                    x-on:click="form.level = lvl; onLevelChange()"
-                                    class="h-9 rounded-md border px-3 text-xs font-medium transition-colors"
+                                    x-bind:disabled="isLevelReadonly()"
+                                    x-on:click="if (!isLevelReadonly()) { form.level = lvl; onLevelChange(); }"
+                                    class="h-9 rounded-md border px-3 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-80"
                                     x-bind:class="form.level === lvl
                                         ? 'border-neutral-900 bg-neutral-900 text-white dark:border-white dark:bg-white dark:text-neutral-900'
                                         : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'"
@@ -188,6 +204,8 @@
                                     itemsExpr="plottingOptions"
                                     valueModel="form.plotting_id"
                                     changeAction=""
+                                    disabledExpr="isPlottingReadonly()"
+                                    disabledMessage="Plot wilayah otomatis mengikuti plot akun Admin Nasional Anda"
                                 />
                                 <template x-if="errors.plotting_id">
                                     <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.plotting_id[0]"></p>
@@ -195,15 +213,17 @@
                             </div>
                         </template>
 
-                        {{-- Provinsi (Muncul untuk Level Provinsi, Kabupaten, Kecamatan, Desa) --}}
+                        {{-- Provinsi (Muncul untuk Level Wilayah, Provinsi, Kabupaten, Kecamatan, Desa) --}}
                         <template x-if="showProvinceField()">
-                            <div class="space-y-1.5">
+                            <div class="space-y-1.5" :class="!showCityField() ? 'sm:col-span-2' : ''">
                                 <x-searchable-select
                                     label="Provinsi *"
                                     placeholder="Pilih Provinsi"
                                     itemsExpr="modalProvinces"
                                     valueModel="form.province_code"
                                     changeAction="onModalProvinceChange()"
+                                    disabledExpr="isProvinceReadonly()"
+                                    disabledMessage="Provinsi otomatis mengikuti wilayah akun Admin Wilayah Anda"
                                 />
                                 <template x-if="errors.province_code">
                                     <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.province_code[0]"></p>

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Master\PlottingController;
+use App\Http\Controllers\Master\TimController;
 use App\Http\Controllers\Master\UserController;
 use App\Http\Controllers\Master\WilayahController;
 use App\Http\Controllers\ProfileController;
@@ -22,6 +23,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/master/user/{user}/impersonate', [UserController::class, 'impersonate'])->name('master.user.impersonate');
     Route::put('/master/user/{user}', [UserController::class, 'update'])->name('master.user.update');
     Route::delete('/master/user/{user}', [UserController::class, 'destroy'])->name('master.user.destroy');
+
+    Route::get('/master/tim', [TimController::class, 'index'])->name('master.tim.index');
+    Route::post('/master/tim', [TimController::class, 'store'])->name('master.tim.store');
+    Route::put('/master/tim/{tim}', [TimController::class, 'update'])->name('master.tim.update');
+    Route::delete('/master/tim/{tim}', [TimController::class, 'destroy'])->name('master.tim.destroy');
 
     Route::get('/master/wilayah', [WilayahController::class, 'index'])->name('master.wilayah.index');
     Route::post('/master/wilayah', [WilayahController::class, 'store'])->name('master.wilayah.store');

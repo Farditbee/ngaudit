@@ -14,11 +14,22 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('username')->nullable()->unique();
             $table->string('email')->unique();
+            $table->string('phone', 30)->nullable();
+            $table->string('role')->default('Auditor');
+            $table->string('level')->nullable();
+            $table->unsignedBigInteger('plotting_id')->nullable()->index();
+            $table->string('kode_wilayah', 20)->nullable()->index();
+            $table->string('bidang')->nullable();
+            $table->string('jabatan')->nullable();
+            $table->string('ttd_path')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {

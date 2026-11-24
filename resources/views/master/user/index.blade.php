@@ -4,9 +4,6 @@
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div class="flex flex-col gap-1">
                 <h1 class="text-2xl font-semibold tracking-tight">Data User</h1>
-                <p class="text-sm text-neutral-500 dark:text-neutral-400">
-                    Kelola akun pengguna, peran (Super Admin, Auditor, Auditee, Ketua Tim, Koordinator, Pengawas), serta penugasan wilayah.
-                </p>
             </div>
 
             <button
@@ -128,15 +125,17 @@
                         </template>
                     </td>
                     <td class="whitespace-nowrap px-4 py-3 text-center">
-                        <div class="inline-grid grid-cols-2 gap-1.5">
-                            <button
-                                type="button"
-                                x-on:click="confirmImpersonate(row)"
-                                class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-indigo-200 bg-white text-indigo-600 hover:bg-indigo-50 dark:border-indigo-900/50 dark:bg-neutral-900 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
-                                title="Impersonate (Masuk sebagai User ini)"
-                            >
-                                <x-lucide-user-check class="h-3.5 w-3.5" />
-                            </button>
+                        <div :class="canImpersonate ? 'inline-grid grid-cols-2 gap-1.5' : 'inline-flex items-center justify-center gap-1.5'">
+                            <template x-if="canImpersonate">
+                                <button
+                                    type="button"
+                                    x-on:click="confirmImpersonate(row)"
+                                    class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-indigo-200 bg-white text-indigo-600 hover:bg-indigo-50 dark:border-indigo-900/50 dark:bg-neutral-900 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+                                    title="Impersonate (Masuk sebagai User ini)"
+                                >
+                                    <x-lucide-user-check class="h-3.5 w-3.5" />
+                                </button>
+                            </template>
                             <button
                                 type="button"
                                 x-on:click="confirmResetPassword(row)"

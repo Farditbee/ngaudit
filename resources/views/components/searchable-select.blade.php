@@ -14,6 +14,7 @@
         open: false,
         query: '',
         parentHint: false,
+        highlightedIndex: -1,
         get isDisabled() {
             return Boolean({{ $disabledExpr }});
         },
@@ -23,7 +24,10 @@
         get filteredItems() {
             const q = this.query.trim().toLowerCase();
             if (!q) return this.items;
-            return this.items.filter(item => item.name.toLowerCase().includes(q));
+            return this.items.filter(item =>
+                item.name.toLowerCase().includes(q) ||
+                (item.group && item.group.toLowerCase().includes(q))
+            );
         },
         get selectedLabel() {
             const val = {{ $valueModel }};
@@ -41,8 +45,54 @@
             this.open = !this.open;
             if (this.open) {
                 this.query = '';
-                this.$nextTick(() => this.$refs.searchInput?.focus());
+                this.highlightedIndex = this.filteredItems.length > 0 ? 0 : -1;
+                this.$nextTick(() => {
+                    this.$refs.searchInput?.focus();
+                    this.scrollToHighlighted();
+                });
             }
+        },
+        moveDown() {
+            const max = this.filteredItems.length - 1;
+            if (max < 0) {
+                this.highlightedIndex = -1;
+                return;
+            }
+            this.highlightedIndex = this.highlightedIndex < max ? this.highlightedIndex + 1 : -1;
+            this.scrollToHighlighted();
+        },
+        moveUp() {
+            const max = this.filteredItems.length - 1;
+            if (max < 0) {
+                this.highlightedIndex = -1;
+                return;
+            }
+            this.highlightedIndex = this.highlightedIndex > -1 ? this.highlightedIndex - 1 : max;
+            this.scrollToHighlighted();
+        },
+        selectHighlighted() {
+            if (this.highlightedIndex === -1) {
+                if (this.filteredItems.length === 1) {
+                    this.choose(this.filteredItems[0].code);
+                } else {
+                    this.choose('');
+                }
+                return;
+            }
+            const item = this.filteredItems[this.highlightedIndex];
+            if (item) {
+                this.choose(item.code);
+            }
+        },
+        scrollToHighlighted() {
+            this.$nextTick(() => {
+                const list = this.$refs.optionsList;
+                if (!list) return;
+                const el = list.querySelector(`[data-option-index='${this.highlightedIndex}']`);
+                if (el) {
+                    el.scrollIntoView({ block: 'nearest' });
+                }
+            });
         },
         choose(code) {
             {{ $valueModel }} = code;
@@ -61,6 +111,8 @@
     <button
         type="button"
         x-on:click="toggle()"
+        x-on:keydown.arrow-down.prevent="if (!open) toggle(); else moveDown()"
+        x-on:keydown.arrow-up.prevent="if (!open) toggle(); else moveUp()"
         class="flex h-9 w-full items-center justify-between gap-2 rounded-md border border-neutral-200 bg-white px-3 py-1 text-left text-sm text-neutral-900 shadow-xs transition-colors hover:bg-neutral-50 focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:hover:bg-neutral-900 dark:focus:border-neutral-100 dark:focus:ring-white/20"
     >
         <span class="truncate" x-bind:class="!{{ $valueModel }} ? 'text-neutral-500 dark:text-neutral-400' : ''" x-text="selectedLabel"></span>
@@ -79,34 +131,61 @@
                 x-ref="searchInput"
                 type="search"
                 x-model="query"
+                x-on:input="highlightedIndex = filteredItems.length > 0 ? 0 : -1; scrollToHighlighted()"
+                x-on:keydown.arrow-down.prevent="moveDown()"
+                x-on:keydown.arrow-up.prevent="moveUp()"
+                x-on:keydown.enter.prevent="selectHighlighted()"
                 placeholder="Cari {{ strtolower($label) }}..."
                 class="block h-8 w-full rounded-md border border-neutral-200 bg-neutral-50/60 pl-8 pr-2.5 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-neutral-900/20 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-neutral-100 dark:focus:bg-neutral-950"
             />
         </div>
 
-        <ul class="max-h-56 overflow-y-auto p-1 text-sm">
+        <ul x-ref="optionsList" class="max-h-56 space-y-0.5 overflow-y-auto p-1 text-sm">
             <li>
                 <button
                     type="button"
+                    data-option-index="-1"
                     x-on:click="choose('')"
-                    class="flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                    x-bind:class="{{ $valueModel }} === '' ? 'bg-neutral-100 font-medium dark:bg-neutral-800' : 'text-neutral-600 dark:text-neutral-400'"
+                    x-on:mouseenter="highlightedIndex = -1"
+                    class="flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors"
+                    x-bind:class="[
+                        {{ $valueModel }} === ''
+                            ? 'bg-emerald-50 font-medium text-emerald-800 hover:bg-emerald-100/80 dark:bg-emerald-950/50 dark:text-emerald-300 dark:hover:bg-emerald-900/50'
+                            : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800',
+                        highlightedIndex === -1 && {{ $valueModel }} !== '' ? 'bg-neutral-100 dark:bg-neutral-800' : '',
+                        highlightedIndex === -1 && {{ $valueModel }} === '' ? 'ring-1 ring-emerald-300 dark:ring-emerald-700' : ''
+                    ]"
                 >
                     <span class="truncate">{{ $placeholder }}</span>
-                    <x-lucide-check x-show="{{ $valueModel }} === ''" class="h-3.5 w-3.5 shrink-0" />
+                    <x-lucide-check x-show="{{ $valueModel }} === ''" class="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                 </button>
             </li>
 
-            <template x-for="item in filteredItems" :key="item.code">
+            <template x-for="(item, idx) in filteredItems" :key="item.code">
                 <li>
+                    <template x-if="item.group && (idx === 0 || filteredItems[idx - 1]?.group !== item.group)">
+                        <div
+                            class="px-2.5 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-400 select-none dark:text-neutral-500"
+                            :class="idx > 0 ? 'mt-1 border-t border-neutral-100 dark:border-neutral-800/80' : ''"
+                            x-text="item.group"
+                        ></div>
+                    </template>
                     <button
                         type="button"
+                        x-bind:data-option-index="idx"
                         x-on:click="choose(item.code)"
-                        class="flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                        x-bind:class="String({{ $valueModel }}) === String(item.code) ? 'bg-neutral-100 font-medium dark:bg-neutral-800' : ''"
+                        x-on:mouseenter="highlightedIndex = idx"
+                        class="flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors"
+                        x-bind:class="[
+                            String({{ $valueModel }}) === String(item.code)
+                                ? 'bg-emerald-50 font-medium text-emerald-800 hover:bg-emerald-100/80 dark:bg-emerald-950/50 dark:text-emerald-300 dark:hover:bg-emerald-900/50'
+                                : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800',
+                            highlightedIndex === idx && String({{ $valueModel }}) !== String(item.code) ? 'bg-neutral-100 dark:bg-neutral-800' : '',
+                            highlightedIndex === idx && String({{ $valueModel }}) === String(item.code) ? 'ring-1 ring-emerald-300 dark:ring-emerald-700' : ''
+                        ]"
                     >
                         <span class="truncate" x-text="item.name"></span>
-                        <x-lucide-check x-show="String({{ $valueModel }}) === String(item.code)" x-cloak class="h-3.5 w-3.5 shrink-0" />
+                        <x-lucide-check x-show="String({{ $valueModel }}) === String(item.code)" x-cloak class="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                     </button>
                 </li>
             </template>

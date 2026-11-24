@@ -19,10 +19,11 @@ class PlottingController extends Controller
             return $dataTable->toJson($request);
         }
 
-        $prefix = config('laravolt.indonesia.table_prefix', 'indonesia_');
-        $provinces = DB::table($prefix.'provinces')
-            ->orderBy('code')
-            ->get(['id', 'code', 'name']);
+        $provinces = DB::table('wilayah')
+            ->whereRaw('CHAR_LENGTH(kode_wilayah) = 2')
+            ->whereNull('deleted_at')
+            ->orderBy('kode_wilayah')
+            ->get(['id', 'kode_wilayah as code', 'provinsi as name']);
 
         $tableConfig = $dataTable->config($provinces);
 
@@ -40,7 +41,7 @@ class PlottingController extends Controller
 
             $plotting->provinces()->sync($validated['provinsi_ids']);
 
-            return $plotting->load('provinces:id,code,name');
+            return $plotting->load('provinces:id,kode_wilayah,provinsi');
         });
 
         return response()->json([
@@ -63,7 +64,7 @@ class PlottingController extends Controller
 
         return response()->json([
             'message' => 'Data plotting berhasil diperbarui.',
-            'data' => $plotting->load('provinces:id,code,name'),
+            'data' => $plotting->load('provinces:id,kode_wilayah,provinsi'),
         ]);
     }
 

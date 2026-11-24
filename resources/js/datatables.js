@@ -65,8 +65,10 @@ function getBaseDataTableMethods() {
                 params.set(`columns[${i}][search][value]`, '');
                 params.set(`columns[${i}][search][regex]`, 'false');
             });
-            params.set('order[0][column]', this.sortCol);
-            params.set('order[0][dir]', this.sortDir);
+            if (this.sortCol !== null && this.sortCol !== undefined) {
+                params.set('order[0][column]', this.sortCol);
+                params.set('order[0][dir]', this.sortDir);
+            }
             return params.toString();
         },
         async fetchData() {
@@ -590,7 +592,13 @@ export function registerDataTables(Alpine) {
     Alpine.data('userDataTable', (config) => ({
         ...getBaseDataTableState(config),
         ...getBaseDataTableMethods(),
+        sortCol: null,
+        sortDir: 'desc',
         filterRole: '',
+        authRole: config.authRole || '',
+        authPlottingId: config.authPlottingId ? String(config.authPlottingId) : '',
+        authProvinceCode: config.authProvinceCode ? String(config.authProvinceCode) : '',
+        canImpersonate: Boolean(config.canImpersonate),
         roles: config.roles || [],
         levels: config.levels || [],
         bidangs: config.bidangs || [],
@@ -618,10 +626,10 @@ export function registerDataTables(Alpine) {
             username: '',
             email: '',
             phone: '',
-            role: 'Auditor',
+            role: '',
             password: '',
             password_confirmation: '',
-            level: 'Provinsi',
+            level: '',
             plotting_id: '',
             province_code: '',
             city_code: '',
@@ -633,13 +641,48 @@ export function registerDataTables(Alpine) {
         errors: {},
 
         get roleOptions() {
-            return this.roles.map((r) => ({ code: r, name: r }));
+            const adminRoles = ['Super Admin', 'Admin Nasional', 'Admin Wilayah'];
+            return this.roles.map((r) => ({
+                code: r,
+                name: r,
+                group: adminRoles.includes(r) ? 'Administratif' : 'Audit',
+            }));
+        },
+        isAuditTeamRole(role = this.form.role) {
+            return [
+                'Auditor',
+                'Ketua Tim',
+                'Koordinator dan Pengendali',
+                'Pengawas Tim',
+            ].includes(role);
+        },
+        get availableLevels() {
+            if (this.authRole === 'Admin Nasional' || this.form.role === 'Admin Nasional') {
+                return ['Nasional'];
+            }
+            if (this.authRole === 'Admin Wilayah') {
+                if (this.isAuditTeamRole()) {
+                    return ['Wilayah'];
+                }
+                return this.levels.filter((l) => l !== 'Nasional' && l !== 'Wilayah');
+            }
+            if (this.form.role === 'Admin Wilayah') {
+                return this.levels.filter((l) => l !== 'Nasional' && l !== 'Wilayah');
+            }
+            if (this.isAuditTeamRole()) {
+                return ['Nasional', 'Wilayah'];
+            }
+            return this.levels.filter((l) => l !== 'Wilayah');
         },
         get levelOptions() {
-            return this.levels.map((l) => ({ code: l, name: l }));
+            return this.availableLevels.map((l) => ({ code: l, name: l }));
         },
         get bidangOptions() {
-            return this.bidangs.map((b) => ({ code: b, name: b }));
+            const items = this.bidangs.map((b) => ({ code: b, name: b }));
+            if (!this.editingId) {
+                return [{ code: 'SEMUA_BIDANG', name: 'Semua Bidang' }, ...items];
+            }
+            return items;
         },
         get plottingOptions() {
             return this.plottings.map((p) => ({ code: String(p.id), name: p.name }));
@@ -649,12 +692,23 @@ export function registerDataTables(Alpine) {
         },
         needsRegionalScope() {
             return [
+                'Admin Nasional',
+                'Admin Wilayah',
                 'Auditor',
                 'Auditee',
                 'Ketua Tim',
                 'Koordinator dan Pengendali',
                 'Pengawas Tim',
             ].includes(this.form.role);
+        },
+        isLevelReadonly() {
+            return this.availableLevels.length === 1;
+        },
+        isPlottingReadonly() {
+            return this.authRole === 'Admin Nasional' && Boolean(this.authPlottingId);
+        },
+        isProvinceReadonly() {
+            return this.authRole === 'Admin Wilayah' && Boolean(this.authProvinceCode);
         },
         isAuditee() {
             return this.form.role === 'Auditee';
@@ -665,7 +719,7 @@ export function registerDataTables(Alpine) {
         showProvinceField() {
             return (
                 this.needsRegionalScope() &&
-                ['Provinsi', 'Kabupaten', 'Kecamatan', 'Desa'].includes(this.form.level)
+                ['Wilayah', 'Provinsi', 'Kabupaten', 'Kecamatan', 'Desa'].includes(this.form.level)
             );
         },
         showCityField() {
@@ -716,10 +770,10 @@ export function registerDataTables(Alpine) {
                 username: '',
                 email: '',
                 phone: '',
-                role: 'Auditor',
+                role: '',
                 password: '',
                 password_confirmation: '',
-                level: 'Provinsi',
+                level: '',
                 plotting_id: '',
                 province_code: '',
                 city_code: '',
@@ -736,15 +790,34 @@ export function registerDataTables(Alpine) {
             this.ttdFile = null;
             this.ttdPreviewUrl = null;
             this.existingTtdUrl = row.ttd_url || null;
+            const role = row.role || 'Auditor';
+            let level = row.level || '';
+            if (this.authRole === 'Admin Nasional' || role === 'Admin Nasional') {
+                level = 'Nasional';
+            } else if (this.authRole === 'Admin Wilayah' && this.isAuditTeamRole(role)) {
+                level = 'Wilayah';
+            } else if (
+                (this.authRole === 'Admin Wilayah' || role === 'Admin Wilayah') &&
+                !['Provinsi', 'Kabupaten', 'Kecamatan', 'Desa'].includes(level)
+            ) {
+                level = 'Provinsi';
+            } else if (this.isAuditTeamRole(role)) {
+                if (!['Nasional', 'Wilayah'].includes(level)) {
+                    level = row.province_code ? 'Wilayah' : 'Nasional';
+                }
+            } else if (!level) {
+                level = 'Provinsi';
+            }
+
             this.form = {
                 name: row.name || '',
                 username: row.username || '',
                 email: row.email || '',
                 phone: row.phone || '',
-                role: row.role || 'Auditor',
+                role,
                 password: '',
                 password_confirmation: '',
-                level: row.level || 'Provinsi',
+                level,
                 plotting_id: row.plotting_id ? String(row.plotting_id) : '',
                 province_code: row.province_code || '',
                 city_code: row.city_code || '',
@@ -754,15 +827,18 @@ export function registerDataTables(Alpine) {
                 jabatan: row.jabatan || '',
             };
 
-            this.modalCities = this.form.province_code
-                ? await this.fetchOptions('cities', this.form.province_code)
-                : [];
-            this.modalDistricts = this.form.city_code
-                ? await this.fetchOptions('districts', this.form.city_code)
-                : [];
-            this.modalVillages = this.form.district_code
-                ? await this.fetchOptions('villages', this.form.district_code)
-                : [];
+            this.modalCities =
+                this.form.province_code && this.showCityField()
+                    ? await this.fetchOptions('cities', this.form.province_code)
+                    : [];
+            this.modalDistricts =
+                this.form.city_code && this.showDistrictField()
+                    ? await this.fetchOptions('districts', this.form.city_code)
+                    : [];
+            this.modalVillages =
+                this.form.district_code && this.showVillageField()
+                    ? await this.fetchOptions('villages', this.form.district_code)
+                    : [];
 
             this.modalOpen = true;
         },
@@ -772,27 +848,62 @@ export function registerDataTables(Alpine) {
         },
         onRoleChange() {
             this.errors = {};
-            if (this.needsRegionalScope() && !this.form.level) {
-                this.form.level = 'Provinsi';
+            if (this.needsRegionalScope()) {
+                if (!this.availableLevels.includes(this.form.level)) {
+                    this.form.level = this.availableLevels[0];
+                }
+                this.onLevelChange();
+            } else {
+                this.form.level = '';
+                this.form.plotting_id = '';
+                this.form.province_code = '';
+                this.form.city_code = '';
+                this.form.district_code = '';
+                this.form.village_code = '';
             }
         },
-        onLevelChange() {
+        async onLevelChange() {
             if (this.form.level === 'Nasional') {
                 this.form.province_code = '';
                 this.form.city_code = '';
                 this.form.district_code = '';
                 this.form.village_code = '';
+                this.modalCities = [];
+                this.modalDistricts = [];
+                this.modalVillages = [];
+                if (this.authPlottingId) {
+                    this.form.plotting_id = this.authPlottingId;
+                }
             } else {
                 this.form.plotting_id = '';
-                if (this.form.level === 'Provinsi') {
+                if (this.authProvinceCode) {
+                    this.form.province_code = this.authProvinceCode;
+                }
+                if (this.form.level === 'Wilayah' || this.form.level === 'Provinsi') {
                     this.form.city_code = '';
                     this.form.district_code = '';
                     this.form.village_code = '';
+                    this.modalCities = [];
+                    this.modalDistricts = [];
+                    this.modalVillages = [];
                 } else if (this.form.level === 'Kabupaten') {
                     this.form.district_code = '';
                     this.form.village_code = '';
+                    this.modalDistricts = [];
+                    this.modalVillages = [];
+                    if (this.form.province_code && this.modalCities.length === 0) {
+                        this.modalCities = await this.fetchOptions('cities', this.form.province_code);
+                    }
                 } else if (this.form.level === 'Kecamatan') {
                     this.form.village_code = '';
+                    this.modalVillages = [];
+                    if (this.form.province_code && this.modalCities.length === 0) {
+                        this.modalCities = await this.fetchOptions('cities', this.form.province_code);
+                    }
+                } else if (this.form.level === 'Desa') {
+                    if (this.form.province_code && this.modalCities.length === 0) {
+                        this.modalCities = await this.fetchOptions('cities', this.form.province_code);
+                    }
                 }
             }
         },
@@ -812,7 +923,7 @@ export function registerDataTables(Alpine) {
             this.modalCities = [];
             this.modalDistricts = [];
             this.modalVillages = [];
-            if (this.form.province_code) {
+            if (this.form.province_code && this.showCityField()) {
                 this.modalCities = await this.fetchOptions('cities', this.form.province_code);
             }
         },
@@ -832,7 +943,7 @@ export function registerDataTables(Alpine) {
                 this.modalVillages = await this.fetchOptions('villages', this.form.district_code);
             }
         },
-        onModalVillageChange() {},
+        onModalVillageChange() { },
         onTtdChange(event) {
             const file = event.target.files?.[0] || null;
             this.ttdFile = file;
@@ -979,6 +1090,258 @@ export function registerDataTables(Alpine) {
                 this.deleteModalOpen = false;
                 this.deletingItem = null;
                 this.showFlash(json.message || 'Data user berhasil dihapus.');
+                if (this.rows.length === 1 && this.page > 1) {
+                    this.page--;
+                }
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.deleting = false;
+            }
+        },
+    }));
+
+    Alpine.data('timDataTable', (config) => ({
+        ...getBaseDataTableState(config),
+        ...getBaseDataTableMethods(),
+        filterLingkup: '',
+        lingkups: config.lingkups || ['Nasional', 'Wilayah'],
+        plottings: config.plottings || [],
+        allProvinces: config.provinces || [],
+        daltuOptions: config.daltuOptions || [],
+        dalnisOptions: config.dalnisOptions || [],
+        ketuaTimOptions: config.ketuaTimOptions || [],
+        auditorCandidates: config.auditorCandidates || [],
+        modalOpen: false,
+        deleteModalOpen: false,
+        editingId: null,
+        deletingItem: null,
+        deleteError: '',
+        auditorQuery: '',
+        form: {
+            nama_tim: '',
+            lingkup: 'Nasional',
+            plotting_id: '',
+            province_code: '',
+            daltu_id: '',
+            dalnis_id: '',
+            ketua_tim_id: '',
+            ketua_tim_2_id: '',
+            auditor_ids: [],
+        },
+        errors: {},
+
+        get lingkupOptions() {
+            return this.lingkups.map((l) => ({ code: l, name: l }));
+        },
+        get plottingOptions() {
+            return this.plottings.map((p) => ({ code: String(p.id), name: p.name }));
+        },
+        get availableKetuaTim1Options() {
+            const kt2 = String(this.form.ketua_tim_2_id || '');
+            return this.ketuaTimOptions.filter((u) => String(u.code) !== kt2);
+        },
+        get availableKetuaTim2Options() {
+            const kt1 = String(this.form.ketua_tim_id || '');
+            return this.ketuaTimOptions.filter((u) => String(u.code) !== kt1);
+        },
+        get availableAuditorCandidates() {
+            const excludedIds = [
+                Number(this.form.ketua_tim_id || 0),
+                Number(this.form.ketua_tim_2_id || 0),
+            ].filter((id) => id > 0);
+
+            return this.auditorCandidates.filter((u) => !excludedIds.includes(Number(u.id)));
+        },
+        get filteredModalAuditors() {
+            const q = this.auditorQuery.trim().toLowerCase();
+            const list = this.availableAuditorCandidates;
+            if (!q) return list;
+            return list.filter((u) => u.name.toLowerCase().includes(q));
+        },
+        extraFilterParams() {
+            return {
+                lingkup: this.filterLingkup,
+            };
+        },
+        onFilterChange() {
+            this.page = 1;
+            this.fetchData();
+        },
+        resetFilters() {
+            this.filterLingkup = '';
+            this.search = '';
+            this.page = 1;
+            this.fetchData();
+        },
+        openCreateModal() {
+            this.editingId = null;
+            this.errors = {};
+            this.auditorQuery = '';
+            this.form = {
+                nama_tim: '',
+                lingkup: 'Nasional',
+                plotting_id: '',
+                province_code: '',
+                daltu_id: '',
+                dalnis_id: '',
+                ketua_tim_id: '',
+                ketua_tim_2_id: '',
+                auditor_ids: [],
+            };
+            this.modalOpen = true;
+        },
+        openEditModal(row) {
+            this.editingId = row.id;
+            this.errors = {};
+            this.auditorQuery = '';
+            this.form = {
+                nama_tim: row.nama_tim || '',
+                lingkup: row.lingkup || 'Nasional',
+                plotting_id: row.plotting_id ? String(row.plotting_id) : '',
+                province_code: row.province_code || '',
+                daltu_id: row.daltu_id ? String(row.daltu_id) : '',
+                dalnis_id: row.dalnis_id ? String(row.dalnis_id) : '',
+                ketua_tim_id: row.ketua_tim_id ? String(row.ketua_tim_id) : '',
+                ketua_tim_2_id: row.ketua_tim_2_id ? String(row.ketua_tim_2_id) : '',
+                auditor_ids: Array.isArray(row.auditor_ids) ? [...row.auditor_ids].map(Number) : [],
+            };
+            this.onKetuaTimChange();
+            this.modalOpen = true;
+        },
+        closeModal() {
+            if (this.saving) return;
+            this.modalOpen = false;
+        },
+        onLingkupChange() {
+            if (this.form.lingkup === 'Nasional') {
+                this.form.province_code = '';
+            } else {
+                this.form.plotting_id = '';
+            }
+        },
+        onKetuaTimChange() {
+            if (
+                this.form.ketua_tim_id &&
+                this.form.ketua_tim_2_id &&
+                String(this.form.ketua_tim_id) === String(this.form.ketua_tim_2_id)
+            ) {
+                this.form.ketua_tim_2_id = '';
+            }
+
+            const excludedIds = [
+                Number(this.form.ketua_tim_id || 0),
+                Number(this.form.ketua_tim_2_id || 0),
+            ].filter((id) => id > 0);
+
+            if (excludedIds.length > 0) {
+                this.form.auditor_ids = this.form.auditor_ids.filter(
+                    (id) => !excludedIds.includes(Number(id))
+                );
+            }
+        },
+        isAuditorSelected(id) {
+            return this.form.auditor_ids.includes(Number(id));
+        },
+        toggleAuditor(id) {
+            const numId = Number(id);
+            if (this.isAuditorSelected(numId)) {
+                this.form.auditor_ids = this.form.auditor_ids.filter((item) => item !== numId);
+            } else {
+                this.form.auditor_ids.push(numId);
+            }
+        },
+        selectAllFilteredAuditors() {
+            const ids = this.filteredModalAuditors.map((u) => Number(u.id));
+            const merged = new Set([...this.form.auditor_ids, ...ids]);
+            this.form.auditor_ids = Array.from(merged);
+        },
+        clearSelectedAuditors() {
+            this.form.auditor_ids = [];
+        },
+        getAuditorById(id) {
+            return this.auditorCandidates.find((u) => Number(u.id) === Number(id));
+        },
+        async saveTim() {
+            this.saving = true;
+            this.errors = {};
+            const isEdit = Boolean(this.editingId);
+            const url = isEdit ? `${this.baseUrl}/${this.editingId}` : this.storeUrl;
+            const method = isEdit ? 'PUT' : 'POST';
+
+            const payload = {
+                ...this.form,
+                plotting_id: this.form.plotting_id ? Number(this.form.plotting_id) : null,
+                province_code: this.form.province_code || null,
+                daltu_id: this.form.daltu_id ? Number(this.form.daltu_id) : null,
+                dalnis_id: this.form.dalnis_id ? Number(this.form.dalnis_id) : null,
+                ketua_tim_id: this.form.ketua_tim_id ? Number(this.form.ketua_tim_id) : null,
+                ketua_tim_2_id: this.form.ketua_tim_2_id ? Number(this.form.ketua_tim_2_id) : null,
+                auditor_ids: this.form.auditor_ids.map(Number),
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                const json = await response.json();
+
+                if (response.status === 422) {
+                    this.errors = json.errors || {};
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Terjadi kesalahan saat menyimpan data tim.');
+                }
+
+                this.modalOpen = false;
+                this.showFlash(json.message || 'Data tim berhasil disimpan.');
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.saving = false;
+            }
+        },
+        confirmDelete(row) {
+            this.deletingItem = row;
+            this.deleteError = '';
+            this.deleteModalOpen = true;
+        },
+        async deleteTim() {
+            if (!this.deletingItem) return;
+            this.deleting = true;
+            this.deleteError = '';
+            try {
+                const response = await fetch(`${this.baseUrl}/${this.deletingItem.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                const json = await response.json();
+
+                if (!response.ok) {
+                    this.deleteError = json.message || 'Gagal menghapus tim.';
+                    return;
+                }
+
+                this.deleteModalOpen = false;
+                this.deletingItem = null;
+                this.showFlash(json.message || 'Data tim berhasil dihapus.');
                 if (this.rows.length === 1 && this.page > 1) {
                     this.page--;
                 }

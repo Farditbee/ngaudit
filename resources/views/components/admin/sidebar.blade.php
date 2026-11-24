@@ -11,6 +11,7 @@
             'label' => 'Data Master',
             'items' => [
                 ['label' => 'User', 'icon' => 'user', 'href' => route('master.user.index'), 'active' => request()->routeIs('master.user.*')],
+                ['label' => 'Tim', 'icon' => 'user-group', 'href' => route('master.tim.index'), 'active' => request()->routeIs('master.tim.*')],
                 ['label' => 'Wilayah', 'icon' => 'map', 'href' => route('master.wilayah.index'), 'active' => request()->routeIs('master.wilayah.*')],
                 ['label' => 'Plotting', 'icon' => 'land-plot', 'href' => route('master.plotting.index'), 'active' => request()->routeIs('master.plotting.*')],
                 ['label' => 'Users', 'icon' => 'users', 'children' => ['List', 'View'], 'open' => true],
@@ -102,8 +103,6 @@
     $sidebarRegions = [];
 
     if ($authUser) {
-        $prefix = config('laravolt.indonesia.table_prefix', 'indonesia_');
-
         if ($authUser->level === 'Nasional' && $authUser->plotting_id) {
             $plotName = \Illuminate\Support\Facades\DB::table('plottings')->where('id', $authUser->plotting_id)->value('plot');
             if ($plotName) {
@@ -112,39 +111,32 @@
                     'class' => 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
                 ];
             }
-        } else {
-            if ($authUser->village_code) {
-                $villageName = \Illuminate\Support\Facades\DB::table($prefix.'villages')->where('code', $authUser->village_code)->value('name');
-                if ($villageName) {
+        } elseif ($authUser->kode_wilayah) {
+            $wilayahRow = \Illuminate\Support\Facades\DB::table('wilayah')
+                ->where('kode_wilayah', str_replace('.', '', (string) $authUser->kode_wilayah))
+                ->first();
+            if ($wilayahRow) {
+                if (! empty($wilayahRow->desa_kelurahan)) {
                     $sidebarRegions[] = [
-                        'label' => $villageName,
+                        'label' => $wilayahRow->desa_kelurahan,
                         'class' => 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
                     ];
                 }
-            }
-            if ($authUser->district_code) {
-                $districtName = \Illuminate\Support\Facades\DB::table($prefix.'districts')->where('code', $authUser->district_code)->value('name');
-                if ($districtName) {
+                if (! empty($wilayahRow->kecamatan)) {
                     $sidebarRegions[] = [
-                        'label' => $districtName,
+                        'label' => $wilayahRow->kecamatan,
                         'class' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
                     ];
                 }
-            }
-            if ($authUser->city_code) {
-                $cityName = \Illuminate\Support\Facades\DB::table($prefix.'cities')->where('code', $authUser->city_code)->value('name');
-                if ($cityName) {
+                if (! empty($wilayahRow->kabupaten_kota)) {
                     $sidebarRegions[] = [
-                        'label' => $cityName,
+                        'label' => $wilayahRow->kabupaten_kota,
                         'class' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
                     ];
                 }
-            }
-            if ($authUser->province_code) {
-                $provinceName = \Illuminate\Support\Facades\DB::table($prefix.'provinces')->where('code', $authUser->province_code)->value('name');
-                if ($provinceName) {
+                if (! empty($wilayahRow->provinsi)) {
                     $sidebarRegions[] = [
-                        'label' => $provinceName,
+                        'label' => $wilayahRow->provinsi,
                         'class' => 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
                     ];
                 }

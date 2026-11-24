@@ -52,16 +52,8 @@ class WilayahRequest extends FormRequest
      */
     public function rules(): array
     {
-        $prefix = config('laravolt.indonesia.table_prefix', 'indonesia_');
         $level = (string) $this->input('level', 'province');
         $originalCode = (string) $this->route('code', '');
-
-        $tableMap = [
-            'province' => $prefix.'provinces',
-            'city' => $prefix.'cities',
-            'district' => $prefix.'districts',
-            'village' => $prefix.'villages',
-        ];
 
         $expectedLengths = [
             'province' => 2,
@@ -70,7 +62,6 @@ class WilayahRequest extends FormRequest
             'village' => 10,
         ];
 
-        $table = $tableMap[$level] ?? ($prefix.'provinces');
         $expectedLength = $expectedLengths[$level] ?? 2;
 
         return [
@@ -79,13 +70,13 @@ class WilayahRequest extends FormRequest
                 Rule::requiredIf(in_array($level, ['city', 'district', 'village'], true)),
                 'nullable',
                 'string',
-                Rule::exists($prefix.'provinces', 'code'),
+                Rule::exists('wilayah', 'kode_wilayah'),
             ],
             'city_code' => [
                 Rule::requiredIf(in_array($level, ['district', 'village'], true)),
                 'nullable',
                 'string',
-                Rule::exists($prefix.'cities', 'code'),
+                Rule::exists('wilayah', 'kode_wilayah'),
                 function (string $attribute, mixed $value, Closure $fail) use ($level): void {
                     if (! in_array($level, ['district', 'village'], true)) {
                         return;
@@ -100,7 +91,7 @@ class WilayahRequest extends FormRequest
                 Rule::requiredIf($level === 'village'),
                 'nullable',
                 'string',
-                Rule::exists($prefix.'districts', 'code'),
+                Rule::exists('wilayah', 'kode_wilayah'),
                 function (string $attribute, mixed $value, Closure $fail) use ($level): void {
                     if ($level !== 'village') {
                         return;
@@ -140,7 +131,7 @@ class WilayahRequest extends FormRequest
                 'string',
                 'regex:/^[0-9]+$/',
                 "size:{$expectedLength}",
-                function (string $attribute, mixed $value, Closure $fail) use ($level, $table, $originalCode): void {
+                function (string $attribute, mixed $value, Closure $fail) use ($level, $originalCode): void {
                     $code = (string) $value;
 
                     $parentCode = match ($level) {
@@ -163,9 +154,9 @@ class WilayahRequest extends FormRequest
                         return;
                     }
 
-                    $existsQuery = DB::table($table)->where('code', $code);
+                    $existsQuery = DB::table('wilayah')->where('kode_wilayah', $code);
                     if ($originalCode !== '') {
-                        $existsQuery->where('code', '!=', $originalCode);
+                        $existsQuery->where('kode_wilayah', '!=', $originalCode);
                     }
 
                     if ($existsQuery->exists()) {
