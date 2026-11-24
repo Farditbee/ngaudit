@@ -24,7 +24,7 @@
         <div class="flex min-h-screen flex-col transition-[padding] duration-200" x-bind:class="collapsed ? 'lg:pl-12' : 'lg:pl-64'">
             <x-admin.header :breadcrumbs="$breadcrumbs" />
 
-            <main class="mx-auto w-full max-w-[90rem] flex-1 px-4 py-6 sm:px-6">
+            <main class="w-full flex-1 px-4 py-6 sm:px-6 lg:px-8">
                 {{ $slot }}
             </main>
 

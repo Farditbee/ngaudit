@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Master\PlottingController;
+use App\Http\Controllers\Master\UserController;
 use App\Http\Controllers\Master\WilayahController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +15,14 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/master/user', [UserController::class, 'index'])->name('master.user.index');
+    Route::post('/master/user', [UserController::class, 'store'])->name('master.user.store');
+    Route::post('/master/user/leave-impersonate', [UserController::class, 'leaveImpersonate'])->name('master.user.leave-impersonate');
+    Route::post('/master/user/{user}/reset-password', [UserController::class, 'resetPassword'])->name('master.user.reset-password');
+    Route::post('/master/user/{user}/impersonate', [UserController::class, 'impersonate'])->name('master.user.impersonate');
+    Route::put('/master/user/{user}', [UserController::class, 'update'])->name('master.user.update');
+    Route::delete('/master/user/{user}', [UserController::class, 'destroy'])->name('master.user.destroy');
+
     Route::get('/master/wilayah', [WilayahController::class, 'index'])->name('master.wilayah.index');
     Route::post('/master/wilayah', [WilayahController::class, 'store'])->name('master.wilayah.store');
     Route::put('/master/wilayah/{level}/{code}', [WilayahController::class, 'update'])->name('master.wilayah.update');

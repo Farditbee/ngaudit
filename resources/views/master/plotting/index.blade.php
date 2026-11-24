@@ -68,22 +68,22 @@
                     class="border-b border-neutral-200 transition-colors hover:bg-neutral-100/60 last:border-b-0 dark:border-neutral-800 dark:hover:bg-neutral-800/40"
                     :class="rIndex % 2 === 0 ? 'bg-neutral-50/50 dark:bg-neutral-900/20' : 'bg-white dark:bg-neutral-950'"
                 >
-                    <td class="border-r border-neutral-200 px-4 py-3 text-center text-neutral-600 dark:border-neutral-800 dark:text-neutral-400" x-text="row.DT_RowIndex"></td>
-                    <td class="border-r border-neutral-200 px-4 py-3 font-semibold text-neutral-900 dark:border-neutral-800 dark:text-neutral-100" x-text="row.plot"></td>
-                    <td class="border-r border-neutral-200 px-4 py-3 dark:border-neutral-800">
+                    <td class="whitespace-nowrap border-r border-neutral-200 px-4 py-3 text-center text-neutral-600 dark:border-neutral-800 dark:text-neutral-400" x-text="row.DT_RowIndex"></td>
+                    <td class="whitespace-nowrap border-r border-neutral-200 px-4 py-3 font-semibold text-neutral-900 dark:border-neutral-800 dark:text-neutral-100" x-text="row.plot"></td>
+                    <td class="min-w-[20rem] border-r border-neutral-200 px-4 py-3 dark:border-neutral-800">
                         <div class="flex flex-wrap gap-1.5">
                             <template x-for="prov in (row.provinces_list || [])" :key="prov.id">
                                 <span class="inline-flex items-center rounded-md border border-neutral-200 bg-white px-2 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" x-text="prov.name"></span>
                             </template>
                         </div>
                     </td>
-                    <td class="border-r border-neutral-200 px-4 py-3 text-center dark:border-neutral-800">
+                    <td class="whitespace-nowrap border-r border-neutral-200 px-4 py-3 text-center dark:border-neutral-800">
                         <span
                             class="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200"
                             x-text="`${row.provinces_count || 0} Provinsi`"
                         ></span>
                     </td>
-                    <td class="px-4 py-3 text-center">
+                    <td class="whitespace-nowrap px-4 py-3 text-center">
                         <div class="inline-flex items-center justify-center gap-1">
                             <button
                                 type="button"

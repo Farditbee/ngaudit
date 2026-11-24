@@ -586,4 +586,408 @@ export function registerDataTables(Alpine) {
             }
         },
     }));
+
+    Alpine.data('userDataTable', (config) => ({
+        ...getBaseDataTableState(config),
+        ...getBaseDataTableMethods(),
+        filterRole: '',
+        roles: config.roles || [],
+        levels: config.levels || [],
+        bidangs: config.bidangs || [],
+        plottings: config.plottings || [],
+        allProvinces: config.provinces || [],
+        modalCities: [],
+        modalDistricts: [],
+        modalVillages: [],
+        modalOpen: false,
+        deleteModalOpen: false,
+        resetPasswordModalOpen: false,
+        impersonateModalOpen: false,
+        editingId: null,
+        deletingItem: null,
+        resettingItem: null,
+        impersonatingItem: null,
+        resettingPassword: false,
+        impersonating: false,
+        deleteError: '',
+        ttdFile: null,
+        ttdPreviewUrl: null,
+        existingTtdUrl: null,
+        form: {
+            name: '',
+            username: '',
+            email: '',
+            phone: '',
+            role: 'Auditor',
+            password: '',
+            password_confirmation: '',
+            level: 'Provinsi',
+            plotting_id: '',
+            province_code: '',
+            city_code: '',
+            district_code: '',
+            village_code: '',
+            bidang: '',
+            jabatan: '',
+        },
+        errors: {},
+
+        get roleOptions() {
+            return this.roles.map((r) => ({ code: r, name: r }));
+        },
+        get levelOptions() {
+            return this.levels.map((l) => ({ code: l, name: l }));
+        },
+        get bidangOptions() {
+            return this.bidangs.map((b) => ({ code: b, name: b }));
+        },
+        get plottingOptions() {
+            return this.plottings.map((p) => ({ code: String(p.id), name: p.name }));
+        },
+        get modalProvinces() {
+            return this.allProvinces;
+        },
+        needsRegionalScope() {
+            return [
+                'Auditor',
+                'Auditee',
+                'Ketua Tim',
+                'Koordinator dan Pengendali',
+                'Pengawas Tim',
+            ].includes(this.form.role);
+        },
+        isAuditee() {
+            return this.form.role === 'Auditee';
+        },
+        showPlottingField() {
+            return this.needsRegionalScope() && this.form.level === 'Nasional';
+        },
+        showProvinceField() {
+            return (
+                this.needsRegionalScope() &&
+                ['Provinsi', 'Kabupaten', 'Kecamatan', 'Desa'].includes(this.form.level)
+            );
+        },
+        showCityField() {
+            return (
+                this.needsRegionalScope() &&
+                ['Kabupaten', 'Kecamatan', 'Desa'].includes(this.form.level)
+            );
+        },
+        showDistrictField() {
+            return this.needsRegionalScope() && ['Kecamatan', 'Desa'].includes(this.form.level);
+        },
+        showVillageField() {
+            return this.needsRegionalScope() && this.form.level === 'Desa';
+        },
+        extraFilterParams() {
+            return {
+                role: this.filterRole,
+            };
+        },
+        onFilterChange() {
+            this.page = 1;
+            this.fetchData();
+        },
+        resetFilters() {
+            this.filterRole = '';
+            this.search = '';
+            this.page = 1;
+            this.fetchData();
+        },
+        async fetchOptions(type, parent = '') {
+            const params = new URLSearchParams({ options: type, parent });
+            const response = await fetch(`${this.indexUrl}?${params.toString()}`, {
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            return await response.json();
+        },
+        openCreateModal() {
+            this.editingId = null;
+            this.errors = {};
+            this.ttdFile = null;
+            this.ttdPreviewUrl = null;
+            this.existingTtdUrl = null;
+            this.modalCities = [];
+            this.modalDistricts = [];
+            this.modalVillages = [];
+            this.form = {
+                name: '',
+                username: '',
+                email: '',
+                phone: '',
+                role: 'Auditor',
+                password: '',
+                password_confirmation: '',
+                level: 'Provinsi',
+                plotting_id: '',
+                province_code: '',
+                city_code: '',
+                district_code: '',
+                village_code: '',
+                bidang: '',
+                jabatan: '',
+            };
+            this.modalOpen = true;
+        },
+        async openEditModal(row) {
+            this.editingId = row.id;
+            this.errors = {};
+            this.ttdFile = null;
+            this.ttdPreviewUrl = null;
+            this.existingTtdUrl = row.ttd_url || null;
+            this.form = {
+                name: row.name || '',
+                username: row.username || '',
+                email: row.email || '',
+                phone: row.phone || '',
+                role: row.role || 'Auditor',
+                password: '',
+                password_confirmation: '',
+                level: row.level || 'Provinsi',
+                plotting_id: row.plotting_id ? String(row.plotting_id) : '',
+                province_code: row.province_code || '',
+                city_code: row.city_code || '',
+                district_code: row.district_code || '',
+                village_code: row.village_code || '',
+                bidang: row.bidang || '',
+                jabatan: row.jabatan || '',
+            };
+
+            this.modalCities = this.form.province_code
+                ? await this.fetchOptions('cities', this.form.province_code)
+                : [];
+            this.modalDistricts = this.form.city_code
+                ? await this.fetchOptions('districts', this.form.city_code)
+                : [];
+            this.modalVillages = this.form.district_code
+                ? await this.fetchOptions('villages', this.form.district_code)
+                : [];
+
+            this.modalOpen = true;
+        },
+        closeModal() {
+            if (this.saving) return;
+            this.modalOpen = false;
+        },
+        onRoleChange() {
+            this.errors = {};
+            if (this.needsRegionalScope() && !this.form.level) {
+                this.form.level = 'Provinsi';
+            }
+        },
+        onLevelChange() {
+            if (this.form.level === 'Nasional') {
+                this.form.province_code = '';
+                this.form.city_code = '';
+                this.form.district_code = '';
+                this.form.village_code = '';
+            } else {
+                this.form.plotting_id = '';
+                if (this.form.level === 'Provinsi') {
+                    this.form.city_code = '';
+                    this.form.district_code = '';
+                    this.form.village_code = '';
+                } else if (this.form.level === 'Kabupaten') {
+                    this.form.district_code = '';
+                    this.form.village_code = '';
+                } else if (this.form.level === 'Kecamatan') {
+                    this.form.village_code = '';
+                }
+            }
+        },
+        onPlottingChange() {
+            this.form.province_code = '';
+            this.form.city_code = '';
+            this.form.district_code = '';
+            this.form.village_code = '';
+            this.modalCities = [];
+            this.modalDistricts = [];
+            this.modalVillages = [];
+        },
+        async onModalProvinceChange() {
+            this.form.city_code = '';
+            this.form.district_code = '';
+            this.form.village_code = '';
+            this.modalCities = [];
+            this.modalDistricts = [];
+            this.modalVillages = [];
+            if (this.form.province_code) {
+                this.modalCities = await this.fetchOptions('cities', this.form.province_code);
+            }
+        },
+        async onModalCityChange() {
+            this.form.district_code = '';
+            this.form.village_code = '';
+            this.modalDistricts = [];
+            this.modalVillages = [];
+            if (this.form.city_code) {
+                this.modalDistricts = await this.fetchOptions('districts', this.form.city_code);
+            }
+        },
+        async onModalDistrictChange() {
+            this.form.village_code = '';
+            this.modalVillages = [];
+            if (this.form.district_code) {
+                this.modalVillages = await this.fetchOptions('villages', this.form.district_code);
+            }
+        },
+        onModalVillageChange() {},
+        onTtdChange(event) {
+            const file = event.target.files?.[0] || null;
+            this.ttdFile = file;
+            if (file) {
+                this.ttdPreviewUrl = URL.createObjectURL(file);
+            } else {
+                this.ttdPreviewUrl = null;
+            }
+        },
+        async saveUser() {
+            this.saving = true;
+            this.errors = {};
+            const isEdit = Boolean(this.editingId);
+            const url = isEdit ? `${this.baseUrl}/${this.editingId}` : this.storeUrl;
+
+            const formData = new FormData();
+            if (isEdit) {
+                formData.append('_method', 'PUT');
+            }
+
+            Object.entries(this.form).forEach(([key, val]) => {
+                if (val !== null && val !== undefined && val !== '') {
+                    formData.append(key, val);
+                }
+            });
+
+            if (this.ttdFile) {
+                formData.append('ttd', this.ttdFile);
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: formData,
+                });
+
+                const json = await response.json();
+
+                if (response.status === 422) {
+                    this.errors = json.errors || {};
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Terjadi kesalahan saat menyimpan user.');
+                }
+
+                this.modalOpen = false;
+                this.showFlash(json.message || 'Data user berhasil disimpan.');
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.saving = false;
+            }
+        },
+        confirmDelete(row) {
+            this.deletingItem = row;
+            this.deleteError = '';
+            this.deleteModalOpen = true;
+        },
+        confirmResetPassword(row) {
+            this.resettingItem = row;
+            this.resetPasswordModalOpen = true;
+        },
+        async executeResetPassword() {
+            if (!this.resettingItem) return;
+            this.resettingPassword = true;
+            try {
+                const response = await fetch(`${this.baseUrl}/${this.resettingItem.id}/reset-password`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const json = await response.json();
+                this.resetPasswordModalOpen = false;
+                this.resettingItem = null;
+                this.showFlash(json.message || 'Password berhasil direset menjadi Password123.');
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.resettingPassword = false;
+            }
+        },
+        confirmImpersonate(row) {
+            this.impersonatingItem = row;
+            this.impersonateModalOpen = true;
+        },
+        async executeImpersonate() {
+            if (!this.impersonatingItem) return;
+            this.impersonating = true;
+            try {
+                const response = await fetch(`${this.baseUrl}/${this.impersonatingItem.id}/impersonate`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const json = await response.json();
+                if (response.ok && json.redirect) {
+                    window.location.href = json.redirect;
+                    return;
+                }
+                this.impersonateModalOpen = false;
+                this.impersonatingItem = null;
+                this.showFlash(json.message || 'Gagal melakukan impersonate.');
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.impersonating = false;
+            }
+        },
+        async deleteUser() {
+            if (!this.deletingItem) return;
+            this.deleting = true;
+            this.deleteError = '';
+            try {
+                const response = await fetch(`${this.baseUrl}/${this.deletingItem.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                const json = await response.json();
+
+                if (!response.ok) {
+                    this.deleteError = json.message || 'Gagal menghapus user.';
+                    return;
+                }
+
+                this.deleteModalOpen = false;
+                this.deletingItem = null;
+                this.showFlash(json.message || 'Data user berhasil dihapus.');
+                if (this.rows.length === 1 && this.page > 1) {
+                    this.page--;
+                }
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.deleting = false;
+            }
+        },
+    }));
 }

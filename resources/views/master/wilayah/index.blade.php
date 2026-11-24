@@ -88,13 +88,13 @@
                     class="border-b border-neutral-200 transition-colors hover:bg-neutral-100/60 last:border-b-0 dark:border-neutral-800 dark:hover:bg-neutral-800/40"
                     :class="rIndex % 2 === 0 ? 'bg-neutral-50/50 dark:bg-neutral-900/20' : 'bg-white dark:bg-neutral-950'"
                 >
-                    <td class="border-r border-neutral-200 px-4 py-3 text-center text-neutral-600 dark:border-neutral-800 dark:text-neutral-400" x-text="row.DT_RowIndex"></td>
-                    <td class="border-r border-neutral-200 px-4 py-3 font-mono text-neutral-900 dark:border-neutral-800 dark:text-neutral-100" x-text="row.code"></td>
-                    <td class="border-r border-neutral-200 px-4 py-3 text-neutral-800 dark:border-neutral-800 dark:text-neutral-200" x-text="row.province_name"></td>
-                    <td class="border-r border-neutral-200 px-4 py-3 text-neutral-800 dark:border-neutral-800 dark:text-neutral-200" x-text="row.city_name"></td>
-                    <td class="border-r border-neutral-200 px-4 py-3 text-neutral-800 dark:border-neutral-800 dark:text-neutral-200" x-text="row.district_name"></td>
-                    <td class="border-r border-neutral-200 px-4 py-3 text-neutral-800 dark:border-neutral-800 dark:text-neutral-200" x-text="row.village_name"></td>
-                    <td class="px-4 py-3 text-center">
+                    <td class="whitespace-nowrap border-r border-neutral-200 px-4 py-3 text-center text-neutral-600 dark:border-neutral-800 dark:text-neutral-400" x-text="row.DT_RowIndex"></td>
+                    <td class="whitespace-nowrap border-r border-neutral-200 px-4 py-3 font-mono text-neutral-900 dark:border-neutral-800 dark:text-neutral-100" x-text="row.code"></td>
+                    <td class="whitespace-nowrap border-r border-neutral-200 px-4 py-3 text-neutral-800 dark:border-neutral-800 dark:text-neutral-200" x-text="row.province_name"></td>
+                    <td class="whitespace-nowrap border-r border-neutral-200 px-4 py-3 text-neutral-800 dark:border-neutral-800 dark:text-neutral-200" x-text="row.city_name"></td>
+                    <td class="whitespace-nowrap border-r border-neutral-200 px-4 py-3 text-neutral-800 dark:border-neutral-800 dark:text-neutral-200" x-text="row.district_name"></td>
+                    <td class="whitespace-nowrap border-r border-neutral-200 px-4 py-3 text-neutral-800 dark:border-neutral-800 dark:text-neutral-200" x-text="row.village_name"></td>
+                    <td class="whitespace-nowrap px-4 py-3 text-center">
                         <div class="inline-flex items-center justify-center gap-1">
                             <button
                                 type="button"

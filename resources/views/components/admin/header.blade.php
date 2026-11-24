@@ -1,7 +1,7 @@
 @props(['breadcrumbs' => []])
 
 <header class="sticky top-0 z-30 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
-    <div class="mx-auto flex max-w-[90rem] items-center justify-between gap-6 px-4 py-4 sm:px-6">
+    <div class="flex w-full items-center justify-between gap-6 px-4 py-4 sm:px-6 lg:px-8">
         <div class="flex items-center gap-4">
             <button type="button" class="rounded-md p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                 x-on:click="window.innerWidth >= 1024 ? collapsed = !collapsed : mobileOpen = !mobileOpen">
@@ -22,6 +22,18 @@
         </div>
 
         <div class="flex items-center gap-1.5">
+            @if (session()->has('impersonator_id'))
+                <form method="POST" action="{{ route('master.user.leave-impersonate') }}">
+                    @csrf
+                    <button
+                        type="submit"
+                        class="inline-flex h-8 items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 dark:hover:bg-indigo-900/60"
+                    >
+                        <x-lucide-log-out class="h-3.5 w-3.5" />
+                        <span>Kembali ke Akun Utama</span>
+                    </button>
+                </form>
+            @endif
             <div class="hidden items-center overflow-hidden rounded-md border border-neutral-200 dark:border-neutral-800 text-xs font-semibold md:flex">
                 <span class="flex items-center gap-1.5 bg-neutral-50 dark:bg-neutral-900 px-2.5 py-1.5"><x-lucide-star class="h-3.5 w-3.5" /> Star</span>
                 <span class="border-s border-neutral-200 dark:border-neutral-800 px-2.5 py-1.5">152</span>

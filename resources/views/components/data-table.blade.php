@@ -52,12 +52,12 @@
             </div>
         </div>
 
-        <table class="w-full border-collapse text-left text-sm">
+        <table class="min-w-max w-full border-collapse text-left text-sm">
             <thead>
                 <tr class="border-b border-neutral-200 bg-neutral-50/70 text-xs uppercase tracking-wider text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-neutral-400">
                     <template x-for="(col, index) in columns" :key="col.name">
                         <th
-                            class="border-r border-neutral-200 px-4 py-3 font-medium select-none last:border-r-0 dark:border-neutral-800"
+                            class="whitespace-nowrap border-r border-neutral-200 px-4 py-3 font-medium select-none last:border-r-0 dark:border-neutral-800"
                             :class="[
                                 col.sortable ? 'cursor-pointer hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60' : '',
                                 col.width || '',

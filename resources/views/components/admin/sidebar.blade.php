@@ -10,7 +10,7 @@
         [
             'label' => 'Data Master',
             'items' => [
-                ['label' => 'User', 'icon' => 'user'],
+                ['label' => 'User', 'icon' => 'user', 'href' => route('master.user.index'), 'active' => request()->routeIs('master.user.*')],
                 ['label' => 'Wilayah', 'icon' => 'map', 'href' => route('master.wilayah.index'), 'active' => request()->routeIs('master.wilayah.*')],
                 ['label' => 'Plotting', 'icon' => 'land-plot', 'href' => route('master.plotting.index'), 'active' => request()->routeIs('master.plotting.*')],
                 ['label' => 'Users', 'icon' => 'users', 'children' => ['List', 'View'], 'open' => true],

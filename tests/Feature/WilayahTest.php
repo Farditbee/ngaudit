@@ -18,7 +18,7 @@ class WilayahTest extends TestCase
         $response = $this->actingAs($user)->get(route('master.wilayah.index'));
 
         $response->assertOk();
-        $response->assertSee('Data Wilayah Indonesia');
+        $response->assertSee('Data Wilayah');
         $response->assertSee('Tambah Wilayah');
     }
 
