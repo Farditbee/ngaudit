@@ -11,7 +11,8 @@
             'label' => 'Data Master',
             'items' => [
                 ['label' => 'User', 'icon' => 'user'],
-                ['label' => 'Wilayah', 'icon' => 'map'],
+                ['label' => 'Wilayah', 'icon' => 'map', 'href' => route('master.wilayah.index'), 'active' => request()->routeIs('master.wilayah.*')],
+                ['label' => 'Plotting', 'icon' => 'land-plot'],
                 ['label' => 'Users', 'icon' => 'users', 'children' => ['List', 'View'], 'open' => true],
                 ['label' => 'Chat', 'icon' => 'message-circle', 'pro' => true],
                 ['label' => 'Kanban', 'icon' => 'kanban', 'pro' => true],

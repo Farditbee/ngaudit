@@ -30,3 +30,5 @@ Thumbs.db
 /boost.json
 /AGENTS.md
 /CLAUDE.md
+/composer.lock
+/package-lock.json
