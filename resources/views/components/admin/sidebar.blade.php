@@ -12,7 +12,7 @@
             'items' => [
                 ['label' => 'User', 'icon' => 'user'],
                 ['label' => 'Wilayah', 'icon' => 'map', 'href' => route('master.wilayah.index'), 'active' => request()->routeIs('master.wilayah.*')],
-                ['label' => 'Plotting', 'icon' => 'land-plot'],
+                ['label' => 'Plotting', 'icon' => 'land-plot', 'href' => route('master.plotting.index'), 'active' => request()->routeIs('master.plotting.*')],
                 ['label' => 'Users', 'icon' => 'users', 'children' => ['List', 'View'], 'open' => true],
                 ['label' => 'Chat', 'icon' => 'message-circle', 'pro' => true],
                 ['label' => 'Kanban', 'icon' => 'kanban', 'pro' => true],
