@@ -1,7 +1,7 @@
 <?php
 
+use App\Http\Controllers\Master\WilayahController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\WilayahController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {

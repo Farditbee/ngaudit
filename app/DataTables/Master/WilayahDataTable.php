@@ -1,56 +1,16 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\DataTables\Master;
 
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\View\View;
 use Yajra\DataTables\Facades\DataTables;
 
-class WilayahController extends Controller
+class WilayahDataTable
 {
-    public function index(Request $request): View|JsonResponse
-    {
-        if ($request->filled('options')) {
-            return $this->options($request);
-        }
-
-        if ($request->ajax() || $request->wantsJson()) {
-            return $this->datatable($request);
-        }
-
-        $prefix = config('laravolt.indonesia.table_prefix', 'indonesia_');
-        $provinces = DB::table($prefix.'provinces')
-            ->orderBy('code')
-            ->get(['code', 'name']);
-
-        return view('master.wilayah.index', compact('provinces'));
-    }
-
-    protected function options(Request $request): JsonResponse
-    {
-        $prefix = config('laravolt.indonesia.table_prefix', 'indonesia_');
-        $type = (string) $request->query('options');
-        $parent = (string) $request->query('parent');
-
-        $items = match ($type) {
-            'cities' => DB::table($prefix.'cities')
-                ->where('province_code', $parent)
-                ->orderBy('code')
-                ->get(['code', 'name']),
-            'districts' => DB::table($prefix.'districts')
-                ->where('city_code', $parent)
-                ->orderBy('code')
-                ->get(['code', 'name']),
-            default => collect(),
-        };
-
-        return response()->json($items);
-    }
-
-    protected function datatable(Request $request): JsonResponse
+    public function toJson(Request $request): JsonResponse
     {
         $prefix = config('laravolt.indonesia.table_prefix', 'indonesia_');
         $provinceCode = (string) $request->query('province_code', '');
