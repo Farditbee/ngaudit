@@ -97,6 +97,60 @@
         ],
     ];
     $itemClass = 'flex h-8 w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800';
+
+    $authUser = auth()->user();
+    $sidebarRegions = [];
+
+    if ($authUser) {
+        $prefix = config('laravolt.indonesia.table_prefix', 'indonesia_');
+
+        if ($authUser->level === 'Nasional' && $authUser->plotting_id) {
+            $plotName = \Illuminate\Support\Facades\DB::table('plottings')->where('id', $authUser->plotting_id)->value('plot');
+            if ($plotName) {
+                $sidebarRegions[] = [
+                    'label' => $plotName,
+                    'class' => 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                ];
+            }
+        } else {
+            if ($authUser->village_code) {
+                $villageName = \Illuminate\Support\Facades\DB::table($prefix.'villages')->where('code', $authUser->village_code)->value('name');
+                if ($villageName) {
+                    $sidebarRegions[] = [
+                        'label' => $villageName,
+                        'class' => 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+                    ];
+                }
+            }
+            if ($authUser->district_code) {
+                $districtName = \Illuminate\Support\Facades\DB::table($prefix.'districts')->where('code', $authUser->district_code)->value('name');
+                if ($districtName) {
+                    $sidebarRegions[] = [
+                        'label' => $districtName,
+                        'class' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+                    ];
+                }
+            }
+            if ($authUser->city_code) {
+                $cityName = \Illuminate\Support\Facades\DB::table($prefix.'cities')->where('code', $authUser->city_code)->value('name');
+                if ($cityName) {
+                    $sidebarRegions[] = [
+                        'label' => $cityName,
+                        'class' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+                    ];
+                }
+            }
+            if ($authUser->province_code) {
+                $provinceName = \Illuminate\Support\Facades\DB::table($prefix.'provinces')->where('code', $authUser->province_code)->value('name');
+                if ($provinceName) {
+                    $sidebarRegions[] = [
+                        'label' => $provinceName,
+                        'class' => 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+                    ];
+                }
+            }
+        }
+    }
 @endphp
 
 <aside
@@ -117,20 +171,39 @@
         </a>
     </div>
 
-    <nav class="flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-2 group-[.rail]:lg:[scrollbar-width:none] group-[.rail]:lg:[&::-webkit-scrollbar]:hidden">
+    <nav class="flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div class="px-1 pt-4 pb-1 group-[.rail]:lg:px-0 group-[.rail]:lg:pt-2">
-        <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 rounded-md p-1 group-[.rail]:lg:p-0">
-            <span class="flex h-12 w-12 shrink-0 group-[.rail]:lg:h-8 group-[.rail]:lg:w-8 items-center justify-center overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-800">
+        <div class="flex items-start gap-3 rounded-md p-1 group-[.rail]:lg:p-0">
+            <span class="mt-0.5 flex h-12 w-12 shrink-0 group-[.rail]:lg:h-8 group-[.rail]:lg:w-8 items-center justify-center overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-800">
                 <svg viewBox="0 0 24 24" class="h-full w-full fill-neutral-400 dark:fill-neutral-500" aria-hidden="true">
                     <circle cx="12" cy="9" r="4" />
                     <path d="M4 22c0-4.4 3.6-8 8-8s8 3.6 8 8z" />
                 </svg>
             </span>
-            <span class="flex min-w-0 flex-col group-[.rail]:lg:hidden">
-                <span class="truncate text-sm font-bold leading-tight">{{ auth()->user()->name }}</span>
-                <span class="truncate text-sm leading-tight">{{ auth()->user()->email }}</span>
+            <span class="flex min-w-0 flex-col gap-0.5 group-[.rail]:lg:hidden">
+                <span class="break-words text-xs font-bold uppercase leading-snug text-neutral-900 dark:text-neutral-100">{{ $authUser?->name }}</span>
+                <span class="truncate text-xs leading-snug text-neutral-600 dark:text-neutral-400">{{ $authUser?->email }}</span>
+                @if (! empty($authUser?->role))
+                    <span class="text-xs font-medium leading-snug text-neutral-800 dark:text-neutral-200">{{ $authUser->role }}</span>
+                @endif
+
+                @if (! empty($sidebarRegions))
+                    <span class="mt-0.5 flex flex-col items-start gap-1 text-xs text-neutral-700 dark:text-neutral-300">
+                        @foreach ($sidebarRegions as $region)
+                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase leading-tight {{ $region['class'] }}">
+                                {{ $region['label'] }}
+                            </span>
+                        @endforeach
+                    </span>
+                @endif
+
+                @if (! empty($authUser?->bidang))
+                    <span class="mt-0.5 text-xs leading-snug text-neutral-700 dark:text-neutral-300">
+                        Bidang: {{ $authUser->bidang }}
+                    </span>
+                @endif
             </span>
-        </a>
+        </div>
         </div>
 
         @foreach ($groups as $group)
