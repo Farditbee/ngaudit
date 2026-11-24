@@ -21,6 +21,7 @@ return new class extends Migration
             $table->foreignId('dalnis_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('ketua_tim_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('ketua_tim_2_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedInteger('jumlah_anggota')->default(0);
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes();

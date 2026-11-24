@@ -34,6 +34,7 @@ class Tim extends Model
         'dalnis_id',
         'ketua_tim_id',
         'ketua_tim_2_id',
+        'jumlah_anggota',
         'created_by',
     ];
 

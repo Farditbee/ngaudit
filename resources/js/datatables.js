@@ -382,6 +382,52 @@ export function registerDataTables(Alpine) {
             this.deleteError = '';
             this.deleteModalOpen = true;
         },
+        async syncTim(row) {
+            if (!row || this.syncingId === row.id) return;
+            this.syncingId = row.id;
+            try {
+                const response = await fetch(`${this.baseUrl}/${row.id}/sync`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const json = await response.json();
+                if (response.ok) {
+                    this.showFlash(json.message || 'Jumlah anggota tim berhasil disinkronkan.');
+                    this.fetchData();
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.syncingId = null;
+            }
+        },
+        async syncAllTims() {
+            if (this.syncing) return;
+            this.syncing = true;
+            try {
+                const response = await fetch(`${this.baseUrl}/sync`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const json = await response.json();
+                if (response.ok) {
+                    this.showFlash(json.message || 'Seluruh data anggota tim berhasil disinkronkan.');
+                    this.fetchData();
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.syncing = false;
+            }
+        },
         getDeletingLabel(row) {
             if (!row) return '';
             if (row.level === 'village') return `Desa/Kelurahan ${row.village_name} (${row.code})`;
@@ -1010,6 +1056,52 @@ export function registerDataTables(Alpine) {
             this.deleteError = '';
             this.deleteModalOpen = true;
         },
+        async syncTim(row) {
+            if (!row || this.syncingId === row.id) return;
+            this.syncingId = row.id;
+            try {
+                const response = await fetch(`${this.baseUrl}/${row.id}/sync`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const json = await response.json();
+                if (response.ok) {
+                    this.showFlash(json.message || 'Jumlah anggota tim berhasil disinkronkan.');
+                    this.fetchData();
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.syncingId = null;
+            }
+        },
+        async syncAllTims() {
+            if (this.syncing) return;
+            this.syncing = true;
+            try {
+                const response = await fetch(`${this.baseUrl}/sync`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const json = await response.json();
+                if (response.ok) {
+                    this.showFlash(json.message || 'Seluruh data anggota tim berhasil disinkronkan.');
+                    this.fetchData();
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.syncing = false;
+            }
+        },
         confirmResetPassword(row) {
             this.resettingItem = row;
             this.resetPasswordModalOpen = true;
@@ -1106,6 +1198,9 @@ export function registerDataTables(Alpine) {
         ...getBaseDataTableState(config),
         ...getBaseDataTableMethods(),
         filterLingkup: '',
+        authRole: config.authRole || '',
+        authPlottingId: config.authPlottingId ? String(config.authPlottingId) : '',
+        authProvinceCode: config.authProvinceCode ? String(config.authProvinceCode) : '',
         lingkups: config.lingkups || ['Nasional', 'Wilayah'],
         plottings: config.plottings || [],
         allProvinces: config.provinces || [],
@@ -1119,11 +1214,13 @@ export function registerDataTables(Alpine) {
         deletingItem: null,
         deleteError: '',
         auditorQuery: '',
+        syncing: false,
+        syncingId: null,
         form: {
             nama_tim: '',
-            lingkup: 'Nasional',
-            plotting_id: '',
-            province_code: '',
+            lingkup: (config.lingkups && config.lingkups[0]) || 'Nasional',
+            plotting_id: config.authPlottingId ? String(config.authPlottingId) : '',
+            province_code: config.authProvinceCode ? String(config.authProvinceCode) : '',
             daltu_id: '',
             dalnis_id: '',
             ketua_tim_id: '',
@@ -1132,19 +1229,48 @@ export function registerDataTables(Alpine) {
         },
         errors: {},
 
+        isLingkupReadonly() {
+            return this.lingkups.length === 1;
+        },
+        isPlottingReadonly() {
+            return this.authRole === 'Admin Nasional' && Boolean(this.authPlottingId);
+        },
+        isProvinceReadonly() {
+            return this.authRole === 'Admin Wilayah' && Boolean(this.authProvinceCode);
+        },
+        matchesCurrentScope(user) {
+            if (this.form.lingkup === 'Nasional') {
+                if (!this.form.plotting_id) return true;
+                return String(user.plotting_id || '') === String(this.form.plotting_id);
+            }
+            if (this.form.lingkup === 'Wilayah') {
+                if (!this.form.province_code) return true;
+                return String(user.province_code || '') === String(this.form.province_code);
+            }
+            return true;
+        },
         get lingkupOptions() {
             return this.lingkups.map((l) => ({ code: l, name: l }));
         },
         get plottingOptions() {
             return this.plottings.map((p) => ({ code: String(p.id), name: p.name }));
         },
+        get filteredDaltuOptions() {
+            return this.daltuOptions.filter((u) => this.matchesCurrentScope(u));
+        },
+        get filteredDalnisOptions() {
+            return this.dalnisOptions.filter((u) => this.matchesCurrentScope(u));
+        },
+        get scopedKetuaTimOptions() {
+            return this.ketuaTimOptions.filter((u) => this.matchesCurrentScope(u));
+        },
         get availableKetuaTim1Options() {
             const kt2 = String(this.form.ketua_tim_2_id || '');
-            return this.ketuaTimOptions.filter((u) => String(u.code) !== kt2);
+            return this.scopedKetuaTimOptions.filter((u) => String(u.code) !== kt2);
         },
         get availableKetuaTim2Options() {
             const kt1 = String(this.form.ketua_tim_id || '');
-            return this.ketuaTimOptions.filter((u) => String(u.code) !== kt1);
+            return this.scopedKetuaTimOptions.filter((u) => String(u.code) !== kt1);
         },
         get availableAuditorCandidates() {
             const excludedIds = [
@@ -1152,7 +1278,9 @@ export function registerDataTables(Alpine) {
                 Number(this.form.ketua_tim_2_id || 0),
             ].filter((id) => id > 0);
 
-            return this.auditorCandidates.filter((u) => !excludedIds.includes(Number(u.id)));
+            return this.auditorCandidates.filter(
+                (u) => this.matchesCurrentScope(u) && !excludedIds.includes(Number(u.id))
+            );
         },
         get filteredModalAuditors() {
             const q = this.auditorQuery.trim().toLowerCase();
@@ -1179,11 +1307,12 @@ export function registerDataTables(Alpine) {
             this.editingId = null;
             this.errors = {};
             this.auditorQuery = '';
+            const defaultLingkup = this.lingkups[0] || 'Nasional';
             this.form = {
                 nama_tim: '',
-                lingkup: 'Nasional',
-                plotting_id: '',
-                province_code: '',
+                lingkup: defaultLingkup,
+                plotting_id: defaultLingkup === 'Nasional' && this.authPlottingId ? this.authPlottingId : '',
+                province_code: defaultLingkup === 'Wilayah' && this.authProvinceCode ? this.authProvinceCode : '',
                 daltu_id: '',
                 dalnis_id: '',
                 ketua_tim_id: '',
@@ -1196,11 +1325,18 @@ export function registerDataTables(Alpine) {
             this.editingId = row.id;
             this.errors = {};
             this.auditorQuery = '';
+            const lingkup = this.isLingkupReadonly() ? this.lingkups[0] : (row.lingkup || 'Nasional');
             this.form = {
                 nama_tim: row.nama_tim || '',
-                lingkup: row.lingkup || 'Nasional',
-                plotting_id: row.plotting_id ? String(row.plotting_id) : '',
-                province_code: row.province_code || '',
+                lingkup,
+                plotting_id:
+                    lingkup === 'Nasional'
+                        ? (this.authPlottingId || (row.plotting_id ? String(row.plotting_id) : ''))
+                        : '',
+                province_code:
+                    lingkup === 'Wilayah'
+                        ? (this.authProvinceCode || row.province_code || '')
+                        : '',
                 daltu_id: row.daltu_id ? String(row.daltu_id) : '',
                 dalnis_id: row.dalnis_id ? String(row.dalnis_id) : '',
                 ketua_tim_id: row.ketua_tim_id ? String(row.ketua_tim_id) : '',
@@ -1217,9 +1353,44 @@ export function registerDataTables(Alpine) {
         onLingkupChange() {
             if (this.form.lingkup === 'Nasional') {
                 this.form.province_code = '';
+                if (this.authPlottingId) {
+                    this.form.plotting_id = this.authPlottingId;
+                }
             } else {
                 this.form.plotting_id = '';
+                if (this.authProvinceCode) {
+                    this.form.province_code = this.authProvinceCode;
+                }
             }
+            this.onScopeValueChange();
+        },
+        onScopeValueChange() {
+            if (
+                this.form.daltu_id &&
+                !this.filteredDaltuOptions.some((u) => String(u.code) === String(this.form.daltu_id))
+            ) {
+                this.form.daltu_id = '';
+            }
+            if (
+                this.form.dalnis_id &&
+                !this.filteredDalnisOptions.some((u) => String(u.code) === String(this.form.dalnis_id))
+            ) {
+                this.form.dalnis_id = '';
+            }
+            if (
+                this.form.ketua_tim_id &&
+                !this.scopedKetuaTimOptions.some((u) => String(u.code) === String(this.form.ketua_tim_id))
+            ) {
+                this.form.ketua_tim_id = '';
+            }
+            if (
+                this.form.ketua_tim_2_id &&
+                !this.scopedKetuaTimOptions.some((u) => String(u.code) === String(this.form.ketua_tim_2_id))
+            ) {
+                this.form.ketua_tim_2_id = '';
+            }
+            const allowedAuditorIds = new Set(this.availableAuditorCandidates.map((u) => Number(u.id)));
+            this.form.auditor_ids = this.form.auditor_ids.filter((id) => allowedAuditorIds.has(Number(id)));
         },
         onKetuaTimChange() {
             if (
@@ -1317,6 +1488,52 @@ export function registerDataTables(Alpine) {
             this.deletingItem = row;
             this.deleteError = '';
             this.deleteModalOpen = true;
+        },
+        async syncTim(row) {
+            if (!row || this.syncingId === row.id) return;
+            this.syncingId = row.id;
+            try {
+                const response = await fetch(`${this.baseUrl}/${row.id}/sync`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const json = await response.json();
+                if (response.ok) {
+                    this.showFlash(json.message || 'Jumlah anggota tim berhasil disinkronkan.');
+                    this.fetchData();
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.syncingId = null;
+            }
+        },
+        async syncAllTims() {
+            if (this.syncing) return;
+            this.syncing = true;
+            try {
+                const response = await fetch(`${this.baseUrl}/sync`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const json = await response.json();
+                if (response.ok) {
+                    this.showFlash(json.message || 'Seluruh data anggota tim berhasil disinkronkan.');
+                    this.fetchData();
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.syncing = false;
+            }
         },
         async deleteTim() {
             if (!this.deletingItem) return;

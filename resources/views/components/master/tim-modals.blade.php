@@ -53,15 +53,23 @@
             {{-- 2. Lingkup & Pilihan Wilayah / WIL --}}
             <div class="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/50 p-4 dark:border-neutral-800 dark:bg-neutral-900/30">
                 <div class="space-y-1.5">
-                    <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300">
-                        Lingkup <span class="text-red-500">*</span>
-                    </label>
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                            Lingkup <span class="text-red-500">*</span>
+                        </label>
+                        <template x-if="isLingkupReadonly()">
+                            <span class="text-[11px] italic text-neutral-400 dark:text-neutral-500">
+                                Readonly (Otomatis <span x-text="form.lingkup"></span>)
+                            </span>
+                        </template>
+                    </div>
+                    <div class="grid gap-2" :class="lingkups.length === 1 ? 'grid-cols-1' : 'grid-cols-2'">
                         <template x-for="lk in lingkups" :key="lk">
                             <button
                                 type="button"
-                                x-on:click="form.lingkup = lk; onLingkupChange()"
-                                class="h-9 rounded-md border px-3 text-xs font-medium transition-colors"
+                                x-bind:disabled="isLingkupReadonly()"
+                                x-on:click="if (!isLingkupReadonly()) { form.lingkup = lk; onLingkupChange(); }"
+                                class="h-9 rounded-md border px-3 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-80"
                                 x-bind:class="form.lingkup === lk
                                     ? 'border-neutral-900 bg-neutral-900 text-white dark:border-white dark:bg-white dark:text-neutral-900'
                                     : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'"
@@ -82,7 +90,9 @@
                             placeholder="Pilih WIL 1 - 4"
                             itemsExpr="plottingOptions"
                             valueModel="form.plotting_id"
-                            changeAction=""
+                            changeAction="onScopeValueChange()"
+                            disabledExpr="isPlottingReadonly()"
+                            disabledMessage="Plot wilayah otomatis mengikuti plot akun Admin Nasional Anda"
                         />
                         <template x-if="errors.plotting_id">
                             <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.plotting_id[0]"></p>
@@ -98,7 +108,9 @@
                             placeholder="Pilih Provinsi"
                             itemsExpr="allProvinces"
                             valueModel="form.province_code"
-                            changeAction=""
+                            changeAction="onScopeValueChange()"
+                            disabledExpr="isProvinceReadonly()"
+                            disabledMessage="Provinsi otomatis mengikuti wilayah akun Admin Wilayah Anda"
                         />
                         <template x-if="errors.province_code">
                             <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.province_code[0]"></p>
@@ -114,7 +126,7 @@
                     <x-searchable-select
                         label="Pengendali Mutu (Daltu) *"
                         placeholder="Pilih Pengendali Mutu"
-                        itemsExpr="daltuOptions"
+                        itemsExpr="filteredDaltuOptions"
                         valueModel="form.daltu_id"
                         changeAction=""
                     />
@@ -128,7 +140,7 @@
                     <x-searchable-select
                         label="Pengawas Tim (Dalnis) *"
                         placeholder="Pilih Pengawas Tim"
-                        itemsExpr="dalnisOptions"
+                        itemsExpr="filteredDalnisOptions"
                         valueModel="form.dalnis_id"
                         changeAction=""
                     />

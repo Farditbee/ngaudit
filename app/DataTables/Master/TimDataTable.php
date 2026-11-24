@@ -35,11 +35,28 @@ class TimDataTable
      */
     public function config(iterable $plottings, iterable $provinces, array $usersByRole): array
     {
+        $authUser = auth()->user();
+        $isAdminNasional = $authUser?->role === 'Admin Nasional';
+        $isAdminWilayah = $authUser?->role === 'Admin Wilayah';
+
+        $lingkups = match (true) {
+            $isAdminNasional => ['Nasional'],
+            $isAdminWilayah => ['Wilayah'],
+            default => Tim::LINGKUPS,
+        };
+
+        $authProvinceCode = ($isAdminWilayah && $authUser?->kode_wilayah)
+            ? substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2)
+            : null;
+
         return [
             'indexUrl' => route('master.tim.index'),
             'storeUrl' => route('master.tim.store'),
             'baseUrl' => url('/master/tim'),
-            'lingkups' => Tim::LINGKUPS,
+            'authRole' => $authUser?->role,
+            'authPlottingId' => $isAdminNasional ? $authUser?->plotting_id : null,
+            'authProvinceCode' => $authProvinceCode,
+            'lingkups' => $lingkups,
             'plottings' => $plottings,
             'provinces' => $provinces,
             'daltuOptions' => $usersByRole['daltu'] ?? [],
@@ -53,6 +70,7 @@ class TimDataTable
     public function toJson(Request $request): JsonResponse
     {
         $filterLingkup = (string) $request->query('lingkup', '');
+        $authUser = $request->user();
 
         $query = Tim::query()
             ->with(['auditors:id,name,role'])
@@ -72,7 +90,14 @@ class TimDataTable
                 'ketua_tim_2.name as ketua_tim_2_name',
             ]);
 
-        if ($filterLingkup !== '') {
+        if ($authUser?->role === 'Admin Nasional' && $authUser->plotting_id) {
+            $query->where('tims.lingkup', 'Nasional')
+                ->where('tims.plotting_id', $authUser->plotting_id);
+        } elseif ($authUser?->role === 'Admin Wilayah' && $authUser->kode_wilayah) {
+            $authProvinceCode = substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2);
+            $query->where('tims.lingkup', 'Wilayah')
+                ->where('tims.province_code', $authProvinceCode);
+        } elseif ($filterLingkup !== '') {
             $query->where('tims.lingkup', $filterLingkup);
         }
 
@@ -88,6 +113,8 @@ class TimDataTable
             ->addColumn('auditor_ids', fn (Tim $tim): array => $tim->auditors->pluck('id')->map(
                 fn (mixed $id): int => (int) $id
             )->values()->all())
+            ->addColumn('actual_auditors_count', fn (Tim $tim): int => $tim->auditors->count())
+            ->addColumn('needs_sync', fn (Tim $tim): bool => (int) $tim->jumlah_anggota !== $tim->auditors->count())
             ->addColumn('auditors_names', fn (Tim $tim): string => $tim->auditors->pluck('name')->implode(', '))
             ->filterColumn('daltu_name', function (Builder $query, string $keyword): void {
                 $query->where(function (Builder $builder) use ($keyword): void {

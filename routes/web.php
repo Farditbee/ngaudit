@@ -26,6 +26,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/master/tim', [TimController::class, 'index'])->name('master.tim.index');
     Route::post('/master/tim', [TimController::class, 'store'])->name('master.tim.store');
+    Route::post('/master/tim/sync', [TimController::class, 'syncAll'])->name('master.tim.sync-all');
+    Route::post('/master/tim/{tim}/sync', [TimController::class, 'sync'])->name('master.tim.sync');
     Route::put('/master/tim/{tim}', [TimController::class, 'update'])->name('master.tim.update');
     Route::delete('/master/tim/{tim}', [TimController::class, 'destroy'])->name('master.tim.destroy');
 

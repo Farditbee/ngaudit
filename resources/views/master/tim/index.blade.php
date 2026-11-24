@@ -99,28 +99,27 @@
                         </div>
                     </td>
                     <td class="border-r border-neutral-200 px-4 py-3 dark:border-neutral-800">
-                        <div class="space-y-1.5 text-xs">
-                            <div>
-                                <span class="font-medium text-neutral-500 dark:text-neutral-400">Ketua 1:</span>
-                                <span class="font-semibold text-neutral-900 dark:text-neutral-100" x-text="row.ketua_tim_name || '-'"></span>
-                            </div>
-                            <template x-if="row.ketua_tim_2_name">
-                                <div>
-                                    <span class="font-medium text-neutral-500 dark:text-neutral-400">Ketua 2:</span>
-                                    <span class="font-medium text-neutral-800 dark:text-neutral-200" x-text="row.ketua_tim_2_name"></span>
-                                </div>
-                            </template>
-                        </div>
+                        <span class="font-semibold text-neutral-900 dark:text-neutral-100" x-text="row.ketua_tim_name || '-'"></span>
                     </td>
-                    <td class="min-w-[16rem] border-r border-neutral-200 px-4 py-3 dark:border-neutral-800">
-                        <div class="flex flex-wrap gap-1.5">
-                            <template x-for="auditor in (row.auditors_list || [])" :key="auditor.id">
-                                <span class="inline-flex items-center rounded-md border border-neutral-200 bg-white px-2 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" x-text="auditor.name"></span>
-                            </template>
-                        </div>
+                    <td class="border-r border-neutral-200 px-4 py-3 dark:border-neutral-800">
+                        <span class="inline-flex items-center rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs font-semibold text-neutral-800 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                            <span x-text="row.jumlah_anggota ?? 0"></span>&nbsp;Orang
+                        </span>
                     </td>
                     <td class="whitespace-nowrap px-4 py-3 text-center">
                         <div class="inline-flex items-center justify-center gap-1">
+                            <button
+                                type="button"
+                                x-on:click="syncTim(row)"
+                                x-bind:disabled="syncingId === row.id"
+                                class="inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors disabled:opacity-50"
+                                :class="row.needs_sync
+                                    ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300 dark:hover:bg-amber-900/50'
+                                    : 'border-emerald-200 bg-white text-emerald-600 hover:bg-emerald-50 dark:border-emerald-900/50 dark:bg-neutral-900 dark:text-emerald-400 dark:hover:bg-emerald-950/40'"
+                                title="Sinkronkan Anggota"
+                            >
+                                <x-lucide-refresh-cw class="h-3.5 w-3.5" x-bind:class="syncingId === row.id ? 'animate-spin' : ''" />
+                            </button>
                             <button
                                 type="button"
                                 x-on:click="openEditModal(row)"
