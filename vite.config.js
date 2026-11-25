@@ -8,4 +8,16 @@ export default defineConfig({
             refresh: true,
         }),
     ],
+    build: {
+        chunkSizeWarningLimit: 1200,
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (id.includes('@tiptap') || id.includes('prosemirror')) {
+                        return 'tiptap';
+                    }
+                },
+            },
+        },
+    },
 });

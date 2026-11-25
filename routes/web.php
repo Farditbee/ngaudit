@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Audit\SprinController;
 use App\Http\Controllers\Master\PlottingController;
+use App\Http\Controllers\Master\TemplatePkaController;
 use App\Http\Controllers\Master\TimController;
 use App\Http\Controllers\Master\UserController;
 use App\Http\Controllers\Master\WilayahController;
@@ -41,6 +42,18 @@ Route::middleware('auth')->group(function () {
     Route::post('/master/plotting', [PlottingController::class, 'store'])->name('master.plotting.store');
     Route::put('/master/plotting/{plotting}', [PlottingController::class, 'update'])->name('master.plotting.update');
     Route::delete('/master/plotting/{plotting}', [PlottingController::class, 'destroy'])->name('master.plotting.destroy');
+
+    Route::get('/master/template/pka', [TemplatePkaController::class, 'index'])->name('master.template.pka.index');
+    Route::post('/master/template/pka', [TemplatePkaController::class, 'store'])->name('master.template.pka.store');
+    Route::get('/master/template/pka/{pka}', [TemplatePkaController::class, 'show'])->name('master.template.pka.show');
+    Route::put('/master/template/pka/{pka}', [TemplatePkaController::class, 'update'])->name('master.template.pka.update');
+    Route::delete('/master/template/pka/{pka}', [TemplatePkaController::class, 'destroy'])->name('master.template.pka.destroy');
+
+    Route::get('/master/template/pka', [TemplatePkaController::class, 'index'])->name('master.template.pka.index');
+    Route::post('/master/template/pka', [TemplatePkaController::class, 'store'])->name('master.template.pka.store');
+    Route::get('/master/template/pka/{pka}', [TemplatePkaController::class, 'show'])->name('master.template.pka.show');
+    Route::put('/master/template/pka/{pka}', [TemplatePkaController::class, 'update'])->name('master.template.pka.update');
+    Route::delete('/master/template/pka/{pka}', [TemplatePkaController::class, 'destroy'])->name('master.template.pka.destroy');
 
     Route::get('/audit/sprin', [SprinController::class, 'index'])->name('audit.sprin.index');
     Route::post('/audit/sprin', [SprinController::class, 'store'])->name('audit.sprin.store');

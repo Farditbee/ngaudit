@@ -22,6 +22,12 @@
                 ['label' => 'Tim', 'icon' => 'user-group', 'href' => route('master.tim.index'), 'active' => request()->routeIs('master.tim.*')],
                 ['label' => 'Wilayah', 'icon' => 'map', 'href' => route('master.wilayah.index'), 'active' => request()->routeIs('master.wilayah.*')],
                 ['label' => 'Plotting', 'icon' => 'land-plot', 'href' => route('master.plotting.index'), 'active' => request()->routeIs('master.plotting.*')],
+                ['label' => 'Template', 'icon' => 'notepad-text-dashed', 'open' => request()->routeIs('master.template.*'), 'children' => [
+                    'Taklimat',
+                    ['label' => 'PKA', 'href' => route('master.template.pka.index'), 'active' => request()->routeIs('master.template.pka.*')],
+                    'KKA',
+                    'Langkah Kerja',
+                ]],
             ],
         ],
         [

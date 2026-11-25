@@ -1,3 +1,5 @@
+import { createTipTapEditor } from './tiptap';
+
 function getBaseDataTableMethods() {
     return {
         totalPages() {
@@ -1890,4 +1892,531 @@ export function registerDataTables(Alpine) {
         },
     }));
 
+    Alpine.data('templatePkaDataTable', (config) => ({
+        ...getBaseDataTableState(config),
+        ...getBaseDataTableMethods(),
+        filterLingkup: '',
+        authRole: config.authRole || '',
+        authPlottingId: config.authPlottingId ? String(config.authPlottingId) : '',
+        authProvinceCode: config.authProvinceCode ? String(config.authProvinceCode) : '',
+        scopeLabel: config.scopeLabel || '',
+        scopeName: config.scopeName || '',
+        lingkups: config.lingkups || ['Nasional', 'Wilayah'],
+        plottings: config.plottings || [],
+        provinces: config.provinces || [],
+        modalOpen: false,
+        previewModalOpen: false,
+        previewData: null,
+        loadingPreview: false,
+        deleteModalOpen: false,
+        editingId: null,
+        deletingItem: null,
+        deleteError: '',
+        saving: false,
+        savingSection: false,
+        deleting: false,
+        activeTab: 'pendahuluan',
+        editors: {},
+        sections: [
+            { key: 'pendahuluan', label: '1. Pendahuluan' },
+            { key: 'tujuan', label: '2. Tujuan' },
+            { key: 'ruang_lingkup', label: '3. Ruang Lingkup Audit' },
+            { key: 'sasaran', label: '4. Sasaran Audit' },
+            { key: 'waktu_pelaksanaan', label: '5. Waktu Pelaksanaan' },
+            { key: 'periode', label: '6. Periode Audit' },
+            { key: 'penutup', label: '7. Penutup' },
+        ],
+        form: {
+            nama_template: '',
+            lingkup: (config.lingkups && config.lingkups[0]) || 'Nasional',
+            plotting_id: config.authPlottingId ? String(config.authPlottingId) : '',
+            kode_wilayah: config.authProvinceCode ? String(config.authProvinceCode) : '',
+            pendahuluan: '',
+            tujuan: '',
+            ruang_lingkup: '',
+            sasaran: '',
+            waktu_pelaksanaan: '',
+            periode: '',
+            penutup: '',
+        },
+        errors: {},
+
+        isLingkupReadonly() {
+            return this.lingkups.length === 1;
+        },
+        isPlottingReadonly() {
+            return this.authRole === 'Admin Nasional' && Boolean(this.authPlottingId);
+        },
+        isProvinceReadonly() {
+            return this.authRole === 'Admin Wilayah' && Boolean(this.authProvinceCode);
+        },
+        get lingkupOptions() {
+            return this.lingkups.map((l) => ({ code: l, name: l }));
+        },
+        get plottingOptions() {
+            return this.plottings.map((p) => ({ code: String(p.id), name: p.name }));
+        },
+        get provinceOptions() {
+            return this.provinces.map((p) => ({ code: String(p.code), name: p.name }));
+        },
+        extraFilterParams() {
+            return {
+                lingkup: this.filterLingkup,
+            };
+        },
+        onFilterChange() {
+            this.page = 1;
+            this.fetchData();
+        },
+        resetFilters() {
+            this.filterLingkup = '';
+            this.search = '';
+            this.page = 1;
+            this.fetchData();
+        },
+        onLingkupChange() {
+            if (this.form.lingkup === 'Nasional') {
+                this.form.plotting_id = this.authPlottingId || '';
+                this.form.kode_wilayah = '';
+            } else if (this.form.lingkup === 'Wilayah') {
+                this.form.kode_wilayah = this.authProvinceCode || '';
+                this.form.plotting_id = '';
+            }
+        },
+
+        // TipTap Active Editor & Toolbar Helpers
+        getActiveEditor() {
+            return this.editors[this.activeTab] || null;
+        },
+        isActive(name, opts = {}) {
+            const editor = this.getActiveEditor();
+            return editor ? editor.isActive(name, opts) : false;
+        },
+        toggleBold() {
+            this.getActiveEditor()?.chain().focus().toggleBold().run();
+        },
+        toggleItalic() {
+            this.getActiveEditor()?.chain().focus().toggleItalic().run();
+        },
+        toggleUnderline() {
+            this.getActiveEditor()?.chain().focus().toggleUnderline().run();
+        },
+        toggleStrike() {
+            this.getActiveEditor()?.chain().focus().toggleStrike().run();
+        },
+        toggleSubscript() {
+            this.getActiveEditor()?.chain().focus().toggleSubscript().run();
+        },
+        toggleSuperscript() {
+            this.getActiveEditor()?.chain().focus().toggleSuperscript().run();
+        },
+        setHeading(level) {
+            const editor = this.getActiveEditor();
+            if (!editor) return;
+            if (level === 0) {
+                editor.chain().focus().setParagraph().run();
+            } else {
+                editor.chain().focus().toggleHeading({ level }).run();
+            }
+        },
+        toggleBulletList() {
+            this.getActiveEditor()?.chain().focus().toggleBulletList().run();
+        },
+        toggleOrderedList() {
+            this.getActiveEditor()?.chain().focus().toggleOrderedList().run();
+        },
+        sinkListItem() {
+            this.getActiveEditor()?.chain().focus().sinkListItem('listItem').run();
+        },
+        liftListItem() {
+            this.getActiveEditor()?.chain().focus().liftListItem('listItem').run();
+        },
+        setTextAlign(alignment) {
+            this.getActiveEditor()?.chain().focus().setTextAlign(alignment).run();
+        },
+        undo() {
+            this.getActiveEditor()?.chain().focus().undo().run();
+        },
+        redo() {
+            this.getActiveEditor()?.chain().focus().redo().run();
+        },
+        canUndo() {
+            return Boolean(this.getActiveEditor()?.can().undo());
+        },
+        canRedo() {
+            return Boolean(this.getActiveEditor()?.can().redo());
+        },
+        insertTable(rows = 3, cols = 3) {
+            this.getActiveEditor()?.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run();
+        },
+        addColumnBefore() {
+            this.getActiveEditor()?.chain().focus().addColumnBefore().run();
+        },
+        addColumnAfter() {
+            this.getActiveEditor()?.chain().focus().addColumnAfter().run();
+        },
+        deleteColumn() {
+            this.getActiveEditor()?.chain().focus().deleteColumn().run();
+        },
+        addRowBefore() {
+            this.getActiveEditor()?.chain().focus().addRowBefore().run();
+        },
+        addRowAfter() {
+            this.getActiveEditor()?.chain().focus().addRowAfter().run();
+        },
+        deleteRow() {
+            this.getActiveEditor()?.chain().focus().deleteRow().run();
+        },
+        deleteTable() {
+            this.getActiveEditor()?.chain().focus().deleteTable().run();
+        },
+        setLink() {
+            const editor = this.getActiveEditor();
+            if (!editor) return;
+            const previousUrl = editor.getAttributes('link').href;
+            const url = window.prompt('Masukkan URL Link:', previousUrl);
+            if (url === null) return;
+            if (url === '') {
+                editor.chain().focus().extendMarkRange('link').unsetLink().run();
+                return;
+            }
+            editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+        },
+        insertImage() {
+            const editor = this.getActiveEditor();
+            if (!editor) return;
+            const url = window.prompt('Masukkan URL Gambar / Embed:');
+            if (url) {
+                editor.chain().focus().setImage({ src: url }).run();
+            }
+        },
+        clearFormatting() {
+            this.getActiveEditor()?.chain().focus().unsetAllMarks().clearNodes().run();
+        },
+        focusActiveEditor(e) {
+            const editor = this.getActiveEditor();
+            if (!editor) return;
+            if (e && e.target && e.target.closest && e.target.closest('.ProseMirror')) {
+                return;
+            }
+            if (!editor.isFocused) {
+                try {
+                    editor.commands.focus('end');
+                } catch (err) {
+                    // Safe fallback
+                }
+            }
+        },
+
+        decodeHtml(html) {
+            if (!html || typeof html !== 'string') return '';
+            if (html.includes('&lt;') || html.includes('&gt;') || html.includes('&amp;')) {
+                const txt = document.createElement('textarea');
+                txt.innerHTML = html;
+                return txt.value;
+            }
+            return html;
+        },
+
+        resetForm() {
+            const defaultLingkup = (this.lingkups && this.lingkups[0]) || 'Nasional';
+            this.form = {
+                nama_template: '',
+                lingkup: defaultLingkup,
+                plotting_id: defaultLingkup === 'Nasional' && this.authPlottingId ? this.authPlottingId : '',
+                kode_wilayah: defaultLingkup === 'Wilayah' && this.authProvinceCode ? this.authProvinceCode : '',
+                pendahuluan: '',
+                tujuan: '',
+                ruang_lingkup: '',
+                sasaran: '',
+                waktu_pelaksanaan: '',
+                periode: '',
+                penutup: '',
+            };
+            this.errors = {};
+        },
+
+        initTabEditor(key) {
+            const el = this.$refs['editor_' + key];
+            if (!el) return;
+
+            if (this.editors[key]) {
+                return;
+            }
+
+            const text = this.decodeHtml(this.form[key] || '');
+            this.editors[key] = createTipTapEditor({
+                element: el,
+                content: text,
+                onUpdate: (html) => {
+                    this.form[key] = html;
+                },
+            });
+        },
+
+        destroyEditors() {
+            Object.values(this.editors).forEach((editor) => {
+                try {
+                    editor?.destroy();
+                } catch (e) {
+                    // Ignore
+                }
+            });
+            this.editors = {};
+            this.sections.forEach((sec) => {
+                const el = this.$refs['editor_' + sec.key];
+                if (el) {
+                    el.innerHTML = '';
+                }
+            });
+        },
+
+        switchTab(key) {
+            if (this.activeTab === key) return;
+            // Sync current editor to form before switching
+            if (this.editors[this.activeTab]) {
+                this.form[this.activeTab] = this.editors[this.activeTab].getHTML();
+            }
+            this.activeTab = key;
+            this.$nextTick(() => {
+                this.initTabEditor(key);
+                this.focusActiveEditor();
+            });
+        },
+
+        openCreateModal() {
+            this.destroyEditors();
+            this.editingId = null;
+            this.resetForm();
+            this.activeTab = 'pendahuluan';
+            this.modalOpen = true;
+            this.$nextTick(() => {
+                this.initTabEditor('pendahuluan');
+                this.focusActiveEditor();
+            });
+        },
+
+        async openEditModal(row) {
+            this.destroyEditors();
+            this.editingId = row.id;
+            this.errors = {};
+            this.activeTab = 'pendahuluan';
+
+            const lingkup = this.isLingkupReadonly() ? this.lingkups[0] : (row.lingkup || 'Nasional');
+            this.form = {
+                nama_template: row.nama_template || '',
+                lingkup,
+                plotting_id:
+                    lingkup === 'Nasional'
+                        ? (this.authPlottingId || (row.plotting_id ? String(row.plotting_id) : ''))
+                        : '',
+                kode_wilayah:
+                    lingkup === 'Wilayah'
+                        ? (this.authProvinceCode || (row.kode_wilayah ? String(row.kode_wilayah) : ''))
+                        : '',
+                pendahuluan: this.decodeHtml(row.pendahuluan || ''),
+                tujuan: this.decodeHtml(row.tujuan || ''),
+                ruang_lingkup: this.decodeHtml(row.ruang_lingkup || ''),
+                sasaran: this.decodeHtml(row.sasaran || ''),
+                waktu_pelaksanaan: this.decodeHtml(row.waktu_pelaksanaan || ''),
+                periode: this.decodeHtml(row.periode || ''),
+                penutup: this.decodeHtml(row.penutup || ''),
+            };
+            this.modalOpen = true;
+
+            this.$nextTick(() => {
+                this.initTabEditor('pendahuluan');
+                this.focusActiveEditor();
+            });
+
+            // Fetch latest data from server to ensure fresh content
+            try {
+                const response = await fetch(`${this.baseUrl}/${row.id}?t=${Date.now()}`, {
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (this.editingId === row.id && this.modalOpen) {
+                        this.form.nama_template = data.nama_template || '';
+                        this.form.pendahuluan = this.decodeHtml(data.pendahuluan || '');
+                        this.form.tujuan = this.decodeHtml(data.tujuan || '');
+                        this.form.ruang_lingkup = this.decodeHtml(data.ruang_lingkup || '');
+                        this.form.sasaran = this.decodeHtml(data.sasaran || '');
+                        this.form.waktu_pelaksanaan = this.decodeHtml(data.waktu_pelaksanaan || '');
+                        this.form.periode = this.decodeHtml(data.periode || '');
+                        this.form.penutup = this.decodeHtml(data.penutup || '');
+
+                        const activeEditor = this.editors[this.activeTab];
+                        if (activeEditor && data[this.activeTab] !== undefined) {
+                            const decoded = this.decodeHtml(data[this.activeTab] || '');
+                            if (activeEditor.getHTML() !== decoded) {
+                                activeEditor.commands.setContent(decoded);
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        },
+
+        closeModal() {
+            if (this.saving || this.savingSection) return;
+            this.modalOpen = false;
+            this.destroyEditors();
+            this.editingId = null;
+            this.resetForm();
+        },
+
+        async openPreviewModal(row) {
+            this.loadingPreview = true;
+            this.previewModalOpen = true;
+            this.previewData = null;
+            try {
+                const response = await fetch(`${this.baseUrl}/${row.id}?t=${Date.now()}`, {
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    this.previewData = data;
+                } else {
+                    throw new Error(data.message || 'Gagal memuat preview template');
+                }
+            } catch (e) {
+                console.error(e);
+                this.previewData = null;
+            } finally {
+                this.loadingPreview = false;
+            }
+        },
+
+        closePreviewModal() {
+            this.previewModalOpen = false;
+        },
+
+        saveCurrentTab() {
+            const currentSection = this.sections.find((s) => s.key === this.activeTab);
+            this.saveTemplate(currentSection ? currentSection.label : null);
+        },
+
+        async saveTemplate(sectionLabel = null) {
+            if (sectionLabel) {
+                this.savingSection = true;
+            } else {
+                this.saving = true;
+            }
+            this.errors = {};
+
+            // Synchronize all currently active editor instances into form state
+            Object.keys(this.editors).forEach((key) => {
+                if (this.editors[key]) {
+                    this.form[key] = this.editors[key].getHTML();
+                }
+            });
+
+            const url = this.editingId ? `${this.baseUrl}/${this.editingId}` : this.storeUrl;
+            const method = this.editingId ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(this.form),
+                });
+
+                const json = await response.json();
+
+                if (response.status === 422) {
+                    this.errors = json.errors || {};
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal menyimpan template.');
+                }
+
+                if (json.data && json.data.id) {
+                    this.editingId = json.data.id;
+                }
+
+                const successMsg = sectionLabel
+                    ? `Bagian "${sectionLabel}" berhasil disimpan.`
+                    : (json.message || 'Template PKA berhasil disimpan.');
+
+                if (!sectionLabel) {
+                    this.modalOpen = false;
+                    this.destroyEditors();
+                    this.editingId = null;
+                    this.resetForm();
+                }
+                this.showFlash(successMsg);
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                this.errors = {
+                    general: [e.message || 'Terjadi kesalahan sistem.'],
+                };
+            } finally {
+                this.saving = false;
+                this.savingSection = false;
+            }
+        },
+
+        confirmDelete(row) {
+            this.deletingItem = row;
+            this.deleteError = '';
+            this.deleteModalOpen = true;
+        },
+
+        closeDeleteModal() {
+            if (this.deleting) return;
+            this.deleteModalOpen = false;
+            this.deletingItem = null;
+            this.deleteError = '';
+        },
+
+        async deleteItem() {
+            if (!this.deletingItem) return;
+            this.deleting = true;
+            this.deleteError = '';
+
+            try {
+                const response = await fetch(`${this.baseUrl}/${this.deletingItem.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                const json = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal menghapus template.');
+                }
+
+                this.deleteModalOpen = false;
+                this.deletingItem = null;
+                this.showFlash(json.message || 'Template PKA berhasil dihapus.');
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                this.deleteError = e.message || 'Terjadi kesalahan saat menghapus template.';
+            } finally {
+                this.deleting = false;
+            }
+        },
+    }));
 }
