@@ -1909,12 +1909,16 @@ export function registerDataTables(Alpine) {
         previewData: null,
         loadingPreview: false,
         deleteModalOpen: false,
+        duplicateModalOpen: false,
         editingId: null,
         deletingItem: null,
+        duplicatingItem: null,
         deleteError: '',
+        duplicateError: '',
         saving: false,
         savingSection: false,
         deleting: false,
+        duplicating: false,
         activeTab: 'pendahuluan',
         editors: {},
         sections: [
@@ -2370,6 +2374,52 @@ export function registerDataTables(Alpine) {
             } finally {
                 this.saving = false;
                 this.savingSection = false;
+            }
+        },
+
+        confirmDuplicate(row) {
+            this.duplicatingItem = row;
+            this.duplicateError = '';
+            this.duplicateModalOpen = true;
+        },
+
+        closeDuplicateModal() {
+            if (this.duplicating) return;
+            this.duplicateModalOpen = false;
+            this.duplicatingItem = null;
+            this.duplicateError = '';
+        },
+
+        async duplicateItem() {
+            if (!this.duplicatingItem) return;
+            this.duplicating = true;
+            this.duplicateError = '';
+
+            try {
+                const response = await fetch(`${this.baseUrl}/${this.duplicatingItem.id}/duplicate`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                const json = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal menduplikasi template.');
+                }
+
+                this.duplicateModalOpen = false;
+                this.duplicatingItem = null;
+                this.showFlash(json.message || 'Template PKA berhasil diduplikasi.');
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                this.duplicateError = e.message || 'Terjadi kesalahan saat menduplikasi template.';
+            } finally {
+                this.duplicating = false;
             }
         },
 

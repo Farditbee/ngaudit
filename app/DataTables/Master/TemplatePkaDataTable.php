@@ -21,7 +21,7 @@ class TemplatePkaDataTable
             ['data' => 'nama_template', 'name' => 'template_pkas.nama_template', 'label' => 'NAMA TEMPLATE', 'sortable' => true, 'searchable' => true, 'width' => 'min-w-[14rem]'],
             ['data' => 'lingkup', 'name' => 'template_pkas.lingkup', 'label' => 'LINGKUP', 'sortable' => true, 'searchable' => true, 'align' => 'center', 'width' => 'w-36'],
             ['data' => 'created_at_formatted', 'name' => 'template_pkas.created_at', 'label' => 'DIBUAT PADA', 'sortable' => true, 'searchable' => false, 'align' => 'center', 'width' => 'w-36'],
-            ['data' => 'actions', 'name' => 'actions', 'label' => 'AKSI', 'sortable' => false, 'searchable' => false, 'align' => 'center', 'width' => 'w-24'],
+            ['data' => 'actions', 'name' => 'actions', 'label' => 'AKSI', 'sortable' => false, 'searchable' => false, 'align' => 'center', 'width' => 'w-36'],
         ];
     }
 

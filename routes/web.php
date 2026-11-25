@@ -48,12 +48,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/master/template/pka/{pka}', [TemplatePkaController::class, 'show'])->name('master.template.pka.show');
     Route::put('/master/template/pka/{pka}', [TemplatePkaController::class, 'update'])->name('master.template.pka.update');
     Route::delete('/master/template/pka/{pka}', [TemplatePkaController::class, 'destroy'])->name('master.template.pka.destroy');
-
-    Route::get('/master/template/pka', [TemplatePkaController::class, 'index'])->name('master.template.pka.index');
-    Route::post('/master/template/pka', [TemplatePkaController::class, 'store'])->name('master.template.pka.store');
-    Route::get('/master/template/pka/{pka}', [TemplatePkaController::class, 'show'])->name('master.template.pka.show');
-    Route::put('/master/template/pka/{pka}', [TemplatePkaController::class, 'update'])->name('master.template.pka.update');
-    Route::delete('/master/template/pka/{pka}', [TemplatePkaController::class, 'destroy'])->name('master.template.pka.destroy');
+    Route::post('/master/template/pka/{pka}/duplicate', [TemplatePkaController::class, 'duplicate'])->name('master.template.pka.duplicate');
 
     Route::get('/audit/sprin', [SprinController::class, 'index'])->name('audit.sprin.index');
     Route::post('/audit/sprin', [SprinController::class, 'store'])->name('audit.sprin.store');

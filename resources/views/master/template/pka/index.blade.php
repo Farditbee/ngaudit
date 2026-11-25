@@ -110,6 +110,14 @@
                             </button>
                             <button
                                 type="button"
+                                x-on:click="confirmDuplicate(row)"
+                                class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                title="Duplikasi Template"
+                            >
+                                <x-lucide-copy class="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                                type="button"
                                 x-on:click="confirmDelete(row)"
                                 class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 bg-white text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:bg-neutral-900 dark:text-red-400 dark:hover:bg-red-950/40"
                                 title="Hapus Template"
@@ -775,6 +783,64 @@
                         class="inline-flex h-9 items-center justify-center rounded-md bg-neutral-900 px-4 text-xs font-medium text-white shadow-xs hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
                     >
                         Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {{-- Modal Konfirmasi Duplikasi --}}
+        <div
+            x-show="duplicateModalOpen"
+            x-cloak
+            x-on:keydown.escape.window="closeDuplicateModal()"
+            class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4"
+        >
+            <div
+                x-show="duplicateModalOpen"
+                x-transition.opacity
+                x-on:click="closeDuplicateModal()"
+                class="fixed inset-0 bg-black/50 backdrop-blur-[1px]"
+            ></div>
+
+            <div
+                x-show="duplicateModalOpen"
+                x-transition
+                class="relative z-10 w-full max-w-md rounded-xl border border-neutral-200 bg-white p-6 shadow-xl dark:border-neutral-800 dark:bg-neutral-950"
+            >
+                <div class="flex items-start gap-4">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
+                        <x-lucide-copy class="h-5 w-5" />
+                    </div>
+                    <div class="space-y-1">
+                        <h3 class="text-base font-semibold text-neutral-900 dark:text-neutral-100">Duplikasi Template PKA</h3>
+                        <p class="text-xs text-neutral-500 dark:text-neutral-400">
+                            Apakah Anda yakin ingin menduplikasi template <span class="font-medium text-neutral-900 dark:text-neutral-100" x-text="duplicatingItem ? duplicatingItem.nama_template : ''"></span>? Salinan baru akan dibuat dengan seluruh isian dokumen yang sama persis.
+                        </p>
+                    </div>
+                </div>
+
+                <template x-if="duplicateError">
+                    <div class="mt-3 rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-600 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300" x-text="duplicateError"></div>
+                </template>
+
+                <div class="mt-6 flex items-center justify-end gap-2">
+                    <button
+                        type="button"
+                        x-on:click="closeDuplicateModal()"
+                        class="inline-flex h-9 items-center justify-center rounded-md border border-neutral-200 bg-white px-4 text-xs font-medium text-neutral-700 shadow-xs hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                    >
+                        Batal
+                    </button>
+                    <button
+                        type="button"
+                        x-bind:disabled="duplicating"
+                        x-on:click="duplicateItem()"
+                        class="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-neutral-900 px-4 text-xs font-medium text-white shadow-xs hover:bg-neutral-800 disabled:opacity-50 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+                    >
+                        <template x-if="duplicating">
+                            <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/20 border-t-white dark:border-neutral-900/20 dark:border-t-neutral-900"></span>
+                        </template>
+                        <span x-text="duplicating ? 'Menduplikasi...' : 'Ya, Duplikasi'"></span>
                     </button>
                 </div>
             </div>

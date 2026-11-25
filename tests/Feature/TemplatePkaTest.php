@@ -216,4 +216,44 @@ class TemplatePkaTest extends TestCase
             'id' => $template->id,
         ]);
     }
+
+    public function test_can_duplicate_template_pka_with_replicated_sections(): void
+    {
+        $admin = User::factory()->create();
+        $plotting = Plotting::query()->create(['plot' => 'WIL I']);
+
+        $original = TemplatePka::query()->create([
+            'nama_template' => 'PKA Audit Reguler 2026',
+            'lingkup' => 'Nasional',
+            'plotting_id' => $plotting->id,
+            'pendahuluan' => '<p>Pendahuluan dokumen asli</p>',
+            'tujuan' => '<p>Tujuan dokumen asli</p>',
+            'penutup' => '<p>Penutup dokumen asli</p>',
+            'created_by' => $admin->id,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->postJson(route('master.template.pka.duplicate', $original));
+
+        $response->assertCreated()
+            ->assertJsonFragment(['message' => 'Template PKA berhasil diduplikasi.']);
+
+        $this->assertDatabaseHas('template_pkas', [
+            'nama_template' => 'PKA Audit Reguler 2026 (Salinan)',
+            'lingkup' => 'Nasional',
+            'plotting_id' => $plotting->id,
+            'pendahuluan' => '<p>Pendahuluan dokumen asli</p>',
+            'tujuan' => '<p>Tujuan dokumen asli</p>',
+            'penutup' => '<p>Penutup dokumen asli</p>',
+        ]);
+
+        // Duplikasi kedua kalinya harus menghasilkan penomoran (Salinan 2)
+        $secondResponse = $this->actingAs($admin)
+            ->postJson(route('master.template.pka.duplicate', $original));
+
+        $secondResponse->assertCreated();
+        $this->assertDatabaseHas('template_pkas', [
+            'nama_template' => 'PKA Audit Reguler 2026 (Salinan 2)',
+        ]);
+    }
 }

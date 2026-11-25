@@ -132,6 +132,39 @@ class TemplatePkaController extends Controller
         ]);
     }
 
+    public function duplicate(TemplatePka $pka): JsonResponse
+    {
+        if (! $this->canAccessTemplate(auth()->user(), $pka)) {
+            return response()->json([
+                'message' => 'Anda tidak memiliki hak akses untuk menduplikasi template ini.',
+            ], 403);
+        }
+
+        $copy = $pka->replicate();
+        $copy->nama_template = $this->generateDuplicateName($pka->nama_template);
+        $copy->created_by = auth()->id();
+        $copy->save();
+
+        return response()->json([
+            'message' => 'Template PKA berhasil diduplikasi.',
+            'data' => $copy,
+        ], 201);
+    }
+
+    protected function generateDuplicateName(string $name): string
+    {
+        $baseName = trim((string) preg_replace('/\s*\(Salinan(?:\s+\d+)?\)$/i', '', $name));
+        $candidate = "{$baseName} (Salinan)";
+        $counter = 2;
+
+        while (TemplatePka::query()->where('nama_template', $candidate)->exists()) {
+            $candidate = "{$baseName} (Salinan {$counter})";
+            $counter++;
+        }
+
+        return $candidate;
+    }
+
     /**
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
