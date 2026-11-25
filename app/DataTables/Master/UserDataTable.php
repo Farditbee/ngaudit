@@ -6,7 +6,6 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Yajra\DataTables\Facades\DataTables;
 
 class UserDataTable
@@ -107,7 +106,7 @@ class UserDataTable
 
         return DataTables::eloquent($query)
             ->addIndexColumn()
-            ->addColumn('ttd_url', fn (User $user): ?string => $user->ttd_path ? Storage::disk('public')->url($user->ttd_path) : null)
+            ->addColumn('ttd_url', fn (User $user): ?string => $user->ttd_path ? asset('storage/'.$user->ttd_path) : null)
             ->toJson();
     }
 }

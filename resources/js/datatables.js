@@ -1570,4 +1570,324 @@ export function registerDataTables(Alpine) {
             }
         },
     }));
+
+    Alpine.data('sprinDataTable', (config) => ({
+        ...getBaseDataTableState(config),
+        ...getBaseDataTableMethods(),
+        filterTahap: '',
+        scopeLabel: config.scopeLabel || '',
+        scopeName: config.scopeName || '',
+        tims: config.tims || [],
+        tahaps: config.tahaps || ['1', '2', 'Khusus'],
+        modalOpen: false,
+        deleteModalOpen: false,
+        reviewModalOpen: false,
+        editingId: null,
+        deletingItem: null,
+        deleteError: '',
+        reviewSprin: null,
+        reviewLogs: [],
+        loadingReviews: false,
+        savingReview: false,
+        reviewFormOpen: false,
+        reviewForm: { status: 'Disetujui', catatan: '' },
+        reviewErrors: {},
+        form: {
+            no_sprin: '',
+            no_surat_pemberitahuan: '',
+            tim_id: '',
+            tahap: '',
+            tgl_mulai: '',
+            tgl_akhir: '',
+            keterangan: '',
+        },
+        files: { file_surat_perintah: null, file_surat_pemberitahuan: null },
+        existing: { perintah: '', pemberitahuan: '' },
+        errors: {},
+
+        get timOptions() {
+            return this.tims;
+        },
+        get tahapOptions() {
+            return this.tahaps.map((t) => ({ code: t, name: t === 'Khusus' ? 'Khusus' : `Tahap ${t}` }));
+        },
+        get selectedTim() {
+            return this.tims.find((t) => String(t.id) === String(this.form.tim_id)) || null;
+        },
+        extraFilterParams() {
+            return { tahap: this.filterTahap };
+        },
+        onFilterChange() {
+            this.page = 1;
+            this.fetchData();
+        },
+        resetFilters() {
+            this.filterTahap = '';
+            this.search = '';
+            this.page = 1;
+            this.fetchData();
+        },
+        formatDate(value) {
+            if (!value) return '-';
+            const str = String(value).trim();
+            if (str.includes('/')) return str;
+            const parts = str.split('-');
+            if (parts.length === 3) {
+                const [y, m, d] = parts;
+                return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+            }
+            return str;
+        },
+        init() {
+            this.fetchData();
+            this.$watch('form.tgl_mulai', (newVal) => {
+                if (newVal) {
+                    this.onTglMulaiChange(newVal);
+                }
+            });
+        },
+        onTimChange() {
+            // Daltu, Dalnis, Ketua Tim, dan Anggota otomatis mengikuti tim terpilih.
+        },
+        onTglMulaiChange(customVal = null) {
+            const raw = customVal || this.form.tgl_mulai;
+            if (!raw) {
+                this.form.tgl_akhir = '';
+                return;
+            }
+            const parts = String(raw).split('-');
+            if (parts.length !== 3) return;
+            const y = Number(parts[0]);
+            const m = Number(parts[1]);
+            const d = Number(parts[2]);
+            if (isNaN(y) || isNaN(m) || isNaN(d) || !y || !m || !d) return;
+
+            const date = new Date(Date.UTC(y, m - 1, d + 14));
+            const outY = date.getUTCFullYear();
+            const outM = String(date.getUTCMonth() + 1).padStart(2, '0');
+            const outD = String(date.getUTCDate()).padStart(2, '0');
+            this.form.tgl_akhir = `${outY}-${outM}-${outD}`;
+        },
+        resetFiles() {
+            this.files = { file_surat_perintah: null, file_surat_pemberitahuan: null };
+            if (this.$refs.filePerintah) this.$refs.filePerintah.value = '';
+            if (this.$refs.filePemberitahuan) this.$refs.filePemberitahuan.value = '';
+        },
+        openCreateModal() {
+            this.editingId = null;
+            this.errors = {};
+            this.existing = { perintah: '', pemberitahuan: '' };
+            this.form = {
+                no_sprin: '',
+                no_surat_pemberitahuan: '',
+                tim_id: '',
+                tahap: '',
+                tgl_mulai: '',
+                tgl_akhir: '',
+                keterangan: '',
+            };
+            this.modalOpen = true;
+            this.$nextTick(() => this.resetFiles());
+        },
+        openEditModal(row) {
+            this.editingId = row.id;
+            this.errors = {};
+            this.existing = {
+                perintah: row.file_surat_perintah_name || '',
+                pemberitahuan: row.file_surat_pemberitahuan_name || '',
+            };
+            this.form = {
+                no_sprin: row.no_sprin || '',
+                no_surat_pemberitahuan: row.no_surat_pemberitahuan || '',
+                tim_id: row.tim_id ? String(row.tim_id) : '',
+                tahap: row.tahap || '',
+                tgl_mulai: row.tgl_mulai || '',
+                tgl_akhir: row.tgl_akhir_value || '',
+                keterangan: row.keterangan || '',
+            };
+            this.modalOpen = true;
+            this.$nextTick(() => this.resetFiles());
+        },
+        closeModal() {
+            if (this.saving) return;
+            this.modalOpen = false;
+        },
+        async saveSprin() {
+            this.saving = true;
+            this.errors = {};
+            const isEdit = Boolean(this.editingId);
+            const url = isEdit ? `${this.baseUrl}/${this.editingId}` : this.storeUrl;
+
+            const formData = new FormData();
+            if (isEdit) {
+                formData.append('_method', 'PUT');
+            }
+            Object.entries(this.form).forEach(([key, val]) => {
+                if (val !== null && val !== undefined && val !== '') {
+                    formData.append(key, val);
+                }
+            });
+            Object.entries(this.files).forEach(([key, file]) => {
+                if (file) {
+                    formData.append(key, file);
+                }
+            });
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: formData,
+                });
+
+                const json = await response.json();
+
+                if (response.status === 422) {
+                    this.errors = json.errors || {};
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Terjadi kesalahan saat menyimpan data Sprin.');
+                }
+
+                this.modalOpen = false;
+                this.showFlash(json.message || 'Data Sprin berhasil disimpan.');
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.saving = false;
+            }
+        },
+        confirmDelete(row) {
+            this.deletingItem = row;
+            this.deleteError = '';
+            this.deleteModalOpen = true;
+        },
+        async deleteSprin() {
+            if (!this.deletingItem) return;
+            this.deleting = true;
+            this.deleteError = '';
+            try {
+                const response = await fetch(`${this.baseUrl}/${this.deletingItem.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                const json = await response.json();
+
+                if (!response.ok) {
+                    this.deleteError = json.message || 'Gagal menghapus Sprin.';
+                    return;
+                }
+
+                this.deleteModalOpen = false;
+                this.deletingItem = null;
+                this.showFlash(json.message || 'Data Sprin berhasil dihapus.');
+                if (this.rows.length === 1 && this.page > 1) {
+                    this.page--;
+                }
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.deleting = false;
+            }
+        },
+        openReviewModal(row) {
+            this.reviewSprin = { ...row };
+            this.reviewLogs = [];
+            this.reviewModalOpen = true;
+            this.reviewFormOpen = false;
+            this.reviewForm = { status: 'Disetujui', catatan: '' };
+            this.reviewErrors = {};
+            this.fetchReviews(row.id);
+        },
+        closeReviewModal() {
+            if (this.savingReview) return;
+            this.reviewModalOpen = false;
+        },
+        async fetchReviews(sprinId) {
+            this.loadingReviews = true;
+            try {
+                const response = await fetch(`${this.baseUrl}/${sprinId}/reviews`, {
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const json = await response.json();
+                if (response.ok) {
+                    if (json.sprin) {
+                        this.reviewSprin = {
+                            ...this.reviewSprin,
+                            ...json.sprin,
+                        };
+                    }
+                    this.reviewLogs = json.reviews || [];
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.loadingReviews = false;
+            }
+        },
+        async saveReview() {
+            if (!this.reviewSprin || !this.reviewSprin.can_review) return;
+            this.savingReview = true;
+            this.reviewErrors = {};
+
+            try {
+                const response = await fetch(`${this.baseUrl}/${this.reviewSprin.id}/reviews`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(this.reviewForm),
+                });
+
+                const json = await response.json();
+
+                if (response.status === 422) {
+                    this.reviewErrors = json.errors || {};
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal menyimpan reviu.');
+                }
+
+                if (json.review) {
+                    this.reviewLogs.unshift(json.review);
+                }
+                if (this.reviewSprin) {
+                    this.reviewSprin.latest_review_status = json.latest_status;
+                    this.reviewSprin.approved_by_daltu_date = json.approved_by_daltu_date;
+                    this.reviewSprin.latest_review_date = json.latest_review_date || json.review?.created_at;
+                }
+
+                this.reviewFormOpen = false;
+                this.reviewForm = { status: 'Disetujui', catatan: '' };
+                this.showFlash(json.message || 'Reviu berhasil disimpan.');
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.savingReview = false;
+            }
+        },
+    }));
+
 }

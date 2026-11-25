@@ -7,6 +7,14 @@
                 ['label' => 'Layouts', 'icon' => 'layout', 'pro' => true, 'children' => ['Full Navbar', 'Horizontal', 'Split', 'Icon Menu', 'Paper']],
             ],
         ],
+
+        [
+            'label' => 'Audit',
+            'items' => [
+                ['label' => 'Persiapan', 'icon' => 'layout', 'open' => request()->routeIs('audit.*'), 'children' => [['label' => 'Sprin', 'href' => route('audit.sprin.index')], 'Entry Meeting', 'PKA', 'Dokumen Pendahuluan']],
+            ],
+        ],
+
         [
             'label' => 'Data Master',
             'items' => [
@@ -14,11 +22,6 @@
                 ['label' => 'Tim', 'icon' => 'user-group', 'href' => route('master.tim.index'), 'active' => request()->routeIs('master.tim.*')],
                 ['label' => 'Wilayah', 'icon' => 'map', 'href' => route('master.wilayah.index'), 'active' => request()->routeIs('master.wilayah.*')],
                 ['label' => 'Plotting', 'icon' => 'land-plot', 'href' => route('master.plotting.index'), 'active' => request()->routeIs('master.plotting.*')],
-                ['label' => 'Users', 'icon' => 'users', 'children' => ['List', 'View'], 'open' => true],
-                ['label' => 'Chat', 'icon' => 'message-circle', 'pro' => true],
-                ['label' => 'Kanban', 'icon' => 'kanban', 'pro' => true],
-                ['label' => 'Contact', 'icon' => 'contact', 'pro' => true],
-                ['label' => 'Roles & Permissions', 'icon' => 'shield-check', 'pro' => true, 'children' => ['Roles', 'Permissions']],
             ],
         ],
         [

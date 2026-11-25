@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\TimFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -45,6 +46,34 @@ class Tim extends Model
                 $tim->created_by = auth()->id();
             }
         });
+    }
+
+    /**
+     * Batasi tim sesuai lingkup user yang sedang login.
+     *
+     * @param  Builder<Tim>  $query
+     */
+    public function scopeVisibleTo(Builder $query, ?User $user): void
+    {
+        if (! $user || $user->role === 'Super Admin') {
+            return;
+        }
+
+        if ($user->role === 'Admin Nasional' && $user->plotting_id) {
+            $query->where('tims.lingkup', 'Nasional')
+                ->where('tims.plotting_id', $user->plotting_id);
+        } elseif ($user->role === 'Admin Wilayah' && $user->kode_wilayah) {
+            $query->where('tims.lingkup', 'Wilayah')
+                ->where('tims.province_code', substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2));
+        } elseif ($user->role === 'Koordinator dan Pengendali') {
+            if ($user->plotting_id) {
+                $query->where('tims.plotting_id', $user->plotting_id);
+            } elseif ($user->kode_wilayah) {
+                $query->where('tims.province_code', substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2));
+            } else {
+                $query->where('tims.daltu_id', $user->id);
+            }
+        }
     }
 
     public function creator(): BelongsTo
