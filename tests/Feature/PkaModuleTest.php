@@ -96,7 +96,8 @@ class PkaModuleTest extends TestCase
     {
         Storage::fake('public');
 
-        $admin = User::factory()->create();
+        $admin = User::factory()->create(['username' => 'katim_uji', 'name' => 'Ketua Tim Uji']);
+        $reviewer = User::factory()->create(['username' => 'dalnis_uji', 'name' => 'Pengawas Tim Uji']);
         $plotting = Plotting::query()->create(['plot' => 'WIL I']);
         $tim = $this->createTim($admin, $plotting);
         $sprin = $this->createSprin($admin, $tim, $plotting);
@@ -120,6 +121,8 @@ class PkaModuleTest extends TestCase
             'jenis_audit' => 'Audit Kinerja',
             'sasaran_auditi' => 'Dinas Pekerjaan Umum',
             'status' => 'Draft',
+            'dibuat_oleh_id' => $admin->id,
+            'direviu_oleh_id' => $reviewer->id,
             'template_pka_id' => $template->id,
             'lampiran' => $file,
             'pendahuluan' => '<p><strong>10. Pendahuluan</strong> audit operasional dinas.</p>',
@@ -142,6 +145,8 @@ class PkaModuleTest extends TestCase
             'bidang' => 'Operasional',
             'jenis_audit' => 'Audit Kinerja',
             'status' => 'Draft',
+            'dibuat_oleh_id' => $admin->id,
+            'direviu_oleh_id' => $reviewer->id,
             'template_pka_id' => $template->id,
             'lampiran_name' => 'dokumen_lampiran_pka.pdf',
             'created_by' => $admin->id,
@@ -681,5 +686,94 @@ class PkaModuleTest extends TestCase
         $clearRes->assertOk()
             ->assertJsonFragment(['message' => 'Berhasil mengosongkan langkah kerja.']);
         $this->assertEquals(0, PkaLangkahKerja::query()->where('pka_id', $pka->id)->count());
+    }
+
+    public function test_pka_print_report_displays_title_metadata_sections_and_sprin_members_table(): void
+    {
+        $admin = User::factory()->create(['role' => 'Super Admin']);
+        $daltu = User::factory()->create([
+            'name' => 'Drs. Merdisyam',
+            'username' => 'daltu1',
+            'role' => 'Koordinator dan Pengendali',
+            'jabatan' => 'Koordinator Pengendali',
+        ]);
+        $dalnis = User::factory()->create([
+            'name' => 'Brigjen Pol. Rinto Djatmono',
+            'username' => 'dalnis1',
+            'role' => 'Pengawas Tim',
+            'jabatan' => 'Pengawas Tim Audit',
+        ]);
+        $katim = User::factory()->create([
+            'name' => 'Muhammad Darwis',
+            'username' => 'katim1',
+            'role' => 'Ketua Tim',
+            'jabatan' => 'Ketua Tim Audit',
+        ]);
+        $auditor = User::factory()->create([
+            'name' => 'Pramuja Sigit Wahono',
+            'username' => 'auditor1',
+            'role' => 'Auditor',
+            'jabatan' => 'Auditor Pelaksana',
+        ]);
+
+        $plotting = Plotting::query()->create(['plot' => 'WIL I']);
+        $tim = Tim::query()->create([
+            'nama_tim' => 'Tim Audit Cetak',
+            'lingkup' => 'Nasional',
+            'plotting_id' => $plotting->id,
+            'daltu_id' => $daltu->id,
+            'dalnis_id' => $dalnis->id,
+            'ketua_tim_id' => $katim->id,
+            'created_by' => $admin->id,
+        ]);
+        $tim->auditors()->sync([$auditor->id]);
+
+        $sprin = Sprin::query()->create([
+            'no_sprin' => 'SPRIN/999/III/2026',
+            'no_surat_pemberitahuan' => 'SPT/999/III/2026',
+            'tgl_mulai' => '2026-04-01',
+            'tgl_akhir' => '2026-04-15',
+            'sprin_tipe' => 'Nasional',
+            'tahap' => '1',
+            'plotting_id' => $plotting->id,
+            'tim_id' => $tim->id,
+            'katim' => $katim->id,
+            'dalnis' => $dalnis->id,
+            'daltu' => $daltu->id,
+            'approved_by_daltu_date' => now(),
+            'created_by' => $admin->id,
+            'user_id' => $admin->id,
+        ]);
+
+        $pka = Pka::query()->create([
+            'sprin_id' => $sprin->id,
+            'nomor_pka' => 'PKA/999/LOG/2026',
+            'tanggal' => '2026-04-02',
+            'anggaran' => 50000000,
+            'bidang' => 'Logistik',
+            'jenis_audit' => 'Audit Kinerja',
+            'sasaran_auditi' => 'Divisi TIK Polri',
+            'dibuat_oleh_id' => $katim->id,
+            'direviu_oleh_id' => $dalnis->id,
+            'pendahuluan' => '<p>Isi pendahuluan laporan cetak.</p>',
+            'tujuan' => '<p>Isi tujuan laporan cetak.</p>',
+            'penutup' => '<p>Isi penutup laporan cetak.</p>',
+            'created_by' => $admin->id,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('audit.pka.print', $pka));
+
+        $response->assertOk()
+            ->assertSee('PKA LOGISTIK OLEH BRIGJEN POL. RINTO DJATMONO')
+            ->assertSee('TERHADAP DIVISI TIK POLRI')
+            ->assertSee('Nomor : PKA/999/LOG/2026')
+            ->assertSee('Muhammad Darwis')
+            ->assertSee('Brigjen Pol. Rinto Djatmono')
+            ->assertSee('2026')
+            ->assertSee('Isi pendahuluan laporan cetak.')
+            ->assertSee('Isi penutup laporan cetak.')
+            ->assertSee('Drs. Merdisyam')
+            ->assertSee('Pramuja Sigit Wahono')
+            ->assertSee('auditor1');
     }
 }

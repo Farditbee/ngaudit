@@ -100,6 +100,10 @@ class TemplatePkaDataTable
             $query->where('template_pkas.lingkup', $filterLingkup);
         }
 
+        if (! $request->has('order')) {
+            $query->orderByDesc('template_pkas.created_at')->orderByDesc('template_pkas.id');
+        }
+
         return DataTables::eloquent($query)
             ->addIndexColumn()
             ->addColumn('plot_name', fn (TemplatePka $t): ?string => $t->plot_name ?? $t->plotName())

@@ -52,7 +52,8 @@ class TemplateLangkahKerjaDetailDataTable
             ->select(['template_langkah_kerja_details.*']);
 
         if (! $request->has('order')) {
-            $query->orderBy('template_langkah_kerja_details.id');
+            $query->orderByDesc('template_langkah_kerja_details.created_at')
+                ->orderByDesc('template_langkah_kerja_details.id');
         }
 
         return DataTables::eloquent($query)

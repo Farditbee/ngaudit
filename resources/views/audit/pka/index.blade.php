@@ -365,14 +365,14 @@
                         <div class="flex flex-col items-center justify-center gap-1">
                             {{-- Baris 1: 3 tombol (Print, Duplikasi, Langkah Kerja) --}}
                             <div class="inline-flex items-center justify-center gap-1">
-                                <button
-                                    type="button"
-                                    x-on:click="printPka(row)"
+                                <a
+                                    :href="row.print_url || `${baseUrl}/${row.id}/print`"
+                                    target="_blank"
                                     class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                    title="Cetak / Print PKA"
+                                    title="Cetak / Print PDF PKA"
                                 >
                                     <x-lucide-printer class="h-3.5 w-3.5" />
-                                </button>
+                                </a>
                                 <button
                                     type="button"
                                     x-on:click="openDuplicateModal(row)"
@@ -472,12 +472,62 @@
                                         placeholder="Pilih Nomor Sprin..."
                                         itemsExpr="sprinOptions"
                                         valueModel="form.sprin_id"
-                                        changeAction=""
+                                        changeAction="onSprinChange()"
                                     />
                                     <template x-if="errors.sprin_id">
                                         <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.sprin_id[0]"></p>
                                     </template>
                                 </div>
+
+                                {{-- Previu Susunan Tim dari Sprin yang dipilih --}}
+                                <template x-if="selectedSprin">
+                                    <div class="sm:col-span-2 lg:col-span-3 overflow-hidden rounded-xl border border-neutral-200 bg-white text-xs shadow-2xs dark:border-neutral-800 dark:bg-neutral-950">
+                                        <div class="flex items-center justify-between border-b border-neutral-200 bg-neutral-50/80 px-4 py-2 dark:border-neutral-800 dark:bg-neutral-900/60">
+                                            <div class="flex items-center gap-2">
+                                                <x-lucide-users class="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                                                <span class="font-semibold text-neutral-800 dark:text-neutral-200">Susunan Tim Sprin:</span>
+                                                <span class="font-bold text-indigo-600 dark:text-indigo-400" x-text="selectedSprin.tim_name || '-'"></span>
+                                            </div>
+                                            <span
+                                                class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                                :class="selectedSprin.tipe === 'Nasional'
+                                                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
+                                                    : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'"
+                                                x-text="selectedSprin.tipe + (selectedSprin.scope_name ? ' - ' + selectedSprin.scope_name : '')"
+                                            ></span>
+                                        </div>
+
+                                        <div class="grid divide-y divide-neutral-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0 dark:divide-neutral-800">
+                                            <div class="p-3">
+                                                <p class="text-[11px] font-medium uppercase text-neutral-500 dark:text-neutral-400">Koordinator & Pengendali (Daltu)</p>
+                                                <p class="mt-1 font-semibold text-neutral-900 dark:text-neutral-100" x-text="selectedSprin.daltu_name || '-'"></p>
+                                            </div>
+                                            <div class="p-3">
+                                                <p class="text-[11px] font-medium uppercase text-neutral-500 dark:text-neutral-400">Pengawas Tim (Dalnis)</p>
+                                                <p class="mt-1 font-semibold text-neutral-900 dark:text-neutral-100" x-text="selectedSprin.dalnis_name || '-'"></p>
+                                            </div>
+                                            <div class="p-3">
+                                                <p class="text-[11px] font-medium uppercase text-neutral-500 dark:text-neutral-400">Ketua Tim (Katim)</p>
+                                                <p class="mt-1 font-semibold text-neutral-900 dark:text-neutral-100" x-text="(selectedSprin.katim_names && selectedSprin.katim_names.length > 0) ? selectedSprin.katim_names.join(', ') : '-'"></p>
+                                            </div>
+                                        </div>
+
+                                        <div class="border-t border-neutral-200 p-3 dark:border-neutral-800">
+                                            <p class="text-[11px] font-medium uppercase text-neutral-500 dark:text-neutral-400">Anggota (Auditor)</p>
+                                            <div class="mt-1.5 flex flex-wrap gap-1.5">
+                                                <template x-for="(audName, aIdx) in (selectedSprin.auditors || [])" :key="aIdx">
+                                                    <span class="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-0.5 text-xs font-medium text-neutral-800 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                                                        <span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-bold text-neutral-600 shadow-2xs dark:bg-neutral-800 dark:text-neutral-400" x-text="aIdx + 1"></span>
+                                                        <span x-text="audName"></span>
+                                                    </span>
+                                                </template>
+                                                <template x-if="!selectedSprin.auditors || selectedSprin.auditors.length === 0">
+                                                    <span class="text-xs italic text-neutral-400">-</span>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
 
                                 {{-- 2. Nomor PKA (Full Width) --}}
                                 <div class="space-y-1.5 sm:col-span-2 lg:col-span-3">
@@ -603,6 +653,39 @@
                                     <template x-if="errors.lampiran">
                                         <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.lampiran[0]"></p>
                                     </template>
+                                </div>
+
+                                {{-- Dibuat Oleh & Direviu Oleh (50:50) --}}
+                                <div class="grid gap-4 sm:col-span-2 sm:grid-cols-2 lg:col-span-3">
+                                    <div class="space-y-1.5">
+                                        <x-searchable-select
+                                            label="Dibuat Oleh"
+                                            placeholder="Pilih Pembuat PKA..."
+                                            itemsExpr="sprinMemberOptions"
+                                            valueModel="form.dibuat_oleh_id"
+                                            changeAction=""
+                                            disabledExpr="!form.sprin_id"
+                                            disabledMessage="Pilih Nomor Sprin terlebih dahulu"
+                                        />
+                                        <template x-if="errors.dibuat_oleh_id">
+                                            <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.dibuat_oleh_id[0]"></p>
+                                        </template>
+                                    </div>
+
+                                    <div class="space-y-1.5">
+                                        <x-searchable-select
+                                            label="Direviu Oleh"
+                                            placeholder="Pilih Pereviu PKA..."
+                                            itemsExpr="sprinMemberOptions"
+                                            valueModel="form.direviu_oleh_id"
+                                            changeAction=""
+                                            disabledExpr="!form.sprin_id"
+                                            disabledMessage="Pilih Nomor Sprin terlebih dahulu"
+                                        />
+                                        <template x-if="errors.direviu_oleh_id">
+                                            <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.direviu_oleh_id[0]"></p>
+                                        </template>
+                                    </div>
                                 </div>
                             </div>
                         </div>

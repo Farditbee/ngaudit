@@ -47,6 +47,8 @@ class PkaDataTable
             'sprins' => $sprins,
             'templates' => $templates,
             'columns' => $this->columns(),
+            'defaultSortCol' => null,
+            'defaultSortDir' => 'desc',
         ];
     }
 
@@ -91,6 +93,40 @@ class PkaDataTable
 
         return DataTables::eloquent($query)
             ->addIndexColumn()
+            ->order(function (Builder $builder) use ($request): void {
+                $order = $request->input('order');
+                if (! $request->has('order') || empty($order) || ! isset($order[0]['column'])) {
+                    $builder->orderByDesc('pkas.created_at')->orderByDesc('pkas.id');
+
+                    return;
+                }
+
+                $colIndex = $order[0]['column'];
+                if ($colIndex === null || $colIndex === '' || (int) $colIndex < 0) {
+                    $builder->orderByDesc('pkas.created_at')->orderByDesc('pkas.id');
+
+                    return;
+                }
+
+                $dir = strtolower((string) data_get($order, '0.dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+                $colMap = [
+                    1 => 'sprins.no_sprin',
+                    2 => 'sprins.sprin_tipe',
+                    3 => 'pkas.bidang',
+                    4 => 'pkas.jenis_audit',
+                    5 => 'pkas.status',
+                    8 => 'pkas.tanggal',
+                ];
+
+                $colIndexInt = (int) $colIndex;
+                if (isset($colMap[$colIndexInt])) {
+                    $builder->orderBy($colMap[$colIndexInt], $dir)->orderByDesc('pkas.created_at')->orderByDesc('pkas.id');
+                } else {
+                    $builder->orderByDesc('pkas.created_at')->orderByDesc('pkas.id');
+                }
+            })
+            ->addColumn('print_url', fn (Pka $p): string => route('audit.pka.print', $p))
             ->addColumn('langkah_kerja_url', fn (Pka $p): string => route('audit.pka.langkah-kerja.index', $p))
             ->addColumn('tanggal_formatted', fn (Pka $p): string => $p->tanggal?->format('d/m/Y') ?? '-')
             ->addColumn('formatted_anggaran', fn (Pka $p): string => $p->formattedAnggaran())

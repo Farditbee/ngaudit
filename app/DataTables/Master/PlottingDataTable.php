@@ -54,6 +54,10 @@ class PlottingDataTable
             });
         }
 
+        if (! $request->has('order')) {
+            $query->orderByDesc('plottings.created_at')->orderByDesc('plottings.id');
+        }
+
         return DataTables::eloquent($query)
             ->addIndexColumn()
             ->addColumn('provinces_list', fn (Plotting $plotting): array => $plotting->provinces->map(

@@ -254,13 +254,13 @@ class PkaLangkahKerjaController extends Controller
         return $users
             ->unique('id')
             ->map(function (User $u): array {
-                $formattedName = $u->username ? "{$u->username} | {$u->name}" : (string) $u->name;
+                $selectName = $u->username ? "{$u->username} | {$u->name}" : (string) $u->name;
 
                 return [
                     'id' => (int) $u->id,
                     'username' => (string) ($u->username ?? ''),
-                    'name' => $formattedName,
-                    'label' => $formattedName,
+                    'name' => $selectName,
+                    'label' => (string) $u->name,
                 ];
             })
             ->values()

@@ -31,14 +31,14 @@
                     <span>Kembali</span>
                 </a>
 
-                <button
-                    type="button"
-                    x-on:click="printPka()"
+                <a
+                    href="{{ route('audit.pka.print', $pka) }}"
+                    target="_blank"
                     class="inline-flex h-9 items-center gap-1.5 rounded-md bg-emerald-600 px-4 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-emerald-700"
                 >
                     <x-lucide-printer class="h-3.5 w-3.5" />
                     <span>Cetak PKA</span>
-                </button>
+                </a>
             </div>
         </div>
 

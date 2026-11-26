@@ -68,7 +68,8 @@ class PkaLangkahKerjaDataTable
             ]);
 
         if (! $request->has('order')) {
-            $query->orderBy('pka_langkah_kerjas.id');
+            $query->orderByDesc('pka_langkah_kerjas.created_at')
+                ->orderByDesc('pka_langkah_kerjas.id');
         }
 
         return DataTables::eloquent($query)

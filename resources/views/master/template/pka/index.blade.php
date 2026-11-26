@@ -209,27 +209,25 @@
                             <div class="sm:col-span-1 space-y-1.5">
                                 <template x-if="form.lingkup === 'Nasional'">
                                     <div>
-                                        <div class="flex items-center justify-between">
-                                            <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300">
-                                                Plotting (WIL) <span class="text-red-500">*</span>
-                                            </label>
-                                            <template x-if="isPlottingReadonly()">
-                                                <span class="text-[11px] italic text-neutral-400 dark:text-neutral-500">Terkunci</span>
-                                            </template>
-                                        </div>
                                         <template x-if="isPlottingReadonly()">
-                                            <div class="mt-1 flex h-9 items-center rounded-md border border-neutral-200 bg-neutral-100 px-3 text-xs font-medium text-neutral-800 dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-200" x-text="scopeName || 'WIL Terkunci'"></div>
+                                            <div>
+                                                <div class="flex items-center justify-between">
+                                                    <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                                                        Plotting (WIL) <span class="text-red-500">*</span>
+                                                    </label>
+                                                    <span class="text-[11px] italic text-neutral-400 dark:text-neutral-500">Terkunci</span>
+                                                </div>
+                                                <div class="mt-1 flex h-9 items-center rounded-md border border-neutral-200 bg-neutral-100 px-3 text-xs font-medium text-neutral-800 dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-200" x-text="scopeName || 'WIL Terkunci'"></div>
+                                            </div>
                                         </template>
                                         <template x-if="!isPlottingReadonly()">
-                                            <select
-                                                x-model="form.plotting_id"
-                                                class="mt-1 block h-9 w-full rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-900 shadow-xs focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                            >
-                                                <option value="">Pilih Plotting WIL...</option>
-                                                <template x-for="plot in plottings" :key="plot.id">
-                                                    <option :value="String(plot.id)" x-text="plot.name"></option>
-                                                </template>
-                                            </select>
+                                            <x-searchable-select
+                                                label="Plotting (WIL) *"
+                                                placeholder="Pilih Plotting WIL..."
+                                                itemsExpr="plottingOptions"
+                                                valueModel="form.plotting_id"
+                                                changeAction=""
+                                            />
                                         </template>
                                         <template x-if="errors.plotting_id">
                                             <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.plotting_id[0]"></p>
@@ -239,27 +237,25 @@
 
                                 <template x-if="form.lingkup === 'Wilayah'">
                                     <div>
-                                        <div class="flex items-center justify-between">
-                                            <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300">
-                                                Provinsi <span class="text-red-500">*</span>
-                                            </label>
-                                            <template x-if="isProvinceReadonly()">
-                                                <span class="text-[11px] italic text-neutral-400 dark:text-neutral-500">Terkunci</span>
-                                            </template>
-                                        </div>
                                         <template x-if="isProvinceReadonly()">
-                                            <div class="mt-1 flex h-9 items-center rounded-md border border-neutral-200 bg-neutral-100 px-3 text-xs font-medium text-neutral-800 dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-200" x-text="scopeName || 'Provinsi Terkunci'"></div>
+                                            <div>
+                                                <div class="flex items-center justify-between">
+                                                    <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                                                        Provinsi <span class="text-red-500">*</span>
+                                                    </label>
+                                                    <span class="text-[11px] italic text-neutral-400 dark:text-neutral-500">Terkunci</span>
+                                                </div>
+                                                <div class="mt-1 flex h-9 items-center rounded-md border border-neutral-200 bg-neutral-100 px-3 text-xs font-medium text-neutral-800 dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-200" x-text="scopeName || 'Provinsi Terkunci'"></div>
+                                            </div>
                                         </template>
                                         <template x-if="!isProvinceReadonly()">
-                                            <select
-                                                x-model="form.kode_wilayah"
-                                                class="mt-1 block h-9 w-full rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-900 shadow-xs focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                            >
-                                                <option value="">Pilih Provinsi...</option>
-                                                <template x-for="prov in provinces" :key="prov.code">
-                                                    <option :value="String(prov.code)" x-text="prov.name"></option>
-                                                </template>
-                                            </select>
+                                            <x-searchable-select
+                                                label="Provinsi *"
+                                                placeholder="Pilih Provinsi..."
+                                                itemsExpr="provinceOptions"
+                                                valueModel="form.kode_wilayah"
+                                                changeAction=""
+                                            />
                                         </template>
                                         <template x-if="errors.kode_wilayah">
                                             <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.kode_wilayah[0]"></p>

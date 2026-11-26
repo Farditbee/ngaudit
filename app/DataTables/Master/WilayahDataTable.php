@@ -95,6 +95,12 @@ class WilayahDataTable
                 });
             })
             ->order(function (Builder $builder) use ($request): void {
+                if (! $request->has('order')) {
+                    $builder->orderByDesc('created_at')->orderByDesc('id');
+
+                    return;
+                }
+
                 $orderColIndex = (int) data_get($request->input('order'), '0.column', 1);
                 $orderDir = strtolower((string) data_get($request->input('order'), '0.dir', 'asc')) === 'desc' ? 'desc' : 'asc';
                 $colMap = [

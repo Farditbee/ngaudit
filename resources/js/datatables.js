@@ -2598,6 +2598,8 @@ export function registerDataTables(Alpine) {
             bidang: '',
             jenis_audit: '',
             sasaran_auditi: '',
+            dibuat_oleh_id: '',
+            direviu_oleh_id: '',
             template_pka_id: '',
             status: 'Draft',
             pendahuluan: '',
@@ -2609,6 +2611,31 @@ export function registerDataTables(Alpine) {
             penutup: '',
         },
         errors: {},
+
+        get selectedSprin() {
+            if (!this.form.sprin_id) return null;
+            return this.sprins.find((s) => String(s.id) === String(this.form.sprin_id)) || null;
+        },
+
+        get sprinMemberOptions() {
+            const sprin = this.selectedSprin;
+            if (!sprin || !Array.isArray(sprin.members)) return [];
+            return sprin.members.map((m) => ({
+                code: String(m.id),
+                name: m.name,
+                group: m.group || null,
+            }));
+        },
+
+        onSprinChange() {
+            const validIds = new Set(this.sprinMemberOptions.map((m) => String(m.code)));
+            if (this.form.dibuat_oleh_id && !validIds.has(String(this.form.dibuat_oleh_id))) {
+                this.form.dibuat_oleh_id = '';
+            }
+            if (this.form.direviu_oleh_id && !validIds.has(String(this.form.direviu_oleh_id))) {
+                this.form.direviu_oleh_id = '';
+            }
+        },
 
         get sprinOptions() {
             return this.sprins.map((s) => ({
@@ -2789,6 +2816,8 @@ export function registerDataTables(Alpine) {
                 bidang: '',
                 jenis_audit: '',
                 sasaran_auditi: '',
+                dibuat_oleh_id: '',
+                direviu_oleh_id: '',
                 template_pka_id: '',
                 status: 'Draft',
                 pendahuluan: '',
@@ -2956,6 +2985,8 @@ export function registerDataTables(Alpine) {
                     bidang: data.bidang || '',
                     jenis_audit: data.jenis_audit || '',
                     sasaran_auditi: data.sasaran_auditi || '',
+                    dibuat_oleh_id: data.dibuat_oleh_id ? String(data.dibuat_oleh_id) : '',
+                    direviu_oleh_id: data.direviu_oleh_id ? String(data.direviu_oleh_id) : '',
                     template_pka_id: data.template_pka_id ? String(data.template_pka_id) : '',
                     status: data.status || 'Draft',
                     pendahuluan: this.decodeHtml(data.pendahuluan || ''),
@@ -3204,12 +3235,8 @@ export function registerDataTables(Alpine) {
         },
 
         printPka(row) {
-            this.openPreviewModal(row);
-            this.$nextTick(() => {
-                setTimeout(() => {
-                    window.print();
-                }, 400);
-            });
+            const url = row?.print_url || `${this.baseUrl}/${row.id}/print`;
+            window.open(url, '_blank');
         },
 
         openReviewDalnis(row) {
@@ -3398,6 +3425,12 @@ export function registerDataTables(Alpine) {
         },
         get lingkupOptions() {
             return this.lingkups.map((l) => ({ code: l, name: l }));
+        },
+        get plottingOptions() {
+            return (this.plottings || []).map((p) => ({ code: String(p.id), name: p.name }));
+        },
+        get provinceOptions() {
+            return (this.provinces || []).map((p) => ({ code: String(p.code), name: p.name }));
         },
         extraFilterParams() {
             return {

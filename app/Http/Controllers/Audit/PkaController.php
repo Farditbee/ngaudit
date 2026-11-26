@@ -27,21 +27,96 @@ class PkaController extends Controller
 
         $authUser = $request->user();
 
+        $formatUser = fn (?User $u): ?string => $u
+            ? ($u->username ? "{$u->username} | {$u->name}" : (string) $u->name)
+            : null;
+
         $sprins = Sprin::query()
             ->visibleTo($authUser)
             ->approved()
-            ->with(['tim:id,nama_tim', 'plotting:id,plot', 'province:kode_wilayah,provinsi'])
+            ->with([
+                'tim:id,nama_tim',
+                'tim.auditors:id,name,username,role',
+                'pengendaliMutu:id,name,username,role',
+                'pengawasTim:id,name,username,role',
+                'ketuaTim:id,name,username,role',
+                'ketuaTim2:id,name,username,role',
+                'plotting:id,plot',
+                'province:kode_wilayah,provinsi',
+            ])
             ->orderByDesc('id')
             ->get()
-            ->map(fn (Sprin $s): array => [
-                'id' => $s->id,
-                'no_sprin' => $s->no_sprin,
-                'label' => $s->no_sprin.' ('.($s->tim?->nama_tim ?? $s->sprin_tipe).')',
-                'tgl_mulai' => $s->tgl_mulai?->format('Y-m-d'),
-                'tgl_akhir' => $s->tgl_akhir?->format('Y-m-d'),
-                'tim_name' => $s->tim?->nama_tim ?? '-',
-                'tipe' => $s->sprin_tipe,
-            ]);
+            ->map(function (Sprin $s) use ($formatUser): array {
+                $members = collect();
+
+                if ($s->pengendaliMutu) {
+                    $members->push([
+                        'id' => (int) $s->pengendaliMutu->id,
+                        'code' => (string) $s->pengendaliMutu->id,
+                        'name' => (string) $formatUser($s->pengendaliMutu),
+                        'group' => 'Koordinator & Pengendali (Daltu)',
+                    ]);
+                }
+                if ($s->pengawasTim) {
+                    $members->push([
+                        'id' => (int) $s->pengawasTim->id,
+                        'code' => (string) $s->pengawasTim->id,
+                        'name' => (string) $formatUser($s->pengawasTim),
+                        'group' => 'Pengawas Tim (Dalnis)',
+                    ]);
+                }
+                if ($s->ketuaTim) {
+                    $members->push([
+                        'id' => (int) $s->ketuaTim->id,
+                        'code' => (string) $s->ketuaTim->id,
+                        'name' => (string) $formatUser($s->ketuaTim),
+                        'group' => 'Ketua Tim (Katim)',
+                    ]);
+                }
+                if ($s->ketuaTim2) {
+                    $members->push([
+                        'id' => (int) $s->ketuaTim2->id,
+                        'code' => (string) $s->ketuaTim2->id,
+                        'name' => (string) $formatUser($s->ketuaTim2),
+                        'group' => 'Ketua Tim (Katim)',
+                    ]);
+                }
+                if ($s->tim?->auditors) {
+                    foreach ($s->tim->auditors as $auditor) {
+                        $members->push([
+                            'id' => (int) $auditor->id,
+                            'code' => (string) $auditor->id,
+                            'name' => (string) $formatUser($auditor),
+                            'group' => 'Anggota (Auditor)',
+                        ]);
+                    }
+                }
+
+                $katimNames = collect([$s->ketuaTim?->name, $s->ketuaTim2?->name])
+                    ->filter()
+                    ->values()
+                    ->all();
+
+                $auditorNames = $s->tim?->auditors
+                    ? $s->tim->auditors->map(fn (User $a): string => (string) $a->name)->values()->all()
+                    : [];
+
+                return [
+                    'id' => $s->id,
+                    'no_sprin' => $s->no_sprin,
+                    'label' => $s->no_sprin.' ('.($s->tim?->nama_tim ?? $s->sprin_tipe).')',
+                    'tgl_mulai' => $s->tgl_mulai?->format('Y-m-d'),
+                    'tgl_akhir' => $s->tgl_akhir?->format('Y-m-d'),
+                    'tim_name' => $s->tim?->nama_tim ?? '-',
+                    'tipe' => $s->sprin_tipe,
+                    'scope_name' => $s->sprin_tipe === 'Nasional' ? $s->plotting?->plot : $s->province?->provinsi,
+                    'daltu_name' => $s->pengendaliMutu?->name ?? '-',
+                    'dalnis_name' => $s->pengawasTim?->name ?? '-',
+                    'katim_names' => $katimNames,
+                    'auditors' => $auditorNames,
+                    'members' => $members->unique('id')->values()->all(),
+                ];
+            });
 
         $templates = TemplatePka::query()
             ->visibleTo($authUser)
@@ -98,7 +173,13 @@ class PkaController extends Controller
             ], 403);
         }
 
-        $pka->load(['sprin:id,no_sprin,sprin_tipe,tim_id', 'sprin.tim:id,nama_tim', 'templatePka:id,nama_template']);
+        $pka->load([
+            'sprin:id,no_sprin,sprin_tipe,tim_id',
+            'sprin.tim:id,nama_tim',
+            'templatePka:id,nama_template',
+            'dibuatOleh:id,name,username',
+            'direviuOleh:id,name,username',
+        ]);
 
         return response()->json([
             'id' => $pka->id,
@@ -114,6 +195,10 @@ class PkaController extends Controller
             'jenis_audit' => $pka->jenis_audit,
             'sasaran_auditi' => $pka->sasaran_auditi,
             'status' => $pka->status ?? 'Draft',
+            'dibuat_oleh_id' => $pka->dibuat_oleh_id,
+            'dibuat_oleh_name' => $pka->dibuatOleh ? ($pka->dibuatOleh->username ? "{$pka->dibuatOleh->username} | {$pka->dibuatOleh->name}" : $pka->dibuatOleh->name) : null,
+            'direviu_oleh_id' => $pka->direviu_oleh_id,
+            'direviu_oleh_name' => $pka->direviuOleh ? ($pka->direviuOleh->username ? "{$pka->direviuOleh->username} | {$pka->direviuOleh->name}" : $pka->direviuOleh->name) : null,
             'template_pka_id' => $pka->template_pka_id,
             'template_name' => $pka->templatePka?->nama_template ?? null,
             'lampiran_name' => $pka->lampiran_name,
@@ -126,6 +211,62 @@ class PkaController extends Controller
             'periode' => $pka->periode ?? '',
             'penutup' => $pka->penutup ?? '',
             'created_at_formatted' => $pka->created_at?->timezone('Asia/Jakarta')->format('d/m/Y H:i'),
+        ]);
+    }
+
+    public function print(Request $request, Pka $pka): View
+    {
+        if (! $this->canAccessPka($request->user(), $pka)) {
+            abort(403, 'Anda tidak memiliki hak akses untuk mencetak PKA ini.');
+        }
+
+        $pka->load([
+            'sprin.pengendaliMutu:id,name,username,jabatan,role,ttd_path',
+            'sprin.pengawasTim:id,name,username,jabatan,role,ttd_path',
+            'sprin.ketuaTim:id,name,username,jabatan,role,ttd_path',
+            'sprin.ketuaTim2:id,name,username,jabatan,role,ttd_path',
+            'sprin.tim.auditors:id,name,username,jabatan,role,ttd_path',
+            'dibuatOleh:id,name,username,jabatan,role',
+            'direviuOleh:id,name,username,jabatan,role',
+            'creator:id,name,username,jabatan,role',
+            'langkahKerjas.dilaksanakanRencana:id,name,username',
+            'langkahKerjas.dilaksanakanRealisasi:id,name,username',
+        ]);
+
+        $sprin = $pka->sprin;
+        $sprinMembers = collect();
+
+        $pushMember = function (?User $user, string $defaultPeran) use ($sprinMembers): void {
+            if (! $user) {
+                return;
+            }
+            $sprinMembers->push([
+                'id' => (int) $user->id,
+                'name' => (string) $user->name,
+                'username' => (string) ($user->username ?? '-'),
+                'jabatan' => (string) ($user->jabatan ?: ($user->role ?: $defaultPeran)),
+                'peran' => $defaultPeran,
+                'ttd_url' => $user->ttd_path ? asset('storage/'.$user->ttd_path) : null,
+            ]);
+        };
+
+        $pushMember($sprin?->pengendaliMutu, 'Koordinator dan Pengendali');
+        $pushMember($sprin?->pengawasTim, 'Pengawas Tim');
+        $pushMember($sprin?->ketuaTim, 'Ketua Tim');
+        $pushMember($sprin?->ketuaTim2, 'Ketua Tim 2');
+
+        if ($sprin?->tim?->auditors) {
+            foreach ($sprin->tim->auditors as $auditor) {
+                $pushMember($auditor, 'Anggota (Auditor)');
+            }
+        }
+
+        $members = $sprinMembers->unique('id')->values()->all();
+
+        return view('audit.pka.print', [
+            'pka' => $pka,
+            'sprin' => $sprin,
+            'members' => $members,
         ]);
     }
 
@@ -397,6 +538,8 @@ class PkaController extends Controller
             'jenis_audit' => $validated['jenis_audit'],
             'sasaran_auditi' => $validated['sasaran_auditi'],
             'status' => $validated['status'] ?? 'Draft',
+            'dibuat_oleh_id' => ! empty($validated['dibuat_oleh_id']) ? (int) $validated['dibuat_oleh_id'] : null,
+            'direviu_oleh_id' => ! empty($validated['direviu_oleh_id']) ? (int) $validated['direviu_oleh_id'] : null,
             'template_pka_id' => ! empty($validated['template_pka_id']) ? (int) $validated['template_pka_id'] : null,
             'pendahuluan' => $validated['pendahuluan'] ?? null,
             'tujuan' => $validated['tujuan'] ?? null,

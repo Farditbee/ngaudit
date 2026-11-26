@@ -15,8 +15,10 @@ class PkaRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->has('template_pka_id') && ($this->input('template_pka_id') === '' || $this->input('template_pka_id') === 'null')) {
-            $this->merge(['template_pka_id' => null]);
+        foreach (['template_pka_id', 'dibuat_oleh_id', 'direviu_oleh_id'] as $nullableKey) {
+            if ($this->has($nullableKey) && ($this->input($nullableKey) === '' || $this->input($nullableKey) === 'null')) {
+                $this->merge([$nullableKey => null]);
+            }
         }
 
         if ($this->has('anggaran') && $this->input('anggaran') === '') {
@@ -50,6 +52,8 @@ class PkaRequest extends FormRequest
             'sasaran_auditi' => ['required', 'string', 'max:255'],
             'status' => ['required', 'string', Rule::in(Pka::STATUSES)],
             'lampiran' => ['nullable', 'file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,zip,rar,png,jpg,jpeg'],
+            'dibuat_oleh_id' => ['nullable', 'integer', Rule::exists('users', 'id')],
+            'direviu_oleh_id' => ['nullable', 'integer', Rule::exists('users', 'id')],
             'template_pka_id' => ['nullable', 'integer', Rule::exists('template_pkas', 'id')],
             'pendahuluan' => ['nullable', 'string'],
             'tujuan' => ['nullable', 'string'],

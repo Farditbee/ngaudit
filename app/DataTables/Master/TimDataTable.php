@@ -101,6 +101,10 @@ class TimDataTable
             $query->where('tims.lingkup', $filterLingkup);
         }
 
+        if (! $request->has('order')) {
+            $query->orderByDesc('tims.created_at')->orderByDesc('tims.id');
+        }
+
         return DataTables::eloquent($query)
             ->addIndexColumn()
             ->addColumn('auditors_list', fn (Tim $tim): array => $tim->auditors->map(

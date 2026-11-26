@@ -53,6 +53,8 @@ class Pka extends Model
         'approved_by_daltu_date',
         'lampiran_path',
         'lampiran_name',
+        'dibuat_oleh_id',
+        'direviu_oleh_id',
         'template_pka_id',
         'pendahuluan',
         'tujuan',
@@ -115,6 +117,16 @@ class Pka extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function dibuatOleh(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'dibuat_oleh_id');
+    }
+
+    public function direviuOleh(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'direviu_oleh_id');
     }
 
     public function reviews(): HasMany

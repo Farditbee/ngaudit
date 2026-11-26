@@ -101,6 +101,10 @@ class TemplateLangkahKerjaDataTable
             $query->where('template_langkah_kerjas.lingkup', $filterLingkup);
         }
 
+        if (! $request->has('order')) {
+            $query->orderByDesc('template_langkah_kerjas.created_at')->orderByDesc('template_langkah_kerjas.id');
+        }
+
         return DataTables::eloquent($query)
             ->addIndexColumn()
             ->addColumn('detail_url', fn (TemplateLangkahKerja $t): string => route('master.template.langkah-kerja.details.index', $t))
