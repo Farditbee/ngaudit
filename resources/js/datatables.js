@@ -29,16 +29,8 @@ function getBaseDataTableMethods() {
         init() {
             this.fetchData();
         },
-        showFlash(message) {
-            this.flashMessage = message;
-            if (typeof window !== 'undefined' && window.scrollY > 150) {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-            setTimeout(() => {
-                if (this.flashMessage === message) {
-                    this.flashMessage = '';
-                }
-            }, 4000);
+        showFlash(message, type = 'success') {
+            window.notify.show(type, message);
         },
         csrfToken() {
             return document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '';
@@ -382,10 +374,16 @@ export function registerDataTables(Alpine) {
                 this.saving = false;
             }
         },
-        confirmDelete(row) {
+        async confirmDelete(row) {
+            const confirmed = await window.notify.confirmDelete({ label: window.notify.rowLabel(row) });
+            if (!confirmed) return;
             this.deletingItem = row;
             this.deleteError = '';
-            this.deleteModalOpen = true;
+            await this.deleteWilayah();
+            if (this.deleteError) {
+                window.notify.error(this.deleteError);
+                this.deleteError = '';
+            }
         },
         async syncTim(row) {
             if (!row || this.syncingId === row.id) return;
@@ -477,6 +475,7 @@ export function registerDataTables(Alpine) {
                 this.fetchData();
             } catch (e) {
                 console.error(e);
+                this.deleteError = this.deleteError || 'Terjadi kesalahan saat menghapus data.';
             } finally {
                 this.deleting = false;
             }
@@ -607,9 +606,16 @@ export function registerDataTables(Alpine) {
                 this.saving = false;
             }
         },
-        confirmDelete(row) {
+        async confirmDelete(row) {
+            const confirmed = await window.notify.confirmDelete({ label: window.notify.rowLabel(row) });
+            if (!confirmed) return;
             this.deletingItem = row;
-            this.deleteModalOpen = true;
+            this.deleteError = '';
+            await this.deletePlotting();
+            if (this.deleteError) {
+                window.notify.error(this.deleteError);
+                this.deleteError = '';
+            }
         },
         async deletePlotting() {
             if (!this.deletingItem) return;
@@ -625,6 +631,10 @@ export function registerDataTables(Alpine) {
                 });
 
                 const json = await response.json();
+                if (!response.ok) {
+                    this.deleteError = json.message || 'Gagal menghapus data plotting.';
+                    return;
+                }
                 this.deleteModalOpen = false;
                 this.deletingItem = null;
                 this.showFlash(json.message || 'Data plotting berhasil dihapus.');
@@ -634,6 +644,7 @@ export function registerDataTables(Alpine) {
                 this.fetchData();
             } catch (e) {
                 console.error(e);
+                this.deleteError = this.deleteError || 'Terjadi kesalahan saat menghapus data.';
             } finally {
                 this.deleting = false;
             }
@@ -1056,10 +1067,16 @@ export function registerDataTables(Alpine) {
                 this.saving = false;
             }
         },
-        confirmDelete(row) {
+        async confirmDelete(row) {
+            const confirmed = await window.notify.confirmDelete({ label: window.notify.rowLabel(row) });
+            if (!confirmed) return;
             this.deletingItem = row;
             this.deleteError = '';
-            this.deleteModalOpen = true;
+            await this.deleteUser();
+            if (this.deleteError) {
+                window.notify.error(this.deleteError);
+                this.deleteError = '';
+            }
         },
         async syncTim(row) {
             if (!row || this.syncingId === row.id) return;
@@ -1193,6 +1210,7 @@ export function registerDataTables(Alpine) {
                 this.fetchData();
             } catch (e) {
                 console.error(e);
+                this.deleteError = this.deleteError || 'Terjadi kesalahan saat menghapus data.';
             } finally {
                 this.deleting = false;
             }
@@ -1489,10 +1507,16 @@ export function registerDataTables(Alpine) {
                 this.saving = false;
             }
         },
-        confirmDelete(row) {
+        async confirmDelete(row) {
+            const confirmed = await window.notify.confirmDelete({ label: window.notify.rowLabel(row) });
+            if (!confirmed) return;
             this.deletingItem = row;
             this.deleteError = '';
-            this.deleteModalOpen = true;
+            await this.deleteTim();
+            if (this.deleteError) {
+                window.notify.error(this.deleteError);
+                this.deleteError = '';
+            }
         },
         async syncTim(row) {
             if (!row || this.syncingId === row.id) return;
@@ -1570,6 +1594,7 @@ export function registerDataTables(Alpine) {
                 this.fetchData();
             } catch (e) {
                 console.error(e);
+                this.deleteError = this.deleteError || 'Terjadi kesalahan saat menghapus data.';
             } finally {
                 this.deleting = false;
             }
@@ -1773,10 +1798,16 @@ export function registerDataTables(Alpine) {
                 this.saving = false;
             }
         },
-        confirmDelete(row) {
+        async confirmDelete(row) {
+            const confirmed = await window.notify.confirmDelete({ label: window.notify.rowLabel(row) });
+            if (!confirmed) return;
             this.deletingItem = row;
             this.deleteError = '';
-            this.deleteModalOpen = true;
+            await this.deleteSprin();
+            if (this.deleteError) {
+                window.notify.error(this.deleteError);
+                this.deleteError = '';
+            }
         },
         async deleteSprin() {
             if (!this.deletingItem) return;
@@ -1808,6 +1839,7 @@ export function registerDataTables(Alpine) {
                 this.fetchData();
             } catch (e) {
                 console.error(e);
+                this.deleteError = this.deleteError || 'Terjadi kesalahan saat menghapus data.';
             } finally {
                 this.deleting = false;
             }
@@ -1917,6 +1949,18 @@ export function registerDataTables(Alpine) {
         loadingPreview: false,
         deleteModalOpen: false,
         duplicateModalOpen: false,
+        reviewModalOpen: false,
+        reviewType: 'dalnis',
+        reviewPka: null,
+        reviewLogs: [],
+        loadingReviews: false,
+        reviewFormOpen: false,
+        savingReview: false,
+        reviewForm: {
+            status: 'Disetujui',
+            catatan: '',
+        },
+        reviewErrors: {},
         editingId: null,
         deletingItem: null,
         duplicatingItem: null,
@@ -2384,10 +2428,20 @@ export function registerDataTables(Alpine) {
             }
         },
 
-        confirmDuplicate(row) {
+        async confirmDuplicate(row) {
+            const confirmed = await window.notify.confirm({
+                title: 'Duplikasi template?',
+                text: `Template "${row.nama_template || ''}" akan diduplikasi.`,
+                confirmText: 'Ya, duplikasi',
+            });
+            if (!confirmed) return;
             this.duplicatingItem = row;
             this.duplicateError = '';
-            this.duplicateModalOpen = true;
+            await this.duplicateItem();
+            if (this.duplicateError) {
+                window.notify.error(this.duplicateError);
+                this.duplicateError = '';
+            }
         },
 
         closeDuplicateModal() {
@@ -2430,10 +2484,16 @@ export function registerDataTables(Alpine) {
             }
         },
 
-        confirmDelete(row) {
+        async confirmDelete(row) {
+            const confirmed = await window.notify.confirmDelete({ label: window.notify.rowLabel(row) });
+            if (!confirmed) return;
             this.deletingItem = row;
             this.deleteError = '';
-            this.deleteModalOpen = true;
+            await this.deleteItem();
+            if (this.deleteError) {
+                window.notify.error(this.deleteError);
+                this.deleteError = '';
+            }
         },
 
         closeDeleteModal() {
@@ -2494,6 +2554,18 @@ export function registerDataTables(Alpine) {
         loadingPreview: false,
         deleteModalOpen: false,
         duplicateModalOpen: false,
+        reviewModalOpen: false,
+        reviewType: 'dalnis',
+        reviewPka: null,
+        reviewLogs: [],
+        loadingReviews: false,
+        reviewFormOpen: false,
+        savingReview: false,
+        reviewForm: {
+            status: 'Disetujui',
+            catatan: '',
+        },
+        reviewErrors: {},
         editingId: null,
         deletingItem: null,
         duplicatingItem: null,
@@ -3016,10 +3088,16 @@ export function registerDataTables(Alpine) {
             this.previewData = null;
         },
 
-        confirmDelete(row) {
+        async confirmDelete(row) {
+            const confirmed = await window.notify.confirmDelete({ label: window.notify.rowLabel(row) });
+            if (!confirmed) return;
             this.deletingItem = row;
             this.deleteError = '';
-            this.deleteModalOpen = true;
+            await this.deleteItem();
+            if (this.deleteError) {
+                window.notify.error(this.deleteError);
+                this.deleteError = '';
+            }
         },
 
         closeDeleteModal() {
@@ -3062,11 +3140,23 @@ export function registerDataTables(Alpine) {
             }
         },
 
-        openDuplicateModal(row) {
+        async openDuplicateModal(row) {
+            const nomorBaru = await window.notify.prompt({
+                title: 'Duplikasi PKA',
+                text: `Salin PKA ${row.nomor_pka} sebagai Draft baru.`,
+                inputLabel: 'Nomor PKA baru',
+                inputValue: `${row.nomor_pka} (Copy)`,
+                confirmText: 'Duplikasi',
+            });
+            if (nomorBaru === null) return;
             this.duplicatingItem = row;
-            this.duplicateNomorPka = `${row.nomor_pka} (Copy)`;
+            this.duplicateNomorPka = nomorBaru;
             this.duplicateError = '';
-            this.duplicateModalOpen = true;
+            await this.submitDuplicate();
+            if (this.duplicateError) {
+                window.notify.error(this.duplicateError);
+                this.duplicateError = '';
+            }
         },
 
         closeDuplicateModal() {
@@ -3123,11 +3213,109 @@ export function registerDataTables(Alpine) {
         },
 
         openReviewDalnis(row) {
-            this.showFlash(`Fitur Reviu Dalnis untuk ${row.nomor_pka} sedang disiapkan.`);
+            this.openReviewModal(row, 'dalnis');
         },
 
         openReviewDaltu(row) {
-            this.showFlash(`Fitur Reviu Daltu untuk ${row.nomor_pka} sedang disiapkan.`);
+            this.openReviewModal(row, 'daltu');
+        },
+
+        openReviewModal(row, type = 'dalnis') {
+            this.reviewType = type;
+            const isDalnis = type === 'dalnis';
+            this.reviewPka = {
+                ...row,
+                review_type: type,
+                role_label: isDalnis ? 'Pengawas Tim (Dalnis)' : 'Pengendali Mutu (Daltu)',
+                can_review: isDalnis ? Boolean(row.can_review_dalnis) : Boolean(row.can_review_daltu),
+                latest_review_status: isDalnis ? row.latest_dalnis_review_status : row.latest_daltu_review_status,
+                latest_review_date: isDalnis ? row.latest_dalnis_review_date : row.latest_daltu_review_date,
+            };
+            this.reviewLogs = [];
+            this.reviewModalOpen = true;
+            this.reviewFormOpen = false;
+            this.reviewForm = { status: 'Disetujui', catatan: '' };
+            this.reviewErrors = {};
+            this.fetchReviews(row.id, type);
+        },
+
+        closeReviewModal() {
+            if (this.savingReview) return;
+            this.reviewModalOpen = false;
+        },
+
+        async fetchReviews(pkaId, type) {
+            this.loadingReviews = true;
+            try {
+                const response = await fetch(`${this.baseUrl}/${pkaId}/reviews/${type}`, {
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const json = await response.json();
+                if (response.ok) {
+                    if (json.pka) {
+                        this.reviewPka = {
+                            ...this.reviewPka,
+                            ...json.pka,
+                        };
+                    }
+                    this.reviewLogs = json.reviews || [];
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.loadingReviews = false;
+            }
+        },
+
+        async saveReview() {
+            if (!this.reviewPka || !this.reviewPka.can_review) return;
+            this.savingReview = true;
+            this.reviewErrors = {};
+
+            try {
+                const response = await fetch(`${this.baseUrl}/${this.reviewPka.id}/reviews/${this.reviewType}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(this.reviewForm),
+                });
+
+                const json = await response.json();
+
+                if (response.status === 422) {
+                    this.reviewErrors = json.errors || {};
+                    return;
+                }
+
+                if (!response.ok) {
+                    this.reviewErrors = { status: [json.message || 'Gagal menyimpan reviu.'] };
+                    return;
+                }
+
+                if (json.review) {
+                    this.reviewLogs.unshift(json.review);
+                }
+                if (this.reviewPka) {
+                    this.reviewPka.latest_review_status = json.latest_status;
+                    this.reviewPka.latest_review_date = json.latest_review_date;
+                }
+
+                this.reviewFormOpen = false;
+                this.reviewForm = { status: 'Disetujui', catatan: '' };
+                this.showFlash(json.message || 'Reviu berhasil disimpan.');
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.savingReview = false;
+            }
         },
 
         async toggleRowStatus(row, targetStatus = null) {
@@ -3161,7 +3349,7 @@ export function registerDataTables(Alpine) {
             } catch (e) {
                 console.error(e);
                 row.status = oldStatus;
-                this.showFlash(e.message || 'Terjadi kesalahan saat mengubah status.');
+                this.showFlash(e.message || 'Terjadi kesalahan saat mengubah status.', 'error');
             } finally {
                 row.updatingStatus = false;
             }

@@ -29,46 +29,7 @@
             </div>
         </div>
 
-        {{-- Flash Alert (Sama seperti Sprin) --}}
-        <div
-            x-show="flashMessage !== ''"
-            x-cloak
-            x-transition.opacity
-            class="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200"
-        >
-            <div class="flex items-center gap-2">
-                <x-lucide-circle-check class="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                <span x-text="flashMessage"></span>
-            </div>
-            <button type="button" x-on:click="flashMessage = ''" class="text-emerald-700 hover:text-emerald-950 dark:text-emerald-300">
-                <x-lucide-x class="h-4 w-4" />
-            </button>
-        </div>
 
-        {{-- Floating Toast Alert (Muncul melayang agar langsung terlihat dari posisi manapun di tabel) --}}
-        <div
-            x-show="flashMessage !== ''"
-            x-cloak
-            x-transition:enter="transition ease-out duration-300"
-            x-transition:enter-start="opacity-0 -translate-y-2 scale-95"
-            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
-            x-transition:leave="transition ease-in duration-200"
-            x-transition:leave-start="opacity-100 translate-y-0 scale-100"
-            x-transition:leave-end="opacity-0 -translate-y-2 scale-95"
-            class="fixed top-6 right-6 z-50 flex items-center gap-3 rounded-xl border border-emerald-300 bg-white/95 px-4 py-3 text-xs font-medium text-emerald-900 shadow-2xl backdrop-blur-sm dark:border-emerald-800 dark:bg-neutral-900/95 dark:text-emerald-200"
-        >
-            <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950/80 dark:text-emerald-400">
-                <x-lucide-circle-check class="h-4 w-4" />
-            </div>
-            <div class="flex-1 pr-1 font-semibold" x-text="flashMessage"></div>
-            <button
-                type="button"
-                x-on:click="flashMessage = ''"
-                class="rounded-md p-1 text-emerald-700 hover:bg-emerald-100 dark:text-emerald-400 dark:hover:bg-neutral-800"
-            >
-                <x-lucide-x class="h-3.5 w-3.5" />
-            </button>
-        </div>
 
         {{-- Filters Bar --}}
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -277,27 +238,120 @@
                         </a>
                     </td>
 
-                    {{-- 8. Reviu Dalnis dan Daltu (2 tombol atas bawah) --}}
+                    {{-- 8. Reviu Dalnis & Daltu (1 Kolom: Dalnis di atas, Daltu di bawah) --}}
                     <td class="whitespace-nowrap border-r border-neutral-200 px-3 py-2 text-center dark:border-neutral-800">
-                        <div class="flex flex-col items-center justify-center gap-1">
-                            <button
-                                type="button"
-                                x-on:click="openReviewDalnis(row)"
-                                class="inline-flex w-28 items-center justify-center gap-1 rounded-md border border-sky-200 bg-sky-50/70 px-2 py-0.5 text-[11px] font-medium text-sky-700 hover:bg-sky-100 dark:border-sky-800/60 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/50"
-                                title="Reviu Pengawas Tim (Dalnis)"
-                            >
-                                <x-lucide-user-check class="h-3 w-3" />
-                                <span>Reviu Dalnis</span>
-                            </button>
-                            <button
-                                type="button"
-                                x-on:click="openReviewDaltu(row)"
-                                class="inline-flex w-28 items-center justify-center gap-1 rounded-md border border-purple-200 bg-purple-50/70 px-2 py-0.5 text-[11px] font-medium text-purple-700 hover:bg-purple-100 dark:border-purple-800/60 dark:bg-purple-950/40 dark:text-purple-300 dark:hover:bg-purple-900/50"
-                                title="Reviu Pengendali Mutu (Daltu)"
-                            >
-                                <x-lucide-shield-check class="h-3 w-3" />
-                                <span>Reviu Daltu</span>
-                            </button>
+                        <div class="flex flex-col items-center justify-center gap-1.5">
+                            {{-- Baris Atas: Reviu Dalnis --}}
+                            <div class="inline-flex flex-col items-center">
+                                <template x-if="row.can_review_dalnis && !row.latest_dalnis_review_status">
+                                    <button
+                                        type="button"
+                                        x-on:click="openReviewModal(row, 'dalnis')"
+                                        class="inline-flex w-32 items-center justify-center gap-1.5 rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-xs transition-colors hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700"
+                                        title="Belum direviu Dalnis - Klik untuk melakukan reviu"
+                                    >
+                                        <x-lucide-clipboard-check class="h-3 w-3 shrink-0" />
+                                        <span>Reviu Dalnis</span>
+                                    </button>
+                                </template>
+
+                                <template x-if="!row.can_review_dalnis && !row.latest_dalnis_review_status">
+                                    <button
+                                        type="button"
+                                        x-on:click="openReviewModal(row, 'dalnis')"
+                                        class="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium text-neutral-600 transition-colors hover:bg-neutral-200 focus:outline-none dark:bg-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-700"
+                                        title="Klik untuk melihat lembar reviu Dalnis"
+                                    >
+                                        Dalnis: Menunggu
+                                    </button>
+                                </template>
+
+                                <template x-if="row.latest_dalnis_review_status">
+                                    <button
+                                        type="button"
+                                        x-on:click="openReviewModal(row, 'dalnis')"
+                                        class="group inline-flex flex-col items-center text-center focus:outline-none cursor-pointer rounded-md px-1.5 py-0.5 transition-colors hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60"
+                                        :title="row.can_review_dalnis ? 'Klik untuk melihat riwayat atau reviu ulang Dalnis' : 'Klik untuk melihat hasil reviu Dalnis'"
+                                    >
+                                        <template x-if="row.latest_dalnis_review_status === 'Disetujui'">
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                                                <span>Dalnis: Disetujui</span>
+                                                <template x-if="row.can_review_dalnis">
+                                                    <x-lucide-pencil class="h-2.5 w-2.5 opacity-60 group-hover:opacity-100" />
+                                                </template>
+                                            </span>
+                                        </template>
+                                        <template x-if="row.latest_dalnis_review_status === 'Koreksi'">
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                                                <span>Dalnis: Koreksi</span>
+                                                <template x-if="row.can_review_dalnis">
+                                                    <x-lucide-pencil class="h-2.5 w-2.5 opacity-60 group-hover:opacity-100" />
+                                                </template>
+                                            </span>
+                                        </template>
+
+                                        <template x-if="row.latest_dalnis_review_date">
+                                            <span class="mt-0.5 text-[10px] font-medium text-neutral-500 group-hover:text-neutral-900 dark:text-neutral-400 dark:group-hover:text-neutral-200" x-text="row.latest_dalnis_review_date"></span>
+                                        </template>
+                                    </button>
+                                </template>
+                            </div>
+
+                            {{-- Baris Bawah: Reviu Daltu --}}
+                            <div class="inline-flex flex-col items-center">
+                                <template x-if="row.can_review_daltu && !row.latest_daltu_review_status">
+                                    <button
+                                        type="button"
+                                        x-on:click="openReviewModal(row, 'daltu')"
+                                        class="inline-flex w-32 items-center justify-center gap-1.5 rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-xs transition-colors hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700"
+                                        title="Belum direviu Daltu - Klik untuk melakukan reviu"
+                                    >
+                                        <x-lucide-clipboard-check class="h-3 w-3 shrink-0" />
+                                        <span>Reviu Daltu</span>
+                                    </button>
+                                </template>
+
+                                <template x-if="!row.can_review_daltu && !row.latest_daltu_review_status">
+                                    <button
+                                        type="button"
+                                        x-on:click="openReviewModal(row, 'daltu')"
+                                        class="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium text-neutral-600 transition-colors hover:bg-neutral-200 focus:outline-none dark:bg-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-700"
+                                        title="Klik untuk melihat lembar reviu Daltu"
+                                    >
+                                        Daltu: Menunggu
+                                    </button>
+                                </template>
+
+                                <template x-if="row.latest_daltu_review_status">
+                                    <button
+                                        type="button"
+                                        x-on:click="openReviewModal(row, 'daltu')"
+                                        class="group inline-flex flex-col items-center text-center focus:outline-none cursor-pointer rounded-md px-1.5 py-0.5 transition-colors hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60"
+                                        :title="row.can_review_daltu ? 'Klik untuk melihat riwayat atau reviu ulang Daltu' : 'Klik untuk melihat hasil reviu Daltu'"
+                                    >
+                                        <template x-if="row.latest_daltu_review_status === 'Disetujui'">
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                                                <span>Daltu: Disetujui</span>
+                                                <template x-if="row.can_review_daltu">
+                                                    <x-lucide-pencil class="h-2.5 w-2.5 opacity-60 group-hover:opacity-100" />
+                                                </template>
+                                            </span>
+                                        </template>
+                                        <template x-if="row.latest_daltu_review_status === 'Koreksi'">
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                                                <span>Daltu: Koreksi</span>
+                                                <template x-if="row.can_review_daltu">
+                                                    <x-lucide-pencil class="h-2.5 w-2.5 opacity-60 group-hover:opacity-100" />
+                                                </template>
+                                            </span>
+                                        </template>
+
+                                        <template x-if="row.latest_daltu_review_date">
+                                            <span class="mt-0.5 text-[10px] font-medium text-neutral-500 group-hover:text-neutral-900 dark:text-neutral-400 dark:group-hover:text-neutral-200" x-text="row.latest_daltu_review_date"></span>
+                                        </template>
+                                    </button>
+                                </template>
+                            </div>
                         </div>
                     </td>
 
@@ -1258,6 +1312,283 @@
                             <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/20 border-t-white dark:border-neutral-900/20 dark:border-t-neutral-900"></span>
                         </template>
                         <span x-text="duplicating ? 'Menduplikasi...' : 'Duplikasi Sekarang'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {{-- Modal Reviu PKA (Dalnis & Daltu) --}}
+        <div
+            x-show="reviewModalOpen"
+            x-cloak
+            x-on:keydown.escape.window="closeReviewModal()"
+            class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4"
+        >
+            <div x-show="reviewModalOpen" x-transition.opacity x-on:click="closeReviewModal()" class="fixed inset-0 bg-black/50 backdrop-blur-[1px]"></div>
+
+            <div
+                x-show="reviewModalOpen"
+                x-transition
+                class="relative z-10 my-8 w-full max-w-4xl overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xl dark:border-neutral-800 dark:bg-neutral-950"
+            >
+                {{-- Header Modal Reviu --}}
+                <div class="flex items-center justify-between border-b border-neutral-200 px-6 py-4 dark:border-neutral-800">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-neutral-100 dark:bg-neutral-800">
+                            <x-lucide-clipboard-check class="h-5 w-5 text-neutral-700 dark:text-neutral-300" />
+                        </div>
+                        <div>
+                            <h2 class="text-base font-semibold text-neutral-900 dark:text-neutral-100" x-text="reviewType === 'dalnis' ? 'Lembar Reviu PKA — Dalnis' : 'Lembar Reviu PKA — Daltu'"></h2>
+                            <p class="text-xs text-neutral-500 dark:text-neutral-400" x-text="reviewType === 'dalnis' ? 'Pemeriksaan dan persetujuan Pengawas Tim (Dalnis).' : 'Pemeriksaan dan persetujuan Pengendali Mutu (Daltu).'"></p>
+                        </div>
+                    </div>
+                    <button type="button" x-on:click="closeReviewModal()" class="rounded-md p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-200">
+                        <x-lucide-x class="h-4 w-4" />
+                    </button>
+                </div>
+
+                <div class="max-h-[80vh] space-y-6 overflow-y-auto px-6 py-5">
+                    {{-- Ringkasan Data PKA --}}
+                    <div class="rounded-xl border border-neutral-200 bg-neutral-50/60 p-4 dark:border-neutral-800 dark:bg-neutral-900/40">
+                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 pb-3 dark:border-neutral-800">
+                            <div class="space-y-0.5">
+                                <span class="text-[11px] font-medium uppercase text-neutral-500 dark:text-neutral-400">Nomor PKA & Sprin</span>
+                                <h3 class="text-base font-bold text-neutral-900 dark:text-neutral-100" x-text="reviewPka?.nomor_pka || '-'"></h3>
+                                <p class="text-xs font-medium text-red-600 dark:text-red-400" x-text="'Sprin: ' + (reviewPka?.no_sprin || '-')"></p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-neutral-500">Status Reviu Saat Ini:</span>
+                                <template x-if="reviewPka?.latest_review_status === 'Disetujui'">
+                                    <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                                        Disetujui
+                                    </span>
+                                </template>
+                                <template x-if="reviewPka?.latest_review_status === 'Koreksi'">
+                                    <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                                        Koreksi
+                                    </span>
+                                </template>
+                                <template x-if="!reviewPka?.latest_review_status">
+                                    <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                                        Menunggu Reviu
+                                    </span>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <div>
+                                <span class="text-[11px] font-medium uppercase text-neutral-500 dark:text-neutral-400">Tipe & Tahap</span>
+                                <div class="mt-1 flex items-center gap-1.5 flex-wrap">
+                                    <span
+                                        class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+                                        :class="reviewPka?.sprin_tipe === 'Nasional'
+                                            ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
+                                            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'"
+                                        x-text="reviewPka?.sprin_tipe || '-'"
+                                    ></span>
+                                    <template x-if="reviewPka?.tahap && reviewPka?.tahap !== '-'">
+                                        <span class="inline-flex items-center rounded-md border border-neutral-200 bg-white px-2 py-0.5 text-[11px] font-medium text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300" x-text="reviewPka.tahap === 'Khusus' ? 'Khusus' : 'Tahap ' + reviewPka.tahap"></span>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <div>
+                                <span class="text-[11px] font-medium uppercase text-neutral-500 dark:text-neutral-400">Bidang & Jenis Audit</span>
+                                <p class="mt-1 text-xs font-semibold text-neutral-800 dark:text-neutral-200" x-text="reviewPka?.bidang || '-'"></p>
+                                <p class="text-[11px] text-neutral-500 dark:text-neutral-400" x-text="reviewPka?.jenis_audit || '-'"></p>
+                            </div>
+
+                            <div>
+                                <span class="text-[11px] font-medium uppercase text-neutral-500 dark:text-neutral-400">Tanggal & Anggaran</span>
+                                <p class="mt-1 text-xs font-medium text-neutral-800 dark:text-neutral-200" x-text="reviewPka?.tanggal_formatted || '-'"></p>
+                                <p class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400" x-text="reviewPka?.formatted_anggaran || '-'"></p>
+                            </div>
+
+                            <div class="sm:col-span-2">
+                                <span class="text-[11px] font-medium uppercase text-neutral-500 dark:text-neutral-400">Sasaran Auditi</span>
+                                <p class="mt-1 text-xs text-neutral-800 dark:text-neutral-200 break-words" x-text="reviewPka?.sasaran_auditi || '-'"></p>
+                            </div>
+
+                            <div>
+                                <span class="text-[11px] font-medium uppercase text-neutral-500 dark:text-neutral-400">Lampiran Dokumen PKA</span>
+                                <div class="mt-1">
+                                    <template x-if="reviewPka?.lampiran_url">
+                                        <a :href="reviewPka.lampiran_url" target="_blank" class="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-blue-400">
+                                            <x-lucide-file-text class="h-3.5 w-3.5" />
+                                            <span class="max-w-[14rem] truncate" x-text="reviewPka.lampiran_name || 'Lihat Dokumen PKA'"></span>
+                                            <x-lucide-external-link class="h-3 w-3 opacity-60" />
+                                        </a>
+                                    </template>
+                                    <template x-if="!reviewPka?.lampiran_url">
+                                        <span class="text-xs text-neutral-400">Tidak ada lampiran</span>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Bagian Log Reviu --}}
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Log Riwayat Reviu</h4>
+                                <p class="text-[11px] text-neutral-500 dark:text-neutral-400" x-text="'Catatan dan status hasil telaah oleh ' + (reviewPka?.role_label || 'Reviewer') + '.'"></p>
+                            </div>
+                            <template x-if="reviewPka?.can_review">
+                                <button
+                                    type="button"
+                                    x-on:click="reviewFormOpen = !reviewFormOpen"
+                                    class="inline-flex h-8 items-center gap-1.5 rounded-md bg-neutral-900 px-3 text-xs font-medium text-white shadow-xs hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+                                >
+                                    <x-lucide-plus x-show="!reviewFormOpen" class="h-3.5 w-3.5" />
+                                    <x-lucide-x x-show="reviewFormOpen" x-cloak class="h-3.5 w-3.5" />
+                                    <span x-text="reviewFormOpen ? 'Tutup Form' : 'Tambah Reviu'"></span>
+                                </button>
+                            </template>
+                        </div>
+
+                        {{-- Form Input Reviu Baru --}}
+                        <template x-if="reviewPka?.can_review">
+                            <div
+                                x-show="reviewFormOpen"
+                                x-cloak
+                                x-transition
+                                class="rounded-xl border border-neutral-300 bg-neutral-50/80 p-4 dark:border-neutral-700 dark:bg-neutral-900/60"
+                            >
+                                <form x-on:submit.prevent="saveReview()" class="space-y-3">
+                                    <div class="space-y-1.5">
+                                        <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                                            Status Reviu <span class="text-red-500">*</span>
+                                        </label>
+                                        <div class="grid grid-cols-2 gap-2 sm:w-72">
+                                            <label
+                                                class="flex cursor-pointer items-center justify-center gap-1.5 rounded-md border p-2 text-xs font-medium transition-colors"
+                                                :class="reviewForm.status === 'Disetujui'
+                                                    ? 'border-emerald-600 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600 dark:border-emerald-500 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                                    : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300'"
+                                            >
+                                                <input type="radio" x-model="reviewForm.status" value="Disetujui" class="sr-only" />
+                                                <x-lucide-check-circle class="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                                                <span>Disetujui</span>
+                                            </label>
+                                            <label
+                                                class="flex cursor-pointer items-center justify-center gap-1.5 rounded-md border p-2 text-xs font-medium transition-colors"
+                                                :class="reviewForm.status === 'Koreksi'
+                                                    ? 'border-amber-500 bg-amber-50 text-amber-800 ring-1 ring-amber-500 dark:border-amber-500 dark:bg-amber-950/50 dark:text-amber-300'
+                                                    : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300'"
+                                            >
+                                                <input type="radio" x-model="reviewForm.status" value="Koreksi" class="sr-only" />
+                                                <x-lucide-alert-circle class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                                                <span>Koreksi</span>
+                                            </label>
+                                        </div>
+                                        <template x-if="reviewErrors.status">
+                                            <p class="text-xs text-red-600 dark:text-red-400" x-text="reviewErrors.status[0]"></p>
+                                        </template>
+                                    </div>
+
+                                    <div class="space-y-1.5">
+                                        <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                                            Catatan Reviu
+                                        </label>
+                                        <textarea
+                                            x-model="reviewForm.catatan"
+                                            rows="3"
+                                            placeholder="Tuliskan catatan, rekomendasi, atau instruksi perbaikan..."
+                                            class="block w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-900 shadow-xs placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100"
+                                        ></textarea>
+                                        <template x-if="reviewErrors.catatan">
+                                            <p class="text-xs text-red-600 dark:text-red-400" x-text="reviewErrors.catatan[0]"></p>
+                                        </template>
+                                    </div>
+
+                                    <div class="flex items-center justify-end gap-2 pt-1">
+                                        <button
+                                            type="button"
+                                            x-on:click="reviewFormOpen = false"
+                                            class="inline-flex h-8 items-center rounded-md border border-neutral-200 bg-white px-3 text-xs font-medium text-neutral-700 hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
+                                        >
+                                            Batal
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            x-bind:disabled="savingReview"
+                                            class="inline-flex h-8 items-center gap-1.5 rounded-md bg-neutral-900 px-3 text-xs font-medium text-white shadow-xs hover:bg-neutral-800 disabled:opacity-50 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+                                        >
+                                            <x-lucide-loader-circle x-show="savingReview" x-cloak class="h-3.5 w-3.5 animate-spin" />
+                                            <span>Simpan Reviu</span>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </template>
+
+                        {{-- Tabel DataTable Log Reviu --}}
+                        <div class="relative overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-800">
+                            <div
+                                x-show="loadingReviews"
+                                x-cloak
+                                class="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur-[1px] dark:bg-neutral-950/70"
+                            >
+                                <div class="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium shadow-xs dark:border-neutral-800 dark:bg-neutral-900">
+                                    <x-lucide-loader-circle class="h-3.5 w-3.5 animate-spin" />
+                                    <span>Memuat riwayat reviu...</span>
+                                </div>
+                            </div>
+
+                            <table class="w-full border-collapse text-left text-xs">
+                                <thead>
+                                    <tr class="border-b border-neutral-200 bg-neutral-50/70 text-[11px] uppercase tracking-wider text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-neutral-400">
+                                        <th class="whitespace-nowrap px-3 py-2.5 text-center font-medium w-10">#</th>
+                                        <th class="whitespace-nowrap px-3 py-2.5 font-medium w-36">WAKTU</th>
+                                        <th class="whitespace-nowrap px-3 py-2.5 font-medium w-40">REVIEWER</th>
+                                        <th class="whitespace-nowrap px-3 py-2.5 text-center font-medium w-28">STATUS</th>
+                                        <th class="px-3 py-2.5 font-medium">CATATAN</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
+                                    <template x-for="(log, idx) in reviewLogs" :key="log.id">
+                                        <tr class="hover:bg-neutral-50/60 dark:hover:bg-neutral-900/30">
+                                            <td class="whitespace-nowrap px-3 py-2.5 text-center text-neutral-500" x-text="idx + 1"></td>
+                                            <td class="whitespace-nowrap px-3 py-2.5 text-neutral-700 dark:text-neutral-300" x-text="log.created_at"></td>
+                                            <td class="whitespace-nowrap px-3 py-2.5 font-medium text-neutral-900 dark:text-neutral-100" x-text="log.reviewer_name"></td>
+                                            <td class="whitespace-nowrap px-3 py-2.5 text-center">
+                                                <template x-if="log.status === 'Disetujui'">
+                                                    <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                                                        Disetujui
+                                                    </span>
+                                                </template>
+                                                <template x-if="log.status === 'Koreksi'">
+                                                    <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                                                        Koreksi
+                                                    </span>
+                                                </template>
+                                            </td>
+                                            <td class="px-3 py-2.5 text-neutral-800 dark:text-neutral-200 break-words" x-text="log.catatan || '-'"></td>
+                                        </tr>
+                                    </template>
+
+                                    <template x-if="!loadingReviews && reviewLogs.length === 0">
+                                        <tr>
+                                            <td colspan="5" class="px-4 py-8 text-center text-xs text-neutral-500 dark:text-neutral-400">
+                                                Belum ada riwayat reviu untuk PKA ini.
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end border-t border-neutral-200 px-6 py-3.5 dark:border-neutral-800">
+                    <button
+                        type="button"
+                        x-on:click="closeReviewModal()"
+                        class="inline-flex h-9 items-center rounded-md border border-neutral-200 bg-white px-4 text-xs font-medium text-neutral-700 hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                    >
+                        Tutup
                     </button>
                 </div>
             </div>

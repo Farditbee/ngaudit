@@ -3,6 +3,7 @@
 namespace App\DataTables\Audit;
 
 use App\Models\Pka;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,7 +24,7 @@ class PkaDataTable
             ['data' => 'jenis_audit', 'name' => 'pkas.jenis_audit', 'label' => 'JENIS', 'sortable' => true, 'searchable' => true, 'align' => 'center', 'width' => 'w-28'],
             ['data' => 'status', 'name' => 'pkas.status', 'label' => 'STATUS', 'sortable' => true, 'searchable' => true, 'align' => 'center', 'width' => 'w-32'],
             ['data' => 'kka', 'name' => 'kka', 'label' => 'KKA', 'sortable' => false, 'searchable' => false, 'align' => 'center', 'width' => 'w-28'],
-            ['data' => 'reviews', 'name' => 'reviews', 'label' => 'REVIU DALNIS & DALTU', 'sortable' => false, 'searchable' => false, 'align' => 'center', 'width' => 'w-36'],
+            ['data' => 'reviews', 'name' => 'reviews', 'label' => 'REVIU & VALIDASI', 'sortable' => false, 'searchable' => false, 'align' => 'center', 'width' => 'w-44'],
             ['data' => 'tanggal_formatted', 'name' => 'pkas.tanggal', 'label' => 'TANGGAL', 'sortable' => true, 'searchable' => false, 'align' => 'center', 'width' => 'w-28'],
             ['data' => 'actions', 'name' => 'actions', 'label' => 'AKSI', 'sortable' => false, 'searchable' => false, 'align' => 'center', 'width' => 'w-36'],
         ];
@@ -60,11 +61,19 @@ class PkaDataTable
             ->visibleTo($authUser)
             ->join('sprins', 'sprins.id', '=', 'pkas.sprin_id')
             ->leftJoin('template_pkas', 'template_pkas.id', '=', 'pkas.template_pka_id')
+            ->with([
+                'latestDalnisReview:id,pka_id,role_type,status,created_at',
+                'latestDaltuReview:id,pka_id,role_type,status,created_at',
+            ])
             ->select([
                 'pkas.*',
                 'sprins.no_sprin',
                 'sprins.sprin_tipe',
                 'sprins.tahap',
+                'sprins.plotting_id as sprin_plotting_id',
+                'sprins.kode_wilayah as sprin_kode_wilayah',
+                'sprins.dalnis as sprin_dalnis',
+                'sprins.daltu as sprin_daltu',
                 'template_pkas.nama_template',
             ]);
 
@@ -86,6 +95,14 @@ class PkaDataTable
             ->addColumn('formatted_anggaran', fn (Pka $p): string => $p->formattedAnggaran())
             ->addColumn('lampiran_url', fn (Pka $p): ?string => $p->lampiranUrl())
             ->addColumn('kka_count', fn (Pka $p): int => 0)
+            ->editColumn('approved_by_dalnis_date', fn (Pka $p): ?string => $p->approved_by_dalnis_date?->timezone('Asia/Jakarta')->format('Y-m-d H:i'))
+            ->editColumn('approved_by_daltu_date', fn (Pka $p): ?string => $p->approved_by_daltu_date?->timezone('Asia/Jakarta')->format('Y-m-d H:i'))
+            ->addColumn('latest_dalnis_review_status', fn (Pka $p): ?string => $p->latestDalnisReview?->status ?? ($p->approved_by_dalnis_date ? 'Disetujui' : null))
+            ->addColumn('latest_dalnis_review_date', fn (Pka $p): ?string => $p->latestDalnisReview?->created_at?->timezone('Asia/Jakarta')->format('d/m/Y H:i') ?? $p->approved_by_dalnis_date?->timezone('Asia/Jakarta')->format('d/m/Y H:i'))
+            ->addColumn('can_review_dalnis', fn (Pka $p): bool => self::canUserReview($authUser, $p, 'dalnis'))
+            ->addColumn('latest_daltu_review_status', fn (Pka $p): ?string => $p->latestDaltuReview?->status ?? ($p->approved_by_daltu_date ? 'Disetujui' : null))
+            ->addColumn('latest_daltu_review_date', fn (Pka $p): ?string => $p->latestDaltuReview?->created_at?->timezone('Asia/Jakarta')->format('d/m/Y H:i') ?? $p->approved_by_daltu_date?->timezone('Asia/Jakarta')->format('d/m/Y H:i'))
+            ->addColumn('can_review_daltu', fn (Pka $p): bool => self::canUserReview($authUser, $p, 'daltu'))
             ->rawColumns(['pendahuluan', 'tujuan', 'ruang_lingkup', 'sasaran', 'waktu_pelaksanaan', 'periode', 'penutup'])
             ->filterColumn('no_sprin', function (Builder $query, string $keyword): void {
                 $query->where(function (Builder $q) use ($keyword): void {
@@ -100,5 +117,69 @@ class PkaDataTable
                 });
             })
             ->toJson();
+    }
+
+    public static function canUserReview(?User $user, Pka $pka, string $type): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->role === 'Super Admin') {
+            return true;
+        }
+
+        $sprin = $pka->relationLoaded('sprin') ? $pka->sprin : null;
+        $sprinPlottingId = $pka->sprin_plotting_id ?? $sprin?->plotting_id ?? $pka->sprin?->plotting_id;
+        $sprinKodeWilayah = $pka->sprin_kode_wilayah ?? $sprin?->kode_wilayah ?? $pka->sprin?->kode_wilayah;
+        $sprinTipe = $pka->sprin_tipe ?? $sprin?->sprin_tipe ?? $pka->sprin?->sprin_tipe;
+        $sprinDalnis = $pka->sprin_dalnis ?? $sprin?->dalnis ?? $pka->sprin?->dalnis;
+        $sprinDaltu = $pka->sprin_daltu ?? $sprin?->daltu ?? $pka->sprin?->daltu;
+
+        if ($type === 'dalnis') {
+            if ((int) $user->id === (int) $sprinDalnis) {
+                return true;
+            }
+
+            if ($user->role === 'Pengawas Tim') {
+                if ($user->plotting_id) {
+                    return (int) $sprinPlottingId === (int) $user->plotting_id;
+                }
+
+                if ($user->kode_wilayah) {
+                    $authProvinceCode = substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2);
+
+                    return $sprinTipe === 'Wilayah' && $sprinKodeWilayah === $authProvinceCode;
+                }
+
+                return (int) $user->id === (int) $sprinDalnis;
+            }
+
+            return false;
+        }
+
+        if ($type === 'daltu') {
+            if ((int) $user->id === (int) $sprinDaltu) {
+                return true;
+            }
+
+            if ($user->role === 'Koordinator dan Pengendali') {
+                if ($user->plotting_id) {
+                    return (int) $sprinPlottingId === (int) $user->plotting_id;
+                }
+
+                if ($user->kode_wilayah) {
+                    $authProvinceCode = substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2);
+
+                    return $sprinTipe === 'Wilayah' && $sprinKodeWilayah === $authProvinceCode;
+                }
+
+                return (int) $user->id === (int) $sprinDaltu;
+            }
+
+            return false;
+        }
+
+        return false;
     }
 }

@@ -99,3 +99,14 @@
 .dark .tiptap hr {
     border-color: #374151;
 }
+
+/* SweetAlert2: jarak antar tombol aksi */
+.swal2-actions {
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.swal2-actions .swal2-confirm,
+.swal2-actions .swal2-cancel {
+    margin: 0;
+}

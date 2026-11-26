@@ -6,12 +6,15 @@ use App\DataTables\Audit\PkaDataTable;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Audit\PkaRequest;
 use App\Models\Pka;
+use App\Models\PkaReview;
 use App\Models\Sprin;
 use App\Models\TemplatePka;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class PkaController extends Controller
@@ -190,6 +193,8 @@ class PkaController extends Controller
         $copy = $pka->replicate();
         $copy->nomor_pka = $validated['nomor_pka'];
         $copy->status = 'Draft';
+        $copy->approved_by_dalnis_date = null;
+        $copy->approved_by_daltu_date = null;
         $copy->created_by = $request->user()?->id;
         $copy->save();
 
@@ -223,6 +228,141 @@ class PkaController extends Controller
             'status' => $pka->status,
             'data' => $pka,
         ]);
+    }
+
+    public function getReviews(Request $request, Pka $pka, string $type): JsonResponse
+    {
+        if (! in_array($type, PkaReview::TYPES, true)) {
+            return response()->json(['message' => 'Tipe reviu tidak valid.'], 422);
+        }
+
+        if (! $this->canAccessPka($request->user(), $pka)) {
+            return response()->json([
+                'message' => 'Anda tidak memiliki hak akses untuk PKA ini.',
+            ], 403);
+        }
+
+        $pka->load([
+            'sprin:id,no_sprin,sprin_tipe,tahap,tim_id,plotting_id,kode_wilayah,dalnis,daltu',
+            'sprin.tim:id,nama_tim',
+            'sprin.plotting:id,plot',
+            'sprin.province:id,kode_wilayah,provinsi',
+        ]);
+
+        $reviews = $pka->reviews()
+            ->where('role_type', $type)
+            ->with('user:id,name,role')
+            ->get();
+
+        $latestReview = $reviews->first();
+        $approvedDate = $type === PkaReview::TYPE_DALNIS ? $pka->approved_by_dalnis_date : $pka->approved_by_daltu_date;
+        $latestStatus = $latestReview?->status ?? ($approvedDate ? PkaReview::STATUS_DISETUJUI : null);
+        $latestDate = $latestReview?->created_at?->timezone('Asia/Jakarta')->format('d/m/Y H:i')
+            ?? $approvedDate?->timezone('Asia/Jakarta')->format('d/m/Y H:i');
+
+        $roleLabel = $type === PkaReview::TYPE_DALNIS ? 'Pengawas Tim (Dalnis)' : 'Pengendali Mutu (Daltu)';
+
+        return response()->json([
+            'pka' => [
+                'id' => $pka->id,
+                'nomor_pka' => $pka->nomor_pka,
+                'no_sprin' => $pka->sprin?->no_sprin ?? '-',
+                'sprin_tipe' => $pka->sprin?->sprin_tipe ?? '-',
+                'tahap' => $pka->sprin?->tahap ?? '-',
+                'plot_name' => $pka->sprin?->plotName(),
+                'province_name' => $pka->sprin?->provinceName(),
+                'tim_name' => $pka->sprin?->tim?->nama_tim ?? '-',
+                'bidang' => $pka->bidang,
+                'jenis_audit' => $pka->jenis_audit,
+                'sasaran_auditi' => $pka->sasaran_auditi,
+                'tanggal_formatted' => $pka->tanggal?->format('d/m/Y') ?? '-',
+                'formatted_anggaran' => $pka->formattedAnggaran(),
+                'status' => $pka->status ?? 'Draft',
+                'lampiran_name' => $pka->lampiran_name,
+                'lampiran_url' => $pka->lampiranUrl(),
+                'review_type' => $type,
+                'role_label' => $roleLabel,
+                'can_review' => $this->canReviewPka($request->user(), $pka, $type),
+                'latest_review_status' => $latestStatus,
+                'latest_review_date' => $latestDate,
+            ],
+            'reviews' => $reviews->map(fn (PkaReview $r): array => [
+                'id' => $r->id,
+                'role_type' => $r->role_type,
+                'status' => $r->status,
+                'catatan' => $r->catatan ?? '-',
+                'reviewer_name' => $r->user?->name ?? 'User',
+                'created_at' => $r->created_at->timezone('Asia/Jakarta')->format('d/m/Y H:i'),
+            ])->values()->all(),
+        ]);
+    }
+
+    public function storeReview(Request $request, Pka $pka, string $type): JsonResponse
+    {
+        if (! in_array($type, PkaReview::TYPES, true)) {
+            return response()->json(['message' => 'Tipe reviu tidak valid.'], 422);
+        }
+
+        $user = $request->user();
+
+        if (! $this->canReviewPka($user, $pka, $type)) {
+            $label = $type === PkaReview::TYPE_DALNIS ? 'Dalnis' : 'Daltu';
+
+            return response()->json([
+                'message' => "Anda tidak memiliki hak akses untuk melakukan Reviu {$label} pada PKA ini.",
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'status' => ['required', 'string', Rule::in(PkaReview::STATUSES)],
+            'catatan' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'status.required' => 'Status reviu wajib dipilih.',
+            'status.in' => 'Status reviu tidak valid.',
+        ]);
+
+        $dateColumn = $type === PkaReview::TYPE_DALNIS ? 'approved_by_dalnis_date' : 'approved_by_daltu_date';
+
+        $review = DB::transaction(function () use ($pka, $user, $type, $validated, $dateColumn): PkaReview {
+            $review = $pka->reviews()->create([
+                'user_id' => $user->id,
+                'role_type' => $type,
+                'status' => $validated['status'],
+                'catatan' => $validated['catatan'] ?? null,
+            ]);
+
+            if ($validated['status'] === PkaReview::STATUS_DISETUJUI) {
+                $pka->update([$dateColumn => now()]);
+            } else {
+                $pka->update([$dateColumn => null]);
+            }
+
+            return $review;
+        });
+
+        $label = $type === PkaReview::TYPE_DALNIS ? 'Dalnis' : 'Daltu';
+
+        return response()->json([
+            'message' => "Reviu {$label} PKA berhasil disimpan dengan status {$review->status}.",
+            'review' => [
+                'id' => $review->id,
+                'role_type' => $review->role_type,
+                'status' => $review->status,
+                'catatan' => $review->catatan ?? '-',
+                'reviewer_name' => $user->name,
+                'created_at' => $review->created_at->timezone('Asia/Jakarta')->format('d/m/Y H:i'),
+            ],
+            'review_type' => $type,
+            'latest_status' => $review->status,
+            'latest_review_date' => $review->created_at->timezone('Asia/Jakarta')->format('d/m/Y H:i'),
+        ], 201);
+    }
+
+    protected function canReviewPka(?User $user, Pka $pka, string $type): bool
+    {
+        $pka->loadMissing('sprin:id,sprin_tipe,plotting_id,kode_wilayah,dalnis,daltu');
+
+        return PkaDataTable::canUserReview($user, $pka, $type);
     }
 
     /**

@@ -19,21 +19,6 @@
             </button>
         </div>
 
-        {{-- Flash Alert --}}
-        <div
-            x-show="flashMessage !== ''"
-            x-cloak
-            x-transition.opacity
-            class="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200"
-        >
-            <div class="flex items-center gap-2">
-                <x-lucide-circle-check class="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                <span x-text="flashMessage"></span>
-            </div>
-            <button type="button" x-on:click="flashMessage = ''" class="text-emerald-700 hover:text-emerald-950 dark:text-emerald-300">
-                <x-lucide-x class="h-4 w-4" />
-            </button>
-        </div>
 
         {{-- DataTable --}}
         <x-data-table

@@ -60,6 +60,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/audit/pka', [PkaController::class, 'index'])->name('audit.pka.index');
     Route::post('/audit/pka', [PkaController::class, 'store'])->name('audit.pka.store');
+    Route::get('/audit/pka/{pka}/reviews/{type}', [PkaController::class, 'getReviews'])->name('audit.pka.reviews.index');
+    Route::post('/audit/pka/{pka}/reviews/{type}', [PkaController::class, 'storeReview'])->name('audit.pka.reviews.store');
     Route::get('/audit/pka/{pka}', [PkaController::class, 'show'])->name('audit.pka.show');
     Route::match(['put', 'post'], '/audit/pka/{pka}', [PkaController::class, 'update'])->name('audit.pka.update');
     Route::delete('/audit/pka/{pka}', [PkaController::class, 'destroy'])->name('audit.pka.destroy');

@@ -32,5 +32,25 @@
                 &copy; {{ date('Y') }} {{ config('app.name') }}
             </footer>
         </div>
+        @php
+            $statusMessages = [
+                'profile-updated' => 'Profil berhasil diperbarui.',
+                'password-updated' => 'Kata sandi berhasil diperbarui.',
+                'verification-link-sent' => 'Tautan verifikasi baru telah dikirim.',
+            ];
+            $flashToast = null;
+            if (session('success')) {
+                $flashToast = ['success', session('success')];
+            } elseif (session('error')) {
+                $flashToast = ['error', session('error')];
+            } elseif (session('status')) {
+                $flashToast = ['success', $statusMessages[session('status')] ?? session('status')];
+            }
+        @endphp
+        @if ($flashToast)
+            <script>
+                document.addEventListener('DOMContentLoaded', () => window.notify.show(@js($flashToast[0]), @js($flashToast[1])));
+            </script>
+        @endif
     </body>
 </html>

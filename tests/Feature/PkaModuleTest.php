@@ -445,4 +445,107 @@ class PkaModuleTest extends TestCase
             'template_pka_id' => null,
         ]);
     }
+
+    public function test_dalnis_and_daltu_can_review_pka_independently(): void
+    {
+        $admin = User::factory()->create(['role' => 'Super Admin']);
+        $dalnis = User::factory()->create(['role' => 'Pengawas Tim', 'name' => 'Dalnis Uji']);
+        $daltu = User::factory()->create(['role' => 'Koordinator dan Pengendali', 'name' => 'Daltu Uji']);
+        $auditor = User::factory()->create(['role' => 'Auditor', 'name' => 'Auditor Uji']);
+
+        $plotting = Plotting::query()->create(['plot' => 'WIL I']);
+        $tim = Tim::query()->create([
+            'nama_tim' => 'TIM REVIU PKA',
+            'lingkup' => 'Nasional',
+            'plotting_id' => $plotting->id,
+            'daltu_id' => $daltu->id,
+            'dalnis_id' => $dalnis->id,
+            'ketua_tim_id' => $auditor->id,
+            'jumlah_anggota' => 1,
+        ]);
+
+        $sprin = Sprin::query()->create([
+            'user_id' => $admin->id,
+            'no_sprin' => 'SPRIN/REVIU/001/2026',
+            'no_surat_pemberitahuan' => 'SP/REVIU/001/2026',
+            'tgl_mulai' => now()->toDateString(),
+            'tgl_akhir' => now()->addDays(5)->toDateString(),
+            'plotting_id' => $plotting->id,
+            'tim_id' => $tim->id,
+            'katim' => $auditor->id,
+            'dalnis' => $dalnis->id,
+            'daltu' => $daltu->id,
+            'tahap' => '1',
+            'sprin_tipe' => 'Nasional',
+            'approved_by_daltu_date' => now(),
+            'created_by' => $admin->id,
+        ]);
+
+        $pka = Pka::query()->create([
+            'sprin_id' => $sprin->id,
+            'nomor_pka' => 'PKA/REVIU/2026',
+            'tanggal' => now()->toDateString(),
+            'anggaran' => 25000000,
+            'bidang' => 'Operasional',
+            'jenis_audit' => 'Audit Kinerja',
+            'sasaran_auditi' => 'Satker Reviu',
+            'status' => 'Draft',
+            'created_by' => $auditor->id,
+        ]);
+
+        // Auditor tidak boleh mereviu Dalnis maupun Daltu
+        $this->actingAs($auditor)
+            ->postJson(route('audit.pka.reviews.store', ['pka' => $pka, 'type' => 'dalnis']), [
+                'status' => 'Disetujui',
+                'catatan' => 'Coba reviu',
+            ])
+            ->assertForbidden();
+
+        // Daltu bisa langsung mereviu tanpa menunggu Dalnis (Independen)
+        $daltuResponse = $this->actingAs($daltu)
+            ->postJson(route('audit.pka.reviews.store', ['pka' => $pka, 'type' => 'daltu']), [
+                'status' => 'Koreksi',
+                'catatan' => 'Perbaiki ruang lingkup audit.',
+            ]);
+
+        $daltuResponse->assertCreated()
+            ->assertJsonFragment(['latest_status' => 'Koreksi']);
+
+        $this->assertNull($pka->fresh()->approved_by_daltu_date);
+
+        // Dalnis mereviu dan menyetujui (saat status PKA masih Draft)
+        $dalnisResponse = $this->actingAs($dalnis)
+            ->postJson(route('audit.pka.reviews.store', ['pka' => $pka, 'type' => 'dalnis']), [
+                'status' => 'Disetujui',
+                'catatan' => 'PKA sudah sesuai standar.',
+            ]);
+
+        $dalnisResponse->assertCreated()
+            ->assertJsonFragment(['latest_status' => 'Disetujui']);
+
+        $this->assertNotNull($pka->fresh()->approved_by_dalnis_date);
+
+        // Daltu mereviu ulang menjadi Disetujui
+        $this->actingAs($daltu)
+            ->postJson(route('audit.pka.reviews.store', ['pka' => $pka, 'type' => 'daltu']), [
+                'status' => 'Disetujui',
+                'catatan' => 'Revisi diterima.',
+            ])
+            ->assertCreated();
+
+        $this->assertNotNull($pka->fresh()->approved_by_daltu_date);
+
+        // Auditor dapat melihat riwayat reviu Dalnis & Daltu
+        $this->actingAs($auditor)
+            ->getJson(route('audit.pka.reviews.index', ['pka' => $pka, 'type' => 'dalnis']))
+            ->assertOk()
+            ->assertJsonPath('pka.latest_review_status', 'Disetujui')
+            ->assertJsonCount(1, 'reviews');
+
+        $this->actingAs($auditor)
+            ->getJson(route('audit.pka.reviews.index', ['pka' => $pka, 'type' => 'daltu']))
+            ->assertOk()
+            ->assertJsonPath('pka.latest_review_status', 'Disetujui')
+            ->assertJsonCount(2, 'reviews');
+    }
 }
