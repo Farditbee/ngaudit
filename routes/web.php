@@ -3,7 +3,9 @@
 use App\Http\Controllers\Audit\PkaController;
 use App\Http\Controllers\Audit\PkaLangkahKerjaController;
 use App\Http\Controllers\Audit\SprinController;
+use App\Http\Controllers\Master\KodeController;
 use App\Http\Controllers\Master\PlottingController;
+use App\Http\Controllers\Master\SubKodeController;
 use App\Http\Controllers\Master\TemplateKkaController;
 use App\Http\Controllers\Master\TemplateLangkahKerjaController;
 use App\Http\Controllers\Master\TemplateLangkahKerjaDetailController;
@@ -13,6 +15,7 @@ use App\Http\Controllers\Master\UserController;
 use App\Http\Controllers\Master\WilayahController;
 use App\Http\Controllers\Pelaksanaan\KkaController;
 use App\Http\Controllers\ProfileController;
+use App\Models\Kode;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -43,6 +46,18 @@ Route::middleware('auth')->group(function () {
     Route::post('/master/wilayah', [WilayahController::class, 'store'])->name('master.wilayah.store');
     Route::put('/master/wilayah/{level}/{code}', [WilayahController::class, 'update'])->name('master.wilayah.update');
     Route::delete('/master/wilayah/{level}/{code}', [WilayahController::class, 'destroy'])->name('master.wilayah.destroy');
+
+    Route::prefix('master')->where(['jenis' => implode('|', Kode::JENIS)])->group(function () {
+        Route::get('/kode/{jenis}', [KodeController::class, 'index'])->name('master.kode.index');
+        Route::post('/kode/{jenis}', [KodeController::class, 'store'])->name('master.kode.store');
+        Route::put('/kode/{jenis}/{kode}', [KodeController::class, 'update'])->name('master.kode.update');
+        Route::delete('/kode/{jenis}/{kode}', [KodeController::class, 'destroy'])->name('master.kode.destroy');
+
+        Route::get('/sub-kode/{jenis}', [SubKodeController::class, 'index'])->name('master.sub-kode.index');
+        Route::post('/sub-kode/{jenis}', [SubKodeController::class, 'store'])->name('master.sub-kode.store');
+        Route::put('/sub-kode/{jenis}/{subKode}', [SubKodeController::class, 'update'])->name('master.sub-kode.update');
+        Route::delete('/sub-kode/{jenis}/{subKode}', [SubKodeController::class, 'destroy'])->name('master.sub-kode.destroy');
+    });
 
     Route::get('/master/plotting', [PlottingController::class, 'index'])->name('master.plotting.index');
     Route::post('/master/plotting', [PlottingController::class, 'store'])->name('master.plotting.store');

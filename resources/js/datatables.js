@@ -614,6 +614,133 @@ export function registerDataTables(Alpine) {
         },
     }));
 
+    Alpine.data('kodeDataTable', (config) => ({
+        ...getBaseDataTableState(config),
+        ...getBaseDataTableMethods(),
+        isSub: Boolean(config.isSub),
+        requiresTemuan: Boolean(config.requiresTemuan),
+        parents: config.parents || [],
+        filterKodeId: '',
+        filterKodeTemuanId: '',
+        modalOpen: false,
+        editingId: null,
+        form: { kode_id: '', kode_temuan_id: '', kode: '', nama: '' },
+        errors: {},
+
+        extraFilterParams() {
+            return {
+                kode_id: this.filterKodeId,
+                kode_temuan_id: this.filterKodeTemuanId,
+            };
+        },
+        onFilterChange() {
+            this.page = 1;
+            this.fetchData();
+        },
+        resetFilters() {
+            this.filterKodeId = '';
+            this.filterKodeTemuanId = '';
+            this.search = '';
+            this.page = 1;
+            this.fetchData();
+        },
+        openCreateModal() {
+            this.editingId = null;
+            this.form = {
+                kode_id: this.filterKodeId || '',
+                kode_temuan_id: this.filterKodeTemuanId || '',
+                kode: '',
+                nama: '',
+            };
+            this.errors = {};
+            this.modalOpen = true;
+        },
+        openEditModal(row) {
+            this.editingId = row.id;
+            this.form = {
+                kode_id: row.kode_id ? String(row.kode_id) : '',
+                kode_temuan_id: row.kode_temuan_id ? String(row.kode_temuan_id) : '',
+                kode: row.kode,
+                nama: row.nama,
+            };
+            this.errors = {};
+            this.modalOpen = true;
+        },
+        closeModal() {
+            if (this.saving) return;
+            this.modalOpen = false;
+        },
+        async saveKode() {
+            this.saving = true;
+            this.errors = {};
+            const isEdit = Boolean(this.editingId);
+            const url = isEdit ? `${this.baseUrl}/${this.editingId}` : this.storeUrl;
+
+            try {
+                const response = await fetch(url, {
+                    method: isEdit ? 'PUT' : 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(this.form),
+                });
+
+                const json = await response.json();
+
+                if (response.status === 422) {
+                    this.errors = json.errors || {};
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Terjadi kesalahan saat menyimpan data.');
+                }
+
+                this.modalOpen = false;
+                this.showFlash(json.message || 'Data berhasil disimpan.');
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                window.notify.error(e.message || 'Terjadi kesalahan saat menyimpan data.');
+            } finally {
+                this.saving = false;
+            }
+        },
+        async confirmDelete(row) {
+            const confirmed = await window.notify.confirmDelete({ label: window.notify.rowLabel(row) });
+            if (!confirmed) return;
+            this.deleting = true;
+            try {
+                const response = await fetch(`${this.baseUrl}/${row.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const json = await response.json();
+                if (!response.ok) {
+                    window.notify.error(json.message || 'Gagal menghapus data.');
+                    return;
+                }
+                this.showFlash(json.message || 'Data berhasil dihapus.');
+                if (this.rows.length === 1 && this.page > 1) {
+                    this.page--;
+                }
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                window.notify.error('Terjadi kesalahan saat menghapus data.');
+            } finally {
+                this.deleting = false;
+            }
+        },
+    }));
+
     Alpine.data('plottingDataTable', (config) => ({
         ...getBaseDataTableState(config),
         ...getBaseDataTableMethods(),

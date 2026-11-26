@@ -36,6 +36,17 @@
                     ['label' => 'KKA', 'href' => route('master.template.kka.index'), 'active' => request()->routeIs('master.template.kka.*')],
                     ['label' => 'Langkah Kerja', 'href' => route('master.template.langkah-kerja.index'), 'active' => request()->routeIs('master.template.langkah-kerja.*')],
                 ]],
+                ['label' => 'Kode', 'icon' => 'users', 'open' => request()->routeIs('master.kode.*', 'master.sub-kode.*'), 'children' => [
+                    ['label' => 'Kode Temuan', 'href' => route('master.kode.index', 'temuan'), 'active' => request()->is('master/kode/temuan')],
+                    ['label' => 'Sub Kode Temuan', 'href' => route('master.sub-kode.index', 'temuan'), 'active' => request()->is('master/sub-kode/temuan')],
+                    ['label' => 'Kode Sebab', 'href' => route('master.kode.index', 'sebab'), 'active' => request()->is('master/kode/sebab')],
+                    ['label' => 'Sub Kode Sebab', 'href' => route('master.sub-kode.index', 'sebab'), 'active' => request()->is('master/sub-kode/sebab')],
+                    ['label' => 'Kode Akibat', 'href' => route('master.kode.index', 'akibat'), 'active' => request()->is('master/kode/akibat')],
+                    ['label' => 'Sub Kode Akibat', 'href' => route('master.sub-kode.index', 'akibat'), 'active' => request()->is('master/sub-kode/akibat')],
+                    ['label' => 'Kode Rekomendasi', 'href' => route('master.kode.index', 'rekomendasi'), 'active' => request()->is('master/kode/rekomendasi')],
+                    ['label' => 'Sub Kode Rekomendasi', 'href' => route('master.sub-kode.index', 'rekomendasi'), 'active' => request()->is('master/sub-kode/rekomendasi')],
+                    'Kode Tinjut', 'Sub Kode Tinjut', 'Kriteria',
+                ]],
             ],
         ],
         [
