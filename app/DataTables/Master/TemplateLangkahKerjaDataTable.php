@@ -112,6 +112,7 @@ class TemplateLangkahKerjaDataTable
             ->addColumn('province_name', fn (TemplateLangkahKerja $t): ?string => $t->province_name ?? $t->provinceName())
             ->addColumn('creator_name', fn (TemplateLangkahKerja $t): string => $t->creator_name ?? $t->creator?->name ?? '-')
             ->addColumn('created_at_formatted', fn (TemplateLangkahKerja $t): string => $t->created_at?->timezone('Asia/Jakarta')->format('d/m/Y H:i') ?? '-')
+            ->rawColumns(['nama_template'])
             ->filterColumn('lingkup', function (Builder $query, string $keyword): void {
                 $query->where(function (Builder $q) use ($keyword): void {
                     $q->where('template_langkah_kerjas.lingkup', 'like', "%{$keyword}%")

@@ -109,7 +109,7 @@ class TemplatePkaDataTable
             ->addColumn('plot_name', fn (TemplatePka $t): ?string => $t->plot_name ?? $t->plotName())
             ->addColumn('province_name', fn (TemplatePka $t): ?string => $t->province_name ?? $t->provinceName())
             ->addColumn('created_at_formatted', fn (TemplatePka $t): string => $t->created_at?->timezone('Asia/Jakarta')->format('d/m/Y H:i') ?? '-')
-            ->rawColumns(['pendahuluan', 'tujuan', 'ruang_lingkup', 'sasaran', 'waktu_pelaksanaan', 'periode', 'penutup'])
+            ->rawColumns(['nama_template', 'pendahuluan', 'tujuan', 'ruang_lingkup', 'sasaran', 'waktu_pelaksanaan', 'periode', 'penutup'])
             ->filterColumn('lingkup', function (Builder $query, string $keyword): void {
                 $query->where(function (Builder $q) use ($keyword): void {
                     $q->where('template_pkas.lingkup', 'like', "%{$keyword}%")

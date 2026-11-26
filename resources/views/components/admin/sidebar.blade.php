@@ -30,7 +30,7 @@
                 ['label' => 'Template', 'icon' => 'notepad-text-dashed', 'open' => request()->routeIs('master.template.*'), 'children' => [
                     'Taklimat',
                     ['label' => 'PKA', 'href' => route('master.template.pka.index'), 'active' => request()->routeIs('master.template.pka.*')],
-                    'KKA',
+                    ['label' => 'KKA', 'href' => route('master.template.kka.index'), 'active' => request()->routeIs('master.template.kka.*')],
                     ['label' => 'Langkah Kerja', 'href' => route('master.template.langkah-kerja.index'), 'active' => request()->routeIs('master.template.langkah-kerja.*')],
                 ]],
             ],

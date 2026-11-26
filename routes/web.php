@@ -4,6 +4,7 @@ use App\Http\Controllers\Audit\PkaController;
 use App\Http\Controllers\Audit\PkaLangkahKerjaController;
 use App\Http\Controllers\Audit\SprinController;
 use App\Http\Controllers\Master\PlottingController;
+use App\Http\Controllers\Master\TemplateKkaController;
 use App\Http\Controllers\Master\TemplateLangkahKerjaController;
 use App\Http\Controllers\Master\TemplateLangkahKerjaDetailController;
 use App\Http\Controllers\Master\TemplatePkaController;
@@ -53,6 +54,13 @@ Route::middleware('auth')->group(function () {
     Route::put('/master/template/pka/{pka}', [TemplatePkaController::class, 'update'])->name('master.template.pka.update');
     Route::delete('/master/template/pka/{pka}', [TemplatePkaController::class, 'destroy'])->name('master.template.pka.destroy');
     Route::post('/master/template/pka/{pka}/duplicate', [TemplatePkaController::class, 'duplicate'])->name('master.template.pka.duplicate');
+
+    Route::get('/master/template/kka', [TemplateKkaController::class, 'index'])->name('master.template.kka.index');
+    Route::post('/master/template/kka', [TemplateKkaController::class, 'store'])->name('master.template.kka.store');
+    Route::get('/master/template/kka/{kka}', [TemplateKkaController::class, 'show'])->name('master.template.kka.show');
+    Route::put('/master/template/kka/{kka}', [TemplateKkaController::class, 'update'])->name('master.template.kka.update');
+    Route::delete('/master/template/kka/{kka}', [TemplateKkaController::class, 'destroy'])->name('master.template.kka.destroy');
+    Route::post('/master/template/kka/{kka}/duplicate', [TemplateKkaController::class, 'duplicate'])->name('master.template.kka.duplicate');
 
     Route::get('/master/template/langkah-kerja', [TemplateLangkahKerjaController::class, 'index'])->name('master.template.langkah-kerja.index');
     Route::post('/master/template/langkah-kerja', [TemplateLangkahKerjaController::class, 'store'])->name('master.template.langkah-kerja.store');
