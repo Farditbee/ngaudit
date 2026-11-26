@@ -11,11 +11,14 @@
         [
             'label' => 'Audit',
             'items' => [
-                ['label' => 'Persiapan', 'icon' => 'layout', 'open' => request()->routeIs('audit.*'), 'children' => [
+                ['label' => 'Persiapan', 'icon' => 'square-kanban-plus', 'open' => request()->routeIs('audit.*'), 'children' => [
                     ['label' => 'Sprin', 'href' => route('audit.sprin.index'), 'active' => request()->routeIs('audit.sprin.*')],
                     'Entry Meeting',
                     ['label' => 'PKA', 'href' => route('audit.pka.index'), 'active' => request()->routeIs('audit.pka.*')],
                     'Dokumen Pendahuluan',
+                ]],
+                ['label' => 'Pelaksanaan', 'icon' => 'panel-top-open', 'open' => request()->routeIs('pelaksanaan.*'), 'children' => [
+                    ['label' => 'KKA', 'href' => route('pelaksanaan.kka.index'), 'active' => request()->routeIs('pelaksanaan.kka.*')],
                 ]],
             ],
         ],

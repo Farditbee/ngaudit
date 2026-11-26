@@ -139,6 +139,138 @@ function getBaseDataTableState(config) {
     };
 }
 
+function getTodayLocalDate() {
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${now.getFullYear()}-${month}-${day}`;
+}
+
+/**
+ * Method toolbar TipTap untuk komponen dengan banyak editor per tab.
+ * Komponen pemakai harus menyediakan state `editors` dan `activeTab`.
+ */
+function getTipTapToolbarMethods() {
+    return {
+        getActiveEditor() {
+            return this.editors[this.activeTab] || null;
+        },
+        isActive(name, opts = {}) {
+            const editor = this.getActiveEditor();
+            return editor ? editor.isActive(name, opts) : false;
+        },
+        toggleBold() {
+            this.getActiveEditor()?.chain().focus().toggleBold().run();
+        },
+        toggleItalic() {
+            this.getActiveEditor()?.chain().focus().toggleItalic().run();
+        },
+        toggleUnderline() {
+            this.getActiveEditor()?.chain().focus().toggleUnderline().run();
+        },
+        toggleStrike() {
+            this.getActiveEditor()?.chain().focus().toggleStrike().run();
+        },
+        toggleSubscript() {
+            this.getActiveEditor()?.chain().focus().toggleSubscript().run();
+        },
+        toggleSuperscript() {
+            this.getActiveEditor()?.chain().focus().toggleSuperscript().run();
+        },
+        setHeading(level) {
+            const editor = this.getActiveEditor();
+            if (!editor) return;
+            if (level === 0) {
+                editor.chain().focus().setParagraph().run();
+            } else {
+                editor.chain().focus().toggleHeading({ level }).run();
+            }
+        },
+        toggleBulletList() {
+            this.getActiveEditor()?.chain().focus().toggleBulletList().run();
+        },
+        toggleOrderedList() {
+            this.getActiveEditor()?.chain().focus().toggleOrderedList().run();
+        },
+        sinkListItem() {
+            this.getActiveEditor()?.chain().focus().sinkListItem('listItem').run();
+        },
+        liftListItem() {
+            this.getActiveEditor()?.chain().focus().liftListItem('listItem').run();
+        },
+        setTextAlign(alignment) {
+            this.getActiveEditor()?.chain().focus().setTextAlign(alignment).run();
+        },
+        undo() {
+            this.getActiveEditor()?.chain().focus().undo().run();
+        },
+        redo() {
+            this.getActiveEditor()?.chain().focus().redo().run();
+        },
+        canUndo() {
+            return Boolean(this.getActiveEditor()?.can().undo());
+        },
+        canRedo() {
+            return Boolean(this.getActiveEditor()?.can().redo());
+        },
+        insertTable(rows = 3, cols = 3) {
+            this.getActiveEditor()?.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run();
+        },
+        addColumnAfter() {
+            this.getActiveEditor()?.chain().focus().addColumnAfter().run();
+        },
+        deleteColumn() {
+            this.getActiveEditor()?.chain().focus().deleteColumn().run();
+        },
+        addRowAfter() {
+            this.getActiveEditor()?.chain().focus().addRowAfter().run();
+        },
+        deleteRow() {
+            this.getActiveEditor()?.chain().focus().deleteRow().run();
+        },
+        deleteTable() {
+            this.getActiveEditor()?.chain().focus().deleteTable().run();
+        },
+        setLink() {
+            const editor = this.getActiveEditor();
+            if (!editor) return;
+            const previousUrl = editor.getAttributes('link').href;
+            const url = window.prompt('Masukkan URL Link:', previousUrl);
+            if (url === null) return;
+            if (url === '') {
+                editor.chain().focus().extendMarkRange('link').unsetLink().run();
+                return;
+            }
+            editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+        },
+        insertImage() {
+            const editor = this.getActiveEditor();
+            if (!editor) return;
+            const url = window.prompt('Masukkan URL Gambar / Embed:');
+            if (url) {
+                editor.chain().focus().setImage({ src: url }).run();
+            }
+        },
+        clearFormatting() {
+            this.getActiveEditor()?.chain().focus().unsetAllMarks().clearNodes().run();
+        },
+        focusActiveEditor(e) {
+            const editor = this.getActiveEditor();
+            if (!editor) return;
+            if (e && e.target && e.target.closest && e.target.closest('.ProseMirror')) {
+                return;
+            }
+            if (!editor.isFocused) {
+                try {
+                    editor.commands.focus('end');
+                } catch (err) {
+                    // Safe fallback
+                }
+            }
+        },
+    };
+}
+
 export function registerDataTables(Alpine) {
     Alpine.data('wilayahDataTable', (config) => ({
         ...getBaseDataTableState(config),
@@ -5049,6 +5181,600 @@ export function registerDataTables(Alpine) {
                 this.deleteError = e.message || 'Terjadi kesalahan saat menghapus template.';
             } finally {
                 this.deleting = false;
+            }
+        },
+    }));
+    Alpine.data('kkaDataTable', (config) => ({
+        ...getBaseDataTableState(config),
+        ...getBaseDataTableMethods(),
+        ...getTipTapToolbarMethods(),
+        filterBidang: '',
+        filterJenisAudit: '',
+        filterStatus: '',
+        pkas: config.pkas || [],
+        templates: config.templates || [],
+        plottings: config.plottings || [],
+        provinces: config.provinces || [],
+        bidangs: config.bidangs || [],
+        jenisAudits: config.jenisAudits || [],
+        statuses: config.statuses || ['Draft', 'Final'],
+        levels: config.levels || ['Nasional', 'Wilayah'],
+        cities: [],
+        districts: [],
+        villages: [],
+        reviewTypes: [
+            { key: 'katim', label: 'Katim' },
+            { key: 'dalnis', label: 'Dalnis' },
+            { key: 'daltu', label: 'Daltu' },
+        ],
+        modalOpen: false,
+        editingId: null,
+        savingSection: false,
+        activeTab: 'tujuan',
+        editors: {},
+        sections: [
+            { key: 'tujuan', label: '9. Tujuan' },
+            { key: 'langkah', label: '10. Langkah' },
+            { key: 'hasil', label: '11. Hasil' },
+        ],
+        reviewModalOpen: false,
+        reviewType: 'katim',
+        reviewKka: null,
+        reviewLogs: [],
+        loadingReviews: false,
+        reviewFormOpen: false,
+        savingReview: false,
+        reviewForm: {
+            status: 'Disetujui',
+            catatan: '',
+        },
+        reviewErrors: {},
+        form: {
+            nomor_kka: '',
+            pka_id: '',
+            tanggal_dibuat: getTodayLocalDate(),
+            tanggal_direviu: getTodayLocalDate(),
+            tanggal_kka: getTodayLocalDate(),
+            tempat: '',
+            auditee_level: 'Nasional',
+            auditee_plotting_id: '',
+            province_code: '',
+            city_code: '',
+            district_code: '',
+            village_code: '',
+            template_kka_id: '',
+            tujuan: '',
+            langkah: '',
+            hasil: '',
+            status: 'Draft',
+        },
+        errors: {},
+
+        get selectedPka() {
+            if (!this.form.pka_id) return null;
+            return this.pkas.find((p) => String(p.id) === String(this.form.pka_id)) || null;
+        },
+        get pkaOptions() {
+            return this.pkas.map((p) => ({
+                code: String(p.id),
+                name: p.name,
+                group: p.bidang ? 'Bidang: ' + p.bidang : null,
+            }));
+        },
+        get templateOptions() {
+            return this.templates.map((t) => ({
+                code: String(t.id),
+                name: t.nama_template + ' (' + t.lingkup + ')',
+                group: t.lingkup ? 'Lingkup: ' + t.lingkup : null,
+            }));
+        },
+        get plottingOptions() {
+            return this.plottings.map((p) => ({ code: String(p.id), name: p.name }));
+        },
+        get provinceOptions() {
+            return this.provinces.map((p) => ({ code: String(p.code), name: p.name }));
+        },
+        get cityOptions() {
+            return this.cities.map((c) => ({ code: String(c.code), name: c.name }));
+        },
+        get districtOptions() {
+            return this.districts.map((d) => ({ code: String(d.code), name: d.name }));
+        },
+        get villageOptions() {
+            return this.villages.map((v) => ({ code: String(v.code), name: v.name }));
+        },
+
+        extraFilterParams() {
+            return {
+                bidang: this.filterBidang,
+                jenis_audit: this.filterJenisAudit,
+                status: this.filterStatus,
+            };
+        },
+        onFilterChange() {
+            this.page = 1;
+            this.fetchData();
+        },
+        resetFilters() {
+            this.filterBidang = '';
+            this.filterJenisAudit = '';
+            this.filterStatus = '';
+            this.search = '';
+            this.page = 1;
+            this.fetchData();
+        },
+
+        decodeHtml(html) {
+            if (!html || typeof html !== 'string') return '';
+            if (html.includes('&lt;') || html.includes('&gt;') || html.includes('&amp;')) {
+                const txt = document.createElement('textarea');
+                txt.innerHTML = html;
+                return txt.value;
+            }
+            return html;
+        },
+
+        // Auditee (cascading wilayah)
+        async fetchOptions(type, parent = '') {
+            const params = new URLSearchParams({ options: type, parent });
+            const response = await fetch(`${this.indexUrl}?${params.toString()}`, {
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            return await response.json();
+        },
+        resetRegionOptions() {
+            this.cities = [];
+            this.districts = [];
+            this.villages = [];
+        },
+        onLevelChange() {
+            this.form.auditee_plotting_id = '';
+            this.form.province_code = '';
+            this.form.city_code = '';
+            this.form.district_code = '';
+            this.form.village_code = '';
+            this.resetRegionOptions();
+        },
+        async onProvinceChange() {
+            this.form.city_code = '';
+            this.form.district_code = '';
+            this.form.village_code = '';
+            this.districts = [];
+            this.villages = [];
+            this.cities = this.form.province_code ? await this.fetchOptions('cities', this.form.province_code) : [];
+        },
+        async onCityChange() {
+            this.form.district_code = '';
+            this.form.village_code = '';
+            this.villages = [];
+            this.districts = this.form.city_code ? await this.fetchOptions('districts', this.form.city_code) : [];
+        },
+        async onDistrictChange() {
+            this.form.village_code = '';
+            this.villages = this.form.district_code ? await this.fetchOptions('villages', this.form.district_code) : [];
+        },
+        onPkaChange() {
+            this.errors = { ...this.errors, pka_id: undefined };
+        },
+
+        // Template KKA -> Tujuan, Langkah, Hasil
+        async onTemplateChange() {
+            const templateId = this.form.template_kka_id;
+            if (!templateId) return;
+
+            let tpl = this.templates.find((t) => String(t.id) === String(templateId));
+            if (!tpl) {
+                try {
+                    const res = await fetch(`/master/template/kka/${templateId}`, {
+                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    });
+                    if (res.ok) {
+                        tpl = await res.json();
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+
+            if (!tpl) return;
+
+            this.destroyEditors();
+            this.sections.forEach((sec) => {
+                this.form[sec.key] = this.decodeHtml(tpl[sec.key] || '');
+            });
+
+            this.$nextTick(() => {
+                this.initTabEditor(this.activeTab);
+                this.focusActiveEditor();
+            });
+
+            this.showFlash(`Tujuan, langkah, dan hasil dari template "${tpl.nama_template}" berhasil dipasang.`);
+        },
+
+        // Editor TipTap per tab
+        initTabEditor(key) {
+            const el = this.$refs['editor_' + key];
+            if (!el || this.editors[key]) return;
+
+            this.editors[key] = createTipTapEditor({
+                element: el,
+                content: this.decodeHtml(this.form[key] || ''),
+                onUpdate: (html) => {
+                    this.form[key] = html;
+                },
+            });
+        },
+        destroyEditors() {
+            Object.values(this.editors).forEach((editor) => {
+                try {
+                    editor?.destroy();
+                } catch (e) {
+                    // Ignore
+                }
+            });
+            this.editors = {};
+            this.sections.forEach((sec) => {
+                const el = this.$refs['editor_' + sec.key];
+                if (el) {
+                    el.innerHTML = '';
+                }
+            });
+        },
+        switchTab(key) {
+            if (this.activeTab === key) return;
+            if (this.editors[this.activeTab]) {
+                this.form[this.activeTab] = this.editors[this.activeTab].getHTML();
+            }
+            this.activeTab = key;
+            this.$nextTick(() => {
+                this.initTabEditor(key);
+                this.focusActiveEditor();
+            });
+        },
+
+        resetForm() {
+            const today = getTodayLocalDate();
+            this.form = {
+                nomor_kka: '',
+                pka_id: '',
+                tanggal_dibuat: today,
+                tanggal_direviu: today,
+                tanggal_kka: today,
+                tempat: '',
+                auditee_level: 'Nasional',
+                auditee_plotting_id: '',
+                province_code: '',
+                city_code: '',
+                district_code: '',
+                village_code: '',
+                template_kka_id: '',
+                tujuan: '',
+                langkah: '',
+                hasil: '',
+                status: 'Draft',
+            };
+            this.resetRegionOptions();
+            this.errors = {};
+        },
+        openCreateModal() {
+            this.destroyEditors();
+            this.editingId = null;
+            this.resetForm();
+            this.activeTab = 'tujuan';
+            this.modalOpen = true;
+            this.$nextTick(() => {
+                this.initTabEditor('tujuan');
+                this.focusActiveEditor();
+            });
+        },
+        async openEditModal(row) {
+            this.destroyEditors();
+            this.editingId = row.id;
+            this.resetForm();
+            this.activeTab = 'tujuan';
+            this.modalOpen = true;
+
+            try {
+                const response = await fetch(`${this.baseUrl}/${row.id}`, {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                if (!response.ok) {
+                    throw new Error('Gagal memuat data KKA');
+                }
+                const data = await response.json();
+
+                this.form = {
+                    nomor_kka: data.nomor_kka || '',
+                    pka_id: data.pka_id || '',
+                    tanggal_dibuat: data.tanggal_dibuat || '',
+                    tanggal_direviu: data.tanggal_direviu || '',
+                    tanggal_kka: data.tanggal_kka || '',
+                    tempat: data.tempat || '',
+                    auditee_level: data.auditee_level || 'Nasional',
+                    auditee_plotting_id: data.auditee_plotting_id || '',
+                    province_code: data.province_code || '',
+                    city_code: data.city_code || '',
+                    district_code: data.district_code || '',
+                    village_code: data.village_code || '',
+                    template_kka_id: data.template_kka_id || '',
+                    tujuan: this.decodeHtml(data.tujuan || ''),
+                    langkah: this.decodeHtml(data.langkah || ''),
+                    hasil: this.decodeHtml(data.hasil || ''),
+                    status: data.status || 'Draft',
+                };
+
+                const [cities, districts, villages] = await Promise.all([
+                    this.form.province_code ? this.fetchOptions('cities', this.form.province_code) : [],
+                    this.form.city_code ? this.fetchOptions('districts', this.form.city_code) : [],
+                    this.form.district_code ? this.fetchOptions('villages', this.form.district_code) : [],
+                ]);
+                this.cities = cities;
+                this.districts = districts;
+                this.villages = villages;
+
+                this.$nextTick(() => {
+                    this.initTabEditor('tujuan');
+                    this.focusActiveEditor();
+                });
+            } catch (e) {
+                console.error(e);
+                this.errors = { general: [e.message || 'Gagal memuat data KKA.'] };
+            }
+        },
+        closeModal(force = false) {
+            if (this.saving && !force) return;
+            this.modalOpen = false;
+            this.destroyEditors();
+            this.editingId = null;
+            this.resetForm();
+        },
+        saveCurrentTab() {
+            if (this.editors[this.activeTab]) {
+                this.form[this.activeTab] = this.editors[this.activeTab].getHTML();
+            }
+            const currentSection = this.sections.find((s) => s.key === this.activeTab);
+            this.showFlash(`Bagian ${currentSection ? currentSection.label : ''} tersimpan di formulir.`);
+        },
+        async saveKka() {
+            this.saving = true;
+            this.errors = {};
+
+            Object.keys(this.editors).forEach((key) => {
+                if (this.editors[key]) {
+                    this.form[key] = this.editors[key].getHTML();
+                }
+            });
+
+            const url = this.editingId ? `${this.baseUrl}/${this.editingId}` : this.storeUrl;
+            const method = this.editingId ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(this.form),
+                });
+
+                const json = await response.json();
+
+                if (!response.ok) {
+                    if (response.status === 422 && json.errors) {
+                        this.errors = json.errors;
+                        const firstKey = Object.keys(json.errors)[0];
+                        const firstMsg = json.errors[firstKey]?.[0] || 'Validasi formulir gagal.';
+                        this.errors.general = [`Terdapat kesalahan pengisian: ${firstMsg}`];
+                    } else {
+                        this.errors = { general: [json.message || 'Terjadi kesalahan saat menyimpan data.'] };
+                    }
+                    this.$refs.modalScrollArea?.scrollTo({ top: 0, behavior: 'smooth' });
+                    return;
+                }
+
+                this.closeModal(true);
+                this.showFlash(json.message || 'Data KKA berhasil disimpan.');
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                this.errors = { general: [e.message || 'Terjadi kesalahan jaringan.'] };
+                this.$refs.modalScrollArea?.scrollTo({ top: 0, behavior: 'smooth' });
+            } finally {
+                this.saving = false;
+            }
+        },
+
+        // Duplikasi, hapus, dan status
+        async confirmDuplicate(row) {
+            const confirmed = await window.notify.confirm({
+                title: 'Duplikasi KKA?',
+                text: `KKA untuk PKA ${row.nomor_pka || ''} akan diduplikasi sebagai Draft baru.`,
+                confirmText: 'Ya, duplikasi',
+            });
+            if (!confirmed) return;
+
+            try {
+                const response = await fetch(`${this.baseUrl}/${row.id}/duplicate`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const json = await response.json();
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal menduplikasi KKA.');
+                }
+                this.showFlash(json.message || 'KKA berhasil diduplikasi.');
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                window.notify.error(e.message || 'Terjadi kesalahan saat menduplikasi KKA.');
+            }
+        },
+        async confirmDelete(row) {
+            const confirmed = await window.notify.confirmDelete({ label: window.notify.rowLabel(row) });
+            if (!confirmed) return;
+
+            this.deleting = true;
+            try {
+                const response = await fetch(`${this.baseUrl}/${row.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const json = await response.json();
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal menghapus data KKA.');
+                }
+                this.showFlash(json.message || 'KKA berhasil dihapus.');
+                if (this.rows.length === 1 && this.page > 1) {
+                    this.page--;
+                }
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                window.notify.error(e.message || 'Terjadi kesalahan saat menghapus data KKA.');
+            } finally {
+                this.deleting = false;
+            }
+        },
+        async toggleRowStatus(row, targetStatus = null) {
+            if (row.updatingStatus) return;
+            const currentStatus = row.status || 'Draft';
+            const newStatus = targetStatus ? targetStatus : (currentStatus === 'Final' ? 'Draft' : 'Final');
+            if (targetStatus && targetStatus === currentStatus) return;
+
+            row.updatingStatus = true;
+            row.status = newStatus;
+
+            try {
+                const response = await fetch(`${this.baseUrl}/${row.id}/status`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ status: newStatus }),
+                });
+                const json = await response.json();
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal mengubah status KKA.');
+                }
+                this.showFlash(json.message || `Status KKA berhasil diubah menjadi ${newStatus}.`);
+            } catch (e) {
+                console.error(e);
+                row.status = currentStatus;
+                this.showFlash(e.message || 'Terjadi kesalahan saat mengubah status.', 'error');
+            } finally {
+                row.updatingStatus = false;
+            }
+        },
+
+        // Reviu Katim, Dalnis, dan Daltu
+        reviewStatus(row, type) {
+            return row[`latest_${type}_review_status`] || null;
+        },
+        reviewDate(row, type) {
+            return row[`latest_${type}_review_date`] || null;
+        },
+        canReview(row, type) {
+            return Boolean(row[`can_review_${type}`]);
+        },
+        reviewTypeLabel() {
+            return this.reviewTypes.find((t) => t.key === this.reviewType)?.label || '';
+        },
+        openReviewModal(row, type = 'katim') {
+            this.reviewType = type;
+            this.reviewKka = {
+                ...row,
+                review_type: type,
+                can_review: this.canReview(row, type),
+                latest_review_status: this.reviewStatus(row, type),
+                latest_review_date: this.reviewDate(row, type),
+            };
+            this.reviewLogs = [];
+            this.reviewModalOpen = true;
+            this.reviewFormOpen = false;
+            this.reviewForm = { status: 'Disetujui', catatan: '' };
+            this.reviewErrors = {};
+            this.fetchReviews(row.id, type);
+        },
+        closeReviewModal() {
+            if (this.savingReview) return;
+            this.reviewModalOpen = false;
+        },
+        async fetchReviews(kkaId, type) {
+            this.loadingReviews = true;
+            try {
+                const response = await fetch(`${this.baseUrl}/${kkaId}/reviews/${type}`, {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const json = await response.json();
+                if (response.ok) {
+                    if (json.kka) {
+                        this.reviewKka = { ...this.reviewKka, ...json.kka };
+                    }
+                    this.reviewLogs = json.reviews || [];
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.loadingReviews = false;
+            }
+        },
+        async saveReview() {
+            if (!this.reviewKka || !this.reviewKka.can_review) return;
+            this.savingReview = true;
+            this.reviewErrors = {};
+
+            try {
+                const response = await fetch(`${this.baseUrl}/${this.reviewKka.id}/reviews/${this.reviewType}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(this.reviewForm),
+                });
+                const json = await response.json();
+
+                if (response.status === 422) {
+                    this.reviewErrors = json.errors || {};
+                    return;
+                }
+                if (!response.ok) {
+                    this.reviewErrors = { status: [json.message || 'Gagal menyimpan reviu.'] };
+                    return;
+                }
+
+                if (json.review) {
+                    this.reviewLogs.unshift(json.review);
+                }
+                if (this.reviewKka) {
+                    this.reviewKka.latest_review_status = json.latest_status;
+                    this.reviewKka.latest_review_date = json.latest_review_date;
+                }
+
+                this.reviewFormOpen = false;
+                this.reviewForm = { status: 'Disetujui', catatan: '' };
+                this.showFlash(json.message || 'Reviu berhasil disimpan.');
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.savingReview = false;
             }
         },
     }));

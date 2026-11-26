@@ -11,6 +11,7 @@ use App\Http\Controllers\Master\TemplatePkaController;
 use App\Http\Controllers\Master\TimController;
 use App\Http\Controllers\Master\UserController;
 use App\Http\Controllers\Master\WilayahController;
+use App\Http\Controllers\Pelaksanaan\KkaController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -100,6 +101,16 @@ Route::middleware('auth')->group(function () {
     Route::delete('/audit/pka/{pka}/langkah-kerja/clear', [PkaLangkahKerjaController::class, 'clear'])->name('audit.pka.langkah-kerja.clear');
     Route::put('/audit/pka/{pka}/langkah-kerja/{langkahKerja}', [PkaLangkahKerjaController::class, 'update'])->name('audit.pka.langkah-kerja.update');
     Route::delete('/audit/pka/{pka}/langkah-kerja/{langkahKerja}', [PkaLangkahKerjaController::class, 'destroy'])->name('audit.pka.langkah-kerja.destroy');
+
+    Route::get('/pelaksanaan/kka', [KkaController::class, 'index'])->name('pelaksanaan.kka.index');
+    Route::post('/pelaksanaan/kka', [KkaController::class, 'store'])->name('pelaksanaan.kka.store');
+    Route::get('/pelaksanaan/kka/{kka}/reviews/{type}', [KkaController::class, 'getReviews'])->name('pelaksanaan.kka.reviews.index');
+    Route::post('/pelaksanaan/kka/{kka}/reviews/{type}', [KkaController::class, 'storeReview'])->name('pelaksanaan.kka.reviews.store');
+    Route::get('/pelaksanaan/kka/{kka}', [KkaController::class, 'show'])->name('pelaksanaan.kka.show');
+    Route::put('/pelaksanaan/kka/{kka}', [KkaController::class, 'update'])->name('pelaksanaan.kka.update');
+    Route::delete('/pelaksanaan/kka/{kka}', [KkaController::class, 'destroy'])->name('pelaksanaan.kka.destroy');
+    Route::post('/pelaksanaan/kka/{kka}/duplicate', [KkaController::class, 'duplicate'])->name('pelaksanaan.kka.duplicate');
+    Route::match(['patch', 'post'], '/pelaksanaan/kka/{kka}/status', [KkaController::class, 'updateStatus'])->name('pelaksanaan.kka.update-status');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
