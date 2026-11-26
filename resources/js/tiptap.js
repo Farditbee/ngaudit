@@ -8,6 +8,7 @@ import { TableRow } from '@tiptap/extension-table-row';
 import { TableHeader } from '@tiptap/extension-table-header';
 import { TableCell } from '@tiptap/extension-table-cell';
 import Image from '@tiptap/extension-image';
+import Underline from '@tiptap/extension-underline';
 
 export function createTipTapEditor({ element, content = '', onUpdate = null }) {
     return new Editor({
@@ -21,8 +22,8 @@ export function createTipTapEditor({ element, content = '', onUpdate = null }) {
                     openOnClick: false,
                     autolink: true,
                 },
-                underline: {},
             }),
+            Underline,
             Subscript,
             Superscript,
             TextAlign.configure({

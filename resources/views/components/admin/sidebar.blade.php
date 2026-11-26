@@ -11,7 +11,12 @@
         [
             'label' => 'Audit',
             'items' => [
-                ['label' => 'Persiapan', 'icon' => 'layout', 'open' => request()->routeIs('audit.*'), 'children' => [['label' => 'Sprin', 'href' => route('audit.sprin.index')], 'Entry Meeting', 'PKA', 'Dokumen Pendahuluan']],
+                ['label' => 'Persiapan', 'icon' => 'layout', 'open' => request()->routeIs('audit.*'), 'children' => [
+                    ['label' => 'Sprin', 'href' => route('audit.sprin.index'), 'active' => request()->routeIs('audit.sprin.*')],
+                    'Entry Meeting',
+                    ['label' => 'PKA', 'href' => route('audit.pka.index'), 'active' => request()->routeIs('audit.pka.*')],
+                    'Dokumen Pendahuluan',
+                ]],
             ],
         ],
 

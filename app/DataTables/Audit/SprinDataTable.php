@@ -59,6 +59,8 @@ class SprinDataTable
             'tims' => $tims,
             'tahaps' => Sprin::TAHAPS,
             'columns' => $this->columns(),
+            'defaultSortCol' => null,
+            'defaultSortDir' => 'desc',
         ];
     }
 
@@ -89,6 +91,39 @@ class SprinDataTable
 
         return DataTables::eloquent($query)
             ->addIndexColumn()
+            ->order(function (Builder $builder) use ($request): void {
+                $order = $request->input('order');
+                if (! $request->has('order') || empty($order) || ! isset($order[0]['column'])) {
+                    $builder->orderByDesc('sprins.created_at')->orderByDesc('sprins.id');
+
+                    return;
+                }
+
+                $colIndex = $order[0]['column'];
+                if ($colIndex === null || $colIndex === '' || (int) $colIndex < 0) {
+                    $builder->orderByDesc('sprins.created_at')->orderByDesc('sprins.id');
+
+                    return;
+                }
+
+                $dir = strtolower((string) data_get($order, '0.dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+                $colMap = [
+                    1 => 'sprins.no_sprin',
+                    2 => 'sprins.sprin_tipe',
+                    3 => 'tims.nama_tim',
+                    4 => 'sprins.tahap',
+                    5 => 'sprins.tgl_mulai',
+                    6 => 'sprins.approved_by_daltu_date',
+                ];
+
+                $colIndexInt = (int) $colIndex;
+                if (isset($colMap[$colIndexInt])) {
+                    $builder->orderBy($colMap[$colIndexInt], $dir)->orderByDesc('sprins.created_at')->orderByDesc('sprins.id');
+                } else {
+                    $builder->orderByDesc('sprins.created_at')->orderByDesc('sprins.id');
+                }
+            })
             ->addColumn('plot_name', fn (Sprin $sprin): ?string => $sprin->plot_name ?? $sprin->plotName())
             ->addColumn('province_name', fn (Sprin $sprin): ?string => $sprin->province_name ?? $sprin->provinceName())
             ->editColumn('tgl_mulai', fn (Sprin $sprin): string => $sprin->tgl_mulai->format('Y-m-d'))

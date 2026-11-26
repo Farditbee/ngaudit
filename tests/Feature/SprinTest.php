@@ -245,4 +245,43 @@ class SprinTest extends TestCase
         $this->assertNull($reviewResponse->json('sprin.plot_name'));
         $this->assertSame('JAWA BARAT', $reviewResponse->json('sprin.province_name'));
     }
+
+    public function test_sprin_datatable_sorts_newest_first_by_default(): void
+    {
+        $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+        $tim = Tim::factory()->create(['lingkup' => 'Nasional']);
+
+        $sprinOld = Sprin::factory()->create([
+            'no_sprin' => 'SPRIN-999/2026',
+            'tim_id' => $tim->id,
+            'created_at' => now()->subDay(),
+        ]);
+
+        $sprinNew = Sprin::factory()->create([
+            'no_sprin' => 'SPRIN-001/2026',
+            'tim_id' => $tim->id,
+            'created_at' => now(),
+        ]);
+
+        // Default query without specific order params (sorts by created_at desc)
+        $response = $this->actingAs($superAdmin)
+            ->getJson(route('audit.sprin.index'))
+            ->assertOk();
+
+        $response->assertJsonPath('recordsTotal', 2);
+        $this->assertSame($sprinNew->no_sprin, $response->json('data.0.no_sprin'));
+        $this->assertSame($sprinOld->no_sprin, $response->json('data.1.no_sprin'));
+
+        // When explicitly ordering by column 1 (no_sprin desc)
+        $responseWithOrder = $this->actingAs($superAdmin)
+            ->getJson(route('audit.sprin.index', [
+                'order' => [
+                    ['column' => 1, 'dir' => 'desc'],
+                ],
+            ]))
+            ->assertOk();
+
+        $this->assertSame($sprinOld->no_sprin, $responseWithOrder->json('data.0.no_sprin'));
+        $this->assertSame($sprinNew->no_sprin, $responseWithOrder->json('data.1.no_sprin'));
+    }
 }

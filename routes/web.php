@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Audit\PkaController;
 use App\Http\Controllers\Audit\SprinController;
 use App\Http\Controllers\Master\PlottingController;
 use App\Http\Controllers\Master\TemplatePkaController;
@@ -56,6 +57,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/audit/sprin/{sprin}/reviews', [SprinController::class, 'storeReview'])->name('audit.sprin.reviews.store');
     Route::put('/audit/sprin/{sprin}', [SprinController::class, 'update'])->name('audit.sprin.update');
     Route::delete('/audit/sprin/{sprin}', [SprinController::class, 'destroy'])->name('audit.sprin.destroy');
+
+    Route::get('/audit/pka', [PkaController::class, 'index'])->name('audit.pka.index');
+    Route::post('/audit/pka', [PkaController::class, 'store'])->name('audit.pka.store');
+    Route::get('/audit/pka/{pka}', [PkaController::class, 'show'])->name('audit.pka.show');
+    Route::match(['put', 'post'], '/audit/pka/{pka}', [PkaController::class, 'update'])->name('audit.pka.update');
+    Route::delete('/audit/pka/{pka}', [PkaController::class, 'destroy'])->name('audit.pka.destroy');
+    Route::post('/audit/pka/{pka}/duplicate', [PkaController::class, 'duplicate'])->name('audit.pka.duplicate');
+    Route::match(['patch', 'post'], '/audit/pka/{pka}/status', [PkaController::class, 'updateStatus'])->name('audit.pka.update-status');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

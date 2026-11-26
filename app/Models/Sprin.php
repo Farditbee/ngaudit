@@ -99,7 +99,24 @@ class Sprin extends Model
             } else {
                 $query->where('sprins.daltu', $user->id);
             }
+        } elseif (in_array($user->role, ['Ketua Tim', 'Pengawas Tim', 'Auditor', 'Auditee'])) {
+            $query->where(function (Builder $q) use ($user): void {
+                $q->where('sprins.katim', $user->id)
+                    ->orWhere('sprins.katim_2', $user->id)
+                    ->orWhere('sprins.dalnis', $user->id)
+                    ->orWhere('sprins.daltu', $user->id)
+                    ->orWhere('sprins.created_by', $user->id)
+                    ->orWhere('sprins.user_id', $user->id)
+                    ->orWhereHas('tim.auditors', function (Builder $auditorQuery) use ($user): void {
+                        $auditorQuery->where('users.id', $user->id);
+                    });
+            });
         }
+    }
+
+    public function scopeApproved(Builder $query): void
+    {
+        $query->whereNotNull('sprins.approved_by_daltu_date');
     }
 
     public function creator(): BelongsTo
@@ -150,6 +167,11 @@ class Sprin extends Model
     public function reviews(): HasMany
     {
         return $this->hasMany(SprinReview::class)->latest('id');
+    }
+
+    public function pkas(): HasMany
+    {
+        return $this->hasMany(Pka::class)->latest('id');
     }
 
     public function latestReview(): HasOne
