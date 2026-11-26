@@ -1,8 +1,11 @@
 <?php
 
 use App\Http\Controllers\Audit\PkaController;
+use App\Http\Controllers\Audit\PkaLangkahKerjaController;
 use App\Http\Controllers\Audit\SprinController;
 use App\Http\Controllers\Master\PlottingController;
+use App\Http\Controllers\Master\TemplateLangkahKerjaController;
+use App\Http\Controllers\Master\TemplateLangkahKerjaDetailController;
 use App\Http\Controllers\Master\TemplatePkaController;
 use App\Http\Controllers\Master\TimController;
 use App\Http\Controllers\Master\UserController;
@@ -51,6 +54,19 @@ Route::middleware('auth')->group(function () {
     Route::delete('/master/template/pka/{pka}', [TemplatePkaController::class, 'destroy'])->name('master.template.pka.destroy');
     Route::post('/master/template/pka/{pka}/duplicate', [TemplatePkaController::class, 'duplicate'])->name('master.template.pka.duplicate');
 
+    Route::get('/master/template/langkah-kerja', [TemplateLangkahKerjaController::class, 'index'])->name('master.template.langkah-kerja.index');
+    Route::post('/master/template/langkah-kerja', [TemplateLangkahKerjaController::class, 'store'])->name('master.template.langkah-kerja.store');
+    Route::get('/master/template/langkah-kerja/{langkahKerja}', [TemplateLangkahKerjaController::class, 'show'])->name('master.template.langkah-kerja.show');
+    Route::put('/master/template/langkah-kerja/{langkahKerja}', [TemplateLangkahKerjaController::class, 'update'])->name('master.template.langkah-kerja.update');
+    Route::delete('/master/template/langkah-kerja/{langkahKerja}', [TemplateLangkahKerjaController::class, 'destroy'])->name('master.template.langkah-kerja.destroy');
+    Route::post('/master/template/langkah-kerja/{langkahKerja}/duplicate', [TemplateLangkahKerjaController::class, 'duplicate'])->name('master.template.langkah-kerja.duplicate');
+
+    Route::get('/master/template/langkah-kerja/{langkahKerja}/detail', [TemplateLangkahKerjaDetailController::class, 'index'])->name('master.template.langkah-kerja.details.index');
+    Route::post('/master/template/langkah-kerja/{langkahKerja}/detail', [TemplateLangkahKerjaDetailController::class, 'store'])->name('master.template.langkah-kerja.details.store');
+    Route::post('/master/template/langkah-kerja/{langkahKerja}/detail/bulk-delete', [TemplateLangkahKerjaDetailController::class, 'bulkDestroy'])->name('master.template.langkah-kerja.details.bulk-destroy');
+    Route::put('/master/template/langkah-kerja/{langkahKerja}/detail/{detail}', [TemplateLangkahKerjaDetailController::class, 'update'])->name('master.template.langkah-kerja.details.update');
+    Route::delete('/master/template/langkah-kerja/{langkahKerja}/detail/{detail}', [TemplateLangkahKerjaDetailController::class, 'destroy'])->name('master.template.langkah-kerja.details.destroy');
+
     Route::get('/audit/sprin', [SprinController::class, 'index'])->name('audit.sprin.index');
     Route::post('/audit/sprin', [SprinController::class, 'store'])->name('audit.sprin.store');
     Route::get('/audit/sprin/{sprin}/reviews', [SprinController::class, 'getReviews'])->name('audit.sprin.reviews.index');
@@ -67,6 +83,14 @@ Route::middleware('auth')->group(function () {
     Route::delete('/audit/pka/{pka}', [PkaController::class, 'destroy'])->name('audit.pka.destroy');
     Route::post('/audit/pka/{pka}/duplicate', [PkaController::class, 'duplicate'])->name('audit.pka.duplicate');
     Route::match(['patch', 'post'], '/audit/pka/{pka}/status', [PkaController::class, 'updateStatus'])->name('audit.pka.update-status');
+
+    Route::get('/audit/pka/{pka}/langkah-kerja', [PkaLangkahKerjaController::class, 'index'])->name('audit.pka.langkah-kerja.index');
+    Route::post('/audit/pka/{pka}/langkah-kerja', [PkaLangkahKerjaController::class, 'store'])->name('audit.pka.langkah-kerja.store');
+    Route::post('/audit/pka/{pka}/langkah-kerja/apply-template', [PkaLangkahKerjaController::class, 'applyTemplate'])->name('audit.pka.langkah-kerja.apply-template');
+    Route::post('/audit/pka/{pka}/langkah-kerja/bulk-delete', [PkaLangkahKerjaController::class, 'bulkDestroy'])->name('audit.pka.langkah-kerja.bulk-destroy');
+    Route::delete('/audit/pka/{pka}/langkah-kerja/clear', [PkaLangkahKerjaController::class, 'clear'])->name('audit.pka.langkah-kerja.clear');
+    Route::put('/audit/pka/{pka}/langkah-kerja/{langkahKerja}', [PkaLangkahKerjaController::class, 'update'])->name('audit.pka.langkah-kerja.update');
+    Route::delete('/audit/pka/{pka}/langkah-kerja/{langkahKerja}', [PkaLangkahKerjaController::class, 'destroy'])->name('audit.pka.langkah-kerja.destroy');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

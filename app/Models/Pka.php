@@ -122,6 +122,11 @@ class Pka extends Model
         return $this->hasMany(PkaReview::class)->latest('id');
     }
 
+    public function langkahKerjas(): HasMany
+    {
+        return $this->hasMany(PkaLangkahKerja::class, 'pka_id')->orderBy('id');
+    }
+
     public function dalnisReviews(): HasMany
     {
         return $this->hasMany(PkaReview::class)

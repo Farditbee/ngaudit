@@ -6,12 +6,14 @@
     'changeAction',
     'disabledExpr' => 'false',
     'disabledMessage' => '',
+    'wrap' => false,
 ])
 
 <div
     class="relative space-y-1.5"
     x-data="{
         open: false,
+        dropUp: false,
         query: '',
         parentHint: false,
         highlightedIndex: -1,
@@ -35,6 +37,19 @@
             const found = this.items.find(item => String(item.code) === String(val));
             return found ? found.name : '{{ $placeholder }}';
         },
+        updatePlacement() {
+            const trigger = this.$refs.triggerButton;
+            if (!trigger) return;
+            const rect = trigger.getBoundingClientRect();
+            const scrollContainer = trigger.closest('.overflow-y-auto');
+            const containerRect = scrollContainer
+                ? scrollContainer.getBoundingClientRect()
+                : { top: 0, bottom: window.innerHeight };
+            const spaceBelow = containerRect.bottom - rect.bottom;
+            const spaceAbove = rect.top - containerRect.top;
+            const estimatedDropdownHeight = 280;
+            this.dropUp = spaceBelow < estimatedDropdownHeight && spaceAbove > spaceBelow;
+        },
         toggle() {
             if (this.isDisabled) {
                 this.open = false;
@@ -42,6 +57,9 @@
                 return;
             }
             this.parentHint = false;
+            if (!this.open) {
+                this.updatePlacement();
+            }
             this.open = !this.open;
             if (this.open) {
                 this.query = '';
@@ -109,13 +127,14 @@
     <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400">{{ $label }}</label>
 
     <button
+        x-ref="triggerButton"
         type="button"
         x-on:click="toggle()"
         x-on:keydown.arrow-down.prevent="if (!open) toggle(); else moveDown()"
         x-on:keydown.arrow-up.prevent="if (!open) toggle(); else moveUp()"
-        class="flex h-9 w-full items-center justify-between gap-2 rounded-md border border-neutral-200 bg-white px-3 py-1 text-left text-sm text-neutral-900 shadow-xs transition-colors hover:bg-neutral-50 focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:hover:bg-neutral-900 dark:focus:border-neutral-100 dark:focus:ring-white/20"
+        class="flex {{ $wrap ? 'min-h-9 py-1.5' : 'h-9 py-1' }} w-full items-center justify-between gap-2 rounded-md border border-neutral-200 bg-white px-3 text-left text-sm text-neutral-900 shadow-xs transition-colors hover:bg-neutral-50 focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:hover:bg-neutral-900 dark:focus:border-neutral-100 dark:focus:ring-white/20"
     >
-        <span class="truncate" x-bind:class="!{{ $valueModel }} ? 'text-neutral-500 dark:text-neutral-400' : ''" x-text="selectedLabel"></span>
+        <span class="{{ $wrap ? 'break-words leading-snug' : 'truncate' }}" x-bind:class="!{{ $valueModel }} ? 'text-neutral-500 dark:text-neutral-400' : ''" x-text="selectedLabel"></span>
         <x-lucide-chevrons-up-down class="h-3.5 w-3.5 shrink-0 text-neutral-400" />
     </button>
 
@@ -123,7 +142,8 @@
         x-show="open"
         x-cloak
         x-transition.opacity.duration.100ms
-        class="absolute left-0 right-0 z-30 mt-1 overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-800 dark:bg-neutral-950"
+        x-bind:class="dropUp ? 'bottom-full mb-1' : 'top-full mt-1'"
+        class="absolute left-0 right-0 z-40 overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-xl dark:border-neutral-800 dark:bg-neutral-950"
     >
         <div class="relative border-b border-neutral-200 p-1.5 dark:border-neutral-800">
             <x-lucide-search class="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
@@ -184,7 +204,7 @@
                             highlightedIndex === idx && String({{ $valueModel }}) === String(item.code) ? 'ring-1 ring-emerald-300 dark:ring-emerald-700' : ''
                         ]"
                     >
-                        <span class="truncate" x-text="item.name"></span>
+                        <span class="{{ $wrap ? 'break-words leading-snug' : 'truncate' }}" x-text="item.name"></span>
                         <x-lucide-check x-show="String({{ $valueModel }}) === String(item.code)" x-cloak class="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                     </button>
                 </li>

@@ -382,7 +382,7 @@
                                     <x-lucide-copy class="h-3.5 w-3.5" />
                                 </button>
                                 <a
-                                    href="#"
+                                    :href="row.langkah_kerja_url || `${baseUrl}/${row.id}/langkah-kerja`"
                                     class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
                                     title="Langkah Kerja"
                                 >

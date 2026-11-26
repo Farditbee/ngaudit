@@ -91,6 +91,7 @@ class PkaDataTable
 
         return DataTables::eloquent($query)
             ->addIndexColumn()
+            ->addColumn('langkah_kerja_url', fn (Pka $p): string => route('audit.pka.langkah-kerja.index', $p))
             ->addColumn('tanggal_formatted', fn (Pka $p): string => $p->tanggal?->format('d/m/Y') ?? '-')
             ->addColumn('formatted_anggaran', fn (Pka $p): string => $p->formattedAnggaran())
             ->addColumn('lampiran_url', fn (Pka $p): ?string => $p->lampiranUrl())

@@ -190,13 +190,30 @@ class PkaController extends Controller
             'nomor_pka.required' => 'Nomor PKA baru wajib diisi.',
         ]);
 
-        $copy = $pka->replicate();
-        $copy->nomor_pka = $validated['nomor_pka'];
-        $copy->status = 'Draft';
-        $copy->approved_by_dalnis_date = null;
-        $copy->approved_by_daltu_date = null;
-        $copy->created_by = $request->user()?->id;
-        $copy->save();
+        $copy = DB::transaction(function () use ($pka, $validated, $request): Pka {
+            $copy = $pka->replicate();
+            $copy->nomor_pka = $validated['nomor_pka'];
+            $copy->status = 'Draft';
+            $copy->approved_by_dalnis_date = null;
+            $copy->approved_by_daltu_date = null;
+            $copy->created_by = $request->user()?->id;
+            $copy->save();
+
+            foreach ($pka->langkahKerjas()->orderBy('id')->get() as $lk) {
+                $copy->langkahKerjas()->create([
+                    'bidang' => $copy->bidang,
+                    'uraian' => $lk->uraian,
+                    'dilaksanakan_rencana_id' => $lk->dilaksanakan_rencana_id,
+                    'dilaksanakan_realisasi_id' => $lk->dilaksanakan_realisasi_id,
+                    'waktu_rencana' => $lk->waktu_rencana,
+                    'waktu_realisasi' => $lk->waktu_realisasi,
+                    'catatan' => $lk->catatan,
+                    'created_by' => $request->user()?->id,
+                ]);
+            }
+
+            return $copy;
+        });
 
         return response()->json([
             'message' => 'Program Kerja Audit (PKA) berhasil diduplikasi.',

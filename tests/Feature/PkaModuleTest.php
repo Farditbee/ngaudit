@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Pka;
+use App\Models\PkaLangkahKerja;
 use App\Models\Plotting;
 use App\Models\Sprin;
+use App\Models\TemplateLangkahKerja;
 use App\Models\TemplatePka;
 use App\Models\Tim;
 use App\Models\User;
@@ -547,5 +549,137 @@ class PkaModuleTest extends TestCase
             ->assertOk()
             ->assertJsonPath('pka.latest_review_status', 'Disetujui')
             ->assertJsonCount(2, 'reviews');
+    }
+
+    public function test_pka_langkah_kerja_crud_apply_template_bulk_delete_and_clear(): void
+    {
+        $admin = User::factory()->create(['role' => 'Super Admin']);
+        $auditor1 = User::factory()->create(['name' => 'Auditor Satu', 'role' => 'Auditor']);
+        $auditor2 = User::factory()->create(['name' => 'Auditor Dua', 'role' => 'Auditor']);
+        $outsideAuditor = User::factory()->create(['name' => 'Auditor Luar', 'role' => 'Auditor']);
+
+        $plotting = Plotting::query()->create(['plot' => 'WIL I']);
+        $tim = $this->createTim($admin, $plotting);
+        $tim->auditors()->sync([$auditor1->id, $auditor2->id]);
+        $sprin = $this->createSprin($admin, $tim, $plotting);
+
+        $pka = Pka::query()->create([
+            'sprin_id' => $sprin->id,
+            'nomor_pka' => 'PKA/LK-001/2026',
+            'tanggal' => '2026-04-02',
+            'anggaran' => 0,
+            'bidang' => 'Logistik',
+            'jenis_audit' => 'Audit Kinerja',
+            'sasaran_auditi' => 'Div TIK',
+            'created_by' => $admin->id,
+        ]);
+
+        // 1. Halaman Langkah Kerja PKA
+        $pageRes = $this->actingAs($admin)->get(route('audit.pka.langkah-kerja.index', $pka));
+        $pageRes->assertOk()
+            ->assertSee('Langkah Kerja PKA')
+            ->assertSee('PKA/LK-001/2026')
+            ->assertSee('Logistik')
+            ->assertSee('Auditor Satu')
+            ->assertSee('Auditor Dua');
+
+        // 2. Validasi tolak jika dilaksanakan_rencana_id bukan auditor pada Sprin PKA
+        $invalidRes = $this->actingAs($admin)->postJson(
+            route('audit.pka.langkah-kerja.store', $pka),
+            [
+                'uraian' => '<p>Pemeriksaan dokumen pengadaan</p>',
+                'dilaksanakan_rencana_id' => $outsideAuditor->id,
+            ]
+        );
+        $invalidRes->assertUnprocessable()
+            ->assertJsonValidationErrors(['dilaksanakan_rencana_id']);
+
+        // 3. Simpan Langkah Kerja PKA (bidang otomatis terkunci ke PKA)
+        $storeRes = $this->actingAs($admin)->postJson(
+            route('audit.pka.langkah-kerja.store', $pka),
+            [
+                'uraian' => '<p><strong>1.</strong> Pemeriksaan kontrak pengadaan logistik</p>',
+                'dilaksanakan_rencana_id' => $auditor1->id,
+                'dilaksanakan_realisasi_id' => $auditor2->id,
+                'waktu_rencana' => 3,
+                'waktu_realisasi' => 4,
+                'catatan' => 'Sesuai jadwal',
+            ]
+        );
+        $storeRes->assertCreated()
+            ->assertJsonFragment(['message' => 'Langkah Kerja PKA berhasil ditambahkan.']);
+
+        $lkId = $storeRes->json('data.id');
+        $this->assertDatabaseHas('pka_langkah_kerjas', [
+            'id' => $lkId,
+            'pka_id' => $pka->id,
+            'bidang' => 'Logistik',
+            'dilaksanakan_rencana_id' => $auditor1->id,
+            'dilaksanakan_realisasi_id' => $auditor2->id,
+            'waktu_rencana' => 3,
+            'waktu_realisasi' => 4,
+            'catatan' => 'Sesuai jadwal',
+        ]);
+
+        // 4. DataTable JSON endpoint
+        $dtRes = $this->actingAs($admin)->getJson(
+            route('audit.pka.langkah-kerja.index', $pka),
+            ['X-Requested-With' => 'XMLHttpRequest']
+        );
+        $dtRes->assertOk();
+        $this->assertEquals(1, $dtRes->json('recordsTotal'));
+        $this->assertEquals('Auditor Satu', $dtRes->json('data.0.rencana_name'));
+        $this->assertEquals('Auditor Dua', $dtRes->json('data.0.realisasi_name'));
+        $this->assertEquals('3 Hari', $dtRes->json('data.0.waktu_rencana_formatted'));
+        $this->assertEquals('4 Hari', $dtRes->json('data.0.waktu_realisasi_formatted'));
+
+        // 5. Update Langkah Kerja PKA
+        $updateRes = $this->actingAs($admin)->putJson(
+            route('audit.pka.langkah-kerja.update', [$pka, $lkId]),
+            [
+                'uraian' => '<p><strong>1.</strong> Pemeriksaan kontrak & BAST logistik</p>',
+                'dilaksanakan_rencana_id' => $auditor1->id,
+                'dilaksanakan_realisasi_id' => $auditor1->id,
+                'waktu_rencana' => 3,
+                'waktu_realisasi' => 3,
+                'catatan' => 'Selesai tepat waktu',
+            ]
+        );
+        $updateRes->assertOk()
+            ->assertJsonFragment(['message' => 'Langkah Kerja PKA berhasil diperbarui.']);
+
+        // 6. Gunakan Template Langkah Kerja
+        $tpl = TemplateLangkahKerja::query()->create([
+            'nama_template' => 'Template Langkah Kerja Logistik',
+            'lingkup' => 'Nasional',
+            'plotting_id' => $plotting->id,
+            'created_by' => $admin->id,
+        ]);
+        $tpl->details()->create(['uraian' => '<p>Langkah Template A</p>', 'created_by' => $admin->id]);
+        $tpl->details()->create(['uraian' => '<p>Langkah Template B</p>', 'created_by' => $admin->id]);
+
+        $applyRes = $this->actingAs($admin)->postJson(
+            route('audit.pka.langkah-kerja.apply-template', $pka),
+            ['template_langkah_kerja_id' => $tpl->id]
+        );
+        $applyRes->assertCreated()
+            ->assertJsonFragment(['inserted_count' => 2]);
+
+        $this->assertEquals(3, PkaLangkahKerja::query()->where('pka_id', $pka->id)->count());
+
+        // 7. Bulk delete
+        $bulkRes = $this->actingAs($admin)->postJson(
+            route('audit.pka.langkah-kerja.bulk-destroy', $pka),
+            ['ids' => [$lkId]]
+        );
+        $bulkRes->assertOk()
+            ->assertJsonFragment(['deleted_count' => 1]);
+        $this->assertEquals(2, PkaLangkahKerja::query()->where('pka_id', $pka->id)->count());
+
+        // 8. Clear all
+        $clearRes = $this->actingAs($admin)->deleteJson(route('audit.pka.langkah-kerja.clear', $pka));
+        $clearRes->assertOk()
+            ->assertJsonFragment(['message' => 'Berhasil mengosongkan langkah kerja.']);
+        $this->assertEquals(0, PkaLangkahKerja::query()->where('pka_id', $pka->id)->count());
     }
 }

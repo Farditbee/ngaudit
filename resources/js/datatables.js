@@ -3355,4 +3355,1113 @@ export function registerDataTables(Alpine) {
             }
         },
     }));
+
+    Alpine.data('templateLangkahKerjaDataTable', (config) => ({
+        ...getBaseDataTableState(config),
+        ...getBaseDataTableMethods(),
+        filterLingkup: '',
+        authRole: config.authRole || '',
+        authPlottingId: config.authPlottingId ? String(config.authPlottingId) : '',
+        authProvinceCode: config.authProvinceCode ? String(config.authProvinceCode) : '',
+        isPlottingLocked: Boolean(config.isPlottingLocked),
+        isProvinceLocked: Boolean(config.isProvinceLocked),
+        scopeLabel: config.scopeLabel || '',
+        scopeName: config.scopeName || '',
+        lingkups: config.lingkups || ['Nasional', 'Wilayah'],
+        plottings: config.plottings || [],
+        provinces: config.provinces || [],
+        modalOpen: false,
+        editingId: null,
+        deletingItem: null,
+        duplicatingItem: null,
+        deleteError: '',
+        duplicateError: '',
+        saving: false,
+        deleting: false,
+        duplicating: false,
+        form: {
+            nama_template: '',
+            lingkup: (config.lingkups && config.lingkups[0]) || 'Nasional',
+            plotting_id: config.authPlottingId ? String(config.authPlottingId) : '',
+            kode_wilayah: config.authProvinceCode ? String(config.authProvinceCode) : '',
+        },
+        errors: {},
+
+        isLingkupReadonly() {
+            return this.lingkups.length === 1;
+        },
+        isPlottingReadonly() {
+            return this.isPlottingLocked || (this.authRole === 'Admin Nasional' && Boolean(this.authPlottingId));
+        },
+        isProvinceReadonly() {
+            return this.isProvinceLocked || (this.authRole === 'Admin Wilayah' && Boolean(this.authProvinceCode));
+        },
+        get lingkupOptions() {
+            return this.lingkups.map((l) => ({ code: l, name: l }));
+        },
+        extraFilterParams() {
+            return {
+                lingkup: this.filterLingkup,
+            };
+        },
+        onFilterChange() {
+            this.page = 1;
+            this.fetchData();
+        },
+        resetFilters() {
+            this.filterLingkup = '';
+            this.search = '';
+            this.page = 1;
+            this.fetchData();
+        },
+        onLingkupChange() {
+            if (this.form.lingkup === 'Nasional') {
+                this.form.plotting_id = this.authPlottingId || '';
+                this.form.kode_wilayah = '';
+            } else if (this.form.lingkup === 'Wilayah') {
+                this.form.kode_wilayah = this.authProvinceCode || '';
+                this.form.plotting_id = '';
+            }
+        },
+        resetForm() {
+            const defaultLingkup = (this.lingkups && this.lingkups[0]) || 'Nasional';
+            this.form = {
+                nama_template: '',
+                lingkup: defaultLingkup,
+                plotting_id: defaultLingkup === 'Nasional' && this.authPlottingId ? this.authPlottingId : '',
+                kode_wilayah: defaultLingkup === 'Wilayah' && this.authProvinceCode ? this.authProvinceCode : '',
+            };
+            this.errors = {};
+        },
+        openCreateModal() {
+            this.editingId = null;
+            this.resetForm();
+            this.modalOpen = true;
+        },
+        openEditModal(row) {
+            this.editingId = row.id;
+            this.errors = {};
+            const lingkup = this.isLingkupReadonly() ? this.lingkups[0] : (row.lingkup || 'Nasional');
+            this.form = {
+                nama_template: row.nama_template || '',
+                lingkup,
+                plotting_id:
+                    lingkup === 'Nasional'
+                        ? (this.authPlottingId || (row.plotting_id ? String(row.plotting_id) : ''))
+                        : '',
+                kode_wilayah:
+                    lingkup === 'Wilayah'
+                        ? (this.authProvinceCode || (row.kode_wilayah ? String(row.kode_wilayah) : ''))
+                        : '',
+            };
+            this.modalOpen = true;
+        },
+        closeModal() {
+            if (this.saving) return;
+            this.modalOpen = false;
+            this.editingId = null;
+            this.resetForm();
+        },
+        async saveTemplate() {
+            this.saving = true;
+            this.errors = {};
+
+            const url = this.editingId ? `${this.baseUrl}/${this.editingId}` : this.storeUrl;
+            const method = this.editingId ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(this.form),
+                });
+
+                const json = await response.json();
+
+                if (response.status === 422) {
+                    this.errors = json.errors || {};
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal menyimpan template langkah kerja.');
+                }
+
+                this.modalOpen = false;
+                this.editingId = null;
+                this.resetForm();
+                this.showFlash(json.message || 'Template Langkah Kerja berhasil disimpan.');
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                this.errors = {
+                    general: [e.message || 'Terjadi kesalahan sistem.'],
+                };
+            } finally {
+                this.saving = false;
+            }
+        },
+        async confirmDuplicate(row) {
+            const confirmed = await window.notify.confirm({
+                title: 'Duplikasi template?',
+                text: `Template "${row.nama_template || ''}" akan diduplikasi.`,
+                confirmText: 'Ya, duplikasi',
+            });
+            if (!confirmed) return;
+            this.duplicatingItem = row;
+            this.duplicateError = '';
+            await this.duplicateItem();
+            if (this.duplicateError) {
+                window.notify.error(this.duplicateError);
+                this.duplicateError = '';
+            }
+        },
+        async duplicateItem() {
+            if (!this.duplicatingItem) return;
+            this.duplicating = true;
+            this.duplicateError = '';
+
+            try {
+                const response = await fetch(`${this.baseUrl}/${this.duplicatingItem.id}/duplicate`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                const json = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal menduplikasi template.');
+                }
+
+                this.duplicatingItem = null;
+                this.showFlash(json.message || 'Template Langkah Kerja berhasil diduplikasi.');
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                this.duplicateError = e.message || 'Terjadi kesalahan saat menduplikasi template.';
+            } finally {
+                this.duplicating = false;
+            }
+        },
+        async confirmDelete(row) {
+            const confirmed = await window.notify.confirmDelete({ label: window.notify.rowLabel(row) });
+            if (!confirmed) return;
+            this.deletingItem = row;
+            this.deleteError = '';
+            await this.deleteItem();
+            if (this.deleteError) {
+                window.notify.error(this.deleteError);
+                this.deleteError = '';
+            }
+        },
+        async deleteItem() {
+            if (!this.deletingItem) return;
+            this.deleting = true;
+            this.deleteError = '';
+
+            try {
+                const response = await fetch(`${this.baseUrl}/${this.deletingItem.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                const json = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal menghapus template.');
+                }
+
+                this.deletingItem = null;
+                this.showFlash(json.message || 'Template Langkah Kerja berhasil dihapus.');
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                this.deleteError = e.message || 'Terjadi kesalahan saat menghapus template.';
+            } finally {
+                this.deleting = false;
+            }
+        },
+    }));
+
+    Alpine.data('templateLangkahKerjaDetailDataTable', (config) => ({
+        ...getBaseDataTableState(config),
+        ...getBaseDataTableMethods(),
+        templateId: config.templateId,
+        namaTemplate: config.namaTemplate || '',
+        lingkup: config.lingkup || '',
+        scopeName: config.scopeName || '',
+        jumlahLangkahKerja: Number(config.jumlahLangkahKerja || 0),
+        backUrl: config.backUrl || '/master/template/langkah-kerja',
+        bulkDeleteUrl: config.bulkDeleteUrl,
+        selectedIds: [],
+        bulkDeleting: false,
+        modalOpen: false,
+        editingId: null,
+        deletingItem: null,
+        deleteError: '',
+        saving: false,
+        deleting: false,
+        editor: null,
+        form: {
+            uraian: '',
+        },
+        errors: {},
+
+        isSelected(id) {
+            return this.selectedIds.includes(Number(id));
+        },
+        toggleSelectRow(id) {
+            const numId = Number(id);
+            if (this.isSelected(numId)) {
+                this.selectedIds = this.selectedIds.filter((item) => item !== numId);
+            } else {
+                this.selectedIds.push(numId);
+            }
+        },
+        isAllPageSelected() {
+            if (!this.rows || this.rows.length === 0) return false;
+            return this.rows.every((r) => this.selectedIds.includes(Number(r.id)));
+        },
+        toggleSelectAllPage() {
+            if (this.isAllPageSelected()) {
+                const pageIds = this.rows.map((r) => Number(r.id));
+                this.selectedIds = this.selectedIds.filter((id) => !pageIds.includes(id));
+            } else {
+                const pageIds = this.rows.map((r) => Number(r.id));
+                const merged = new Set([...this.selectedIds, ...pageIds]);
+                this.selectedIds = Array.from(merged);
+            }
+        },
+        clearSelection() {
+            this.selectedIds = [];
+        },
+
+        // TipTap Editor & Toolbar Helpers
+        getActiveEditor() {
+            return this.editor;
+        },
+        isActive(name, opts = {}) {
+            return this.editor ? this.editor.isActive(name, opts) : false;
+        },
+        toggleBold() {
+            this.editor?.chain().focus().toggleBold().run();
+        },
+        toggleItalic() {
+            this.editor?.chain().focus().toggleItalic().run();
+        },
+        toggleUnderline() {
+            this.editor?.chain().focus().toggleUnderline().run();
+        },
+        toggleStrike() {
+            this.editor?.chain().focus().toggleStrike().run();
+        },
+        toggleSubscript() {
+            this.editor?.chain().focus().toggleSubscript().run();
+        },
+        toggleSuperscript() {
+            this.editor?.chain().focus().toggleSuperscript().run();
+        },
+        setHeading(level) {
+            if (!this.editor) return;
+            if (level === 0) {
+                this.editor.chain().focus().setParagraph().run();
+            } else {
+                this.editor.chain().focus().toggleHeading({ level }).run();
+            }
+        },
+        toggleBulletList() {
+            this.editor?.chain().focus().toggleBulletList().run();
+        },
+        toggleOrderedList() {
+            this.editor?.chain().focus().toggleOrderedList().run();
+        },
+        sinkListItem() {
+            this.editor?.chain().focus().sinkListItem('listItem').run();
+        },
+        liftListItem() {
+            this.editor?.chain().focus().liftListItem('listItem').run();
+        },
+        setTextAlign(alignment) {
+            this.editor?.chain().focus().setTextAlign(alignment).run();
+        },
+        undo() {
+            this.editor?.chain().focus().undo().run();
+        },
+        redo() {
+            this.editor?.chain().focus().redo().run();
+        },
+        canUndo() {
+            return Boolean(this.editor?.can().undo());
+        },
+        canRedo() {
+            return Boolean(this.editor?.can().redo());
+        },
+        insertTable(rows = 3, cols = 3) {
+            this.editor?.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run();
+        },
+        addColumnAfter() {
+            this.editor?.chain().focus().addColumnAfter().run();
+        },
+        deleteColumn() {
+            this.editor?.chain().focus().deleteColumn().run();
+        },
+        addRowAfter() {
+            this.editor?.chain().focus().addRowAfter().run();
+        },
+        deleteRow() {
+            this.editor?.chain().focus().deleteRow().run();
+        },
+        deleteTable() {
+            this.editor?.chain().focus().deleteTable().run();
+        },
+        setLink() {
+            if (!this.editor) return;
+            const previousUrl = this.editor.getAttributes('link').href;
+            const url = window.prompt('Masukkan URL Link:', previousUrl);
+            if (url === null) return;
+            if (url === '') {
+                this.editor.chain().focus().extendMarkRange('link').unsetLink().run();
+                return;
+            }
+            this.editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+        },
+        insertImage() {
+            if (!this.editor) return;
+            const url = window.prompt('Masukkan URL Gambar / Embed:');
+            if (url) {
+                this.editor.chain().focus().setImage({ src: url }).run();
+            }
+        },
+        clearFormatting() {
+            this.editor?.chain().focus().unsetAllMarks().clearNodes().run();
+        },
+        focusEditor(e) {
+            if (!this.editor) return;
+            if (e && e.target && e.target.closest && e.target.closest('.ProseMirror')) {
+                return;
+            }
+            if (!this.editor.isFocused) {
+                try {
+                    this.editor.commands.focus('end');
+                } catch (err) {
+                    // Safe fallback
+                }
+            }
+        },
+        decodeHtml(html) {
+            if (!html || typeof html !== 'string') return '';
+            if (html.includes('&lt;') || html.includes('&gt;') || html.includes('&amp;')) {
+                const txt = document.createElement('textarea');
+                txt.innerHTML = html;
+                return txt.value;
+            }
+            return html;
+        },
+        initEditor() {
+            const el = this.$refs.editor_uraian;
+            if (!el) return;
+            this.destroyEditor();
+            const text = this.decodeHtml(this.form.uraian || '');
+            this.editor = createTipTapEditor({
+                element: el,
+                content: text,
+                onUpdate: (html) => {
+                    this.form.uraian = html;
+                },
+            });
+        },
+        destroyEditor() {
+            if (this.editor) {
+                try {
+                    this.editor.destroy();
+                } catch (e) {
+                    // Ignore
+                }
+                this.editor = null;
+            }
+            const el = this.$refs.editor_uraian;
+            if (el) {
+                el.innerHTML = '';
+            }
+        },
+        openCreateModal() {
+            this.editingId = null;
+            this.form = { uraian: '' };
+            this.errors = {};
+            this.modalOpen = true;
+            this.$nextTick(() => {
+                this.initEditor();
+                this.focusEditor();
+            });
+        },
+        openEditModal(row) {
+            this.editingId = row.id;
+            this.form = {
+                uraian: this.decodeHtml(row.uraian || ''),
+            };
+            this.errors = {};
+            this.modalOpen = true;
+            this.$nextTick(() => {
+                this.initEditor();
+                this.focusEditor();
+            });
+        },
+        closeModal() {
+            if (this.saving) return;
+            this.modalOpen = false;
+            this.destroyEditor();
+            this.editingId = null;
+            this.form = { uraian: '' };
+            this.errors = {};
+        },
+        async saveDetail() {
+            this.saving = true;
+            this.errors = {};
+
+            if (this.editor) {
+                this.form.uraian = this.editor.getHTML();
+            }
+
+            const url = this.editingId ? `${this.baseUrl}/${this.editingId}` : this.storeUrl;
+            const method = this.editingId ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(this.form),
+                });
+
+                const json = await response.json();
+
+                if (response.status === 422) {
+                    this.errors = json.errors || {};
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal menyimpan uraian langkah kerja.');
+                }
+
+                if (json.jumlah_langkah_kerja !== undefined) {
+                    this.jumlahLangkahKerja = Number(json.jumlah_langkah_kerja);
+                }
+
+                this.modalOpen = false;
+                this.destroyEditor();
+                this.editingId = null;
+                this.form = { uraian: '' };
+                this.showFlash(json.message || 'Uraian langkah kerja berhasil disimpan.');
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                this.errors = {
+                    general: [e.message || 'Terjadi kesalahan sistem.'],
+                };
+            } finally {
+                this.saving = false;
+            }
+        },
+        async confirmDelete(row) {
+            const confirmed = await window.notify.confirmDelete({
+                text: `Langkah kerja nomor ${row.DT_RowIndex || ''} akan dihapus.`,
+            });
+            if (!confirmed) return;
+            this.deletingItem = row;
+            this.deleteError = '';
+            await this.deleteItem();
+            if (this.deleteError) {
+                window.notify.error(this.deleteError);
+                this.deleteError = '';
+            }
+        },
+        async deleteItem() {
+            if (!this.deletingItem) return;
+            this.deleting = true;
+            this.deleteError = '';
+
+            try {
+                const response = await fetch(`${this.baseUrl}/${this.deletingItem.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                const json = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal menghapus uraian langkah kerja.');
+                }
+
+                if (json.jumlah_langkah_kerja !== undefined) {
+                    this.jumlahLangkahKerja = Number(json.jumlah_langkah_kerja);
+                }
+
+                this.selectedIds = this.selectedIds.filter((id) => id !== Number(this.deletingItem.id));
+                this.deletingItem = null;
+                this.showFlash(json.message || 'Uraian langkah kerja berhasil dihapus.');
+                if (this.rows.length === 1 && this.page > 1) {
+                    this.page--;
+                }
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                this.deleteError = e.message || 'Terjadi kesalahan saat menghapus uraian langkah kerja.';
+            } finally {
+                this.deleting = false;
+            }
+        },
+        async confirmBulkDelete() {
+            if (this.selectedIds.length === 0 || this.bulkDeleting) return;
+            const count = this.selectedIds.length;
+            const confirmed = await window.notify.confirmDelete({
+                text: `${count} uraian langkah kerja yang dipilih akan dihapus.`,
+            });
+            if (!confirmed) return;
+
+            this.bulkDeleting = true;
+            try {
+                const response = await fetch(this.bulkDeleteUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ ids: this.selectedIds }),
+                });
+
+                const json = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal menghapus data terpilih.');
+                }
+
+                if (json.jumlah_langkah_kerja !== undefined) {
+                    this.jumlahLangkahKerja = Number(json.jumlah_langkah_kerja);
+                }
+
+                this.selectedIds = [];
+                this.showFlash(json.message || `${count} uraian langkah kerja berhasil dihapus.`);
+                this.page = 1;
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                window.notify.error(e.message || 'Terjadi kesalahan saat menghapus data terpilih.');
+            } finally {
+                this.bulkDeleting = false;
+            }
+        },
+    }));
+
+    Alpine.data('pkaLangkahKerjaDataTable', (config) => ({
+        ...getBaseDataTableState(config),
+        ...getBaseDataTableMethods(),
+        pkaId: config.pkaId,
+        nomorPka: config.nomorPka || '',
+        bidang: config.bidang || '',
+        backUrl: config.backUrl || '/audit/pka',
+        pkaShowUrl: config.pkaShowUrl,
+        applyTemplateUrl: config.applyTemplateUrl,
+        bulkDeleteUrl: config.bulkDeleteUrl,
+        clearAllUrl: config.clearAllUrl,
+        auditors: config.auditors || [],
+        templates: config.templates || [],
+        selectedTemplateId: '',
+        applyingTemplate: false,
+
+        get auditorOptions() {
+            return (this.auditors || []).map((a) => ({
+                code: String(a.id),
+                name: a.name,
+            }));
+        },
+        get templateOptions() {
+            return (this.templates || []).map((t) => ({
+                code: String(t.id),
+                name: `${t.nama_template} (${t.jumlah_langkah_kerja} langkah)`,
+            }));
+        },
+        selectedIds: [],
+        bulkDeleting: false,
+        clearing: false,
+        modalOpen: false,
+        editingId: null,
+        deletingItem: null,
+        deleteError: '',
+        saving: false,
+        deleting: false,
+        editor: null,
+        form: {
+            uraian: '',
+            dilaksanakan_rencana_id: '',
+            dilaksanakan_realisasi_id: '',
+            waktu_rencana: '',
+            waktu_realisasi: '',
+            catatan: '',
+        },
+        errors: {},
+
+        isSelected(id) {
+            return this.selectedIds.includes(Number(id));
+        },
+        toggleSelectRow(id) {
+            const numId = Number(id);
+            if (this.isSelected(numId)) {
+                this.selectedIds = this.selectedIds.filter((item) => item !== numId);
+            } else {
+                this.selectedIds.push(numId);
+            }
+        },
+        isAllPageSelected() {
+            if (!this.rows || this.rows.length === 0) return false;
+            return this.rows.every((r) => this.selectedIds.includes(Number(r.id)));
+        },
+        toggleSelectAllPage() {
+            if (this.isAllPageSelected()) {
+                const pageIds = this.rows.map((r) => Number(r.id));
+                this.selectedIds = this.selectedIds.filter((id) => !pageIds.includes(id));
+            } else {
+                const pageIds = this.rows.map((r) => Number(r.id));
+                const merged = new Set([...this.selectedIds, ...pageIds]);
+                this.selectedIds = Array.from(merged);
+            }
+        },
+        clearSelection() {
+            this.selectedIds = [];
+        },
+
+        // TipTap Editor & Toolbar Helpers
+        getActiveEditor() {
+            return this.editor;
+        },
+        isActive(name, opts = {}) {
+            return this.editor ? this.editor.isActive(name, opts) : false;
+        },
+        toggleBold() {
+            this.editor?.chain().focus().toggleBold().run();
+        },
+        toggleItalic() {
+            this.editor?.chain().focus().toggleItalic().run();
+        },
+        toggleUnderline() {
+            this.editor?.chain().focus().toggleUnderline().run();
+        },
+        toggleStrike() {
+            this.editor?.chain().focus().toggleStrike().run();
+        },
+        toggleSubscript() {
+            this.editor?.chain().focus().toggleSubscript().run();
+        },
+        toggleSuperscript() {
+            this.editor?.chain().focus().toggleSuperscript().run();
+        },
+        setHeading(level) {
+            if (!this.editor) return;
+            if (level === 0) {
+                this.editor.chain().focus().setParagraph().run();
+            } else {
+                this.editor.chain().focus().toggleHeading({ level }).run();
+            }
+        },
+        toggleBulletList() {
+            this.editor?.chain().focus().toggleBulletList().run();
+        },
+        toggleOrderedList() {
+            this.editor?.chain().focus().toggleOrderedList().run();
+        },
+        sinkListItem() {
+            this.editor?.chain().focus().sinkListItem('listItem').run();
+        },
+        liftListItem() {
+            this.editor?.chain().focus().liftListItem('listItem').run();
+        },
+        setTextAlign(alignment) {
+            this.editor?.chain().focus().setTextAlign(alignment).run();
+        },
+        undo() {
+            this.editor?.chain().focus().undo().run();
+        },
+        redo() {
+            this.editor?.chain().focus().redo().run();
+        },
+        canUndo() {
+            return Boolean(this.editor?.can().undo());
+        },
+        canRedo() {
+            return Boolean(this.editor?.can().redo());
+        },
+        insertTable(rows = 3, cols = 3) {
+            this.editor?.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run();
+        },
+        addColumnAfter() {
+            this.editor?.chain().focus().addColumnAfter().run();
+        },
+        deleteColumn() {
+            this.editor?.chain().focus().deleteColumn().run();
+        },
+        addRowAfter() {
+            this.editor?.chain().focus().addRowAfter().run();
+        },
+        deleteRow() {
+            this.editor?.chain().focus().deleteRow().run();
+        },
+        deleteTable() {
+            this.editor?.chain().focus().deleteTable().run();
+        },
+        setLink() {
+            if (!this.editor) return;
+            const previousUrl = this.editor.getAttributes('link').href;
+            const url = window.prompt('Masukkan URL Link:', previousUrl);
+            if (url === null) return;
+            if (url === '') {
+                this.editor.chain().focus().extendMarkRange('link').unsetLink().run();
+                return;
+            }
+            this.editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+        },
+        insertImage() {
+            if (!this.editor) return;
+            const url = window.prompt('Masukkan URL Gambar / Embed:');
+            if (url) {
+                this.editor.chain().focus().setImage({ src: url }).run();
+            }
+        },
+        clearFormatting() {
+            this.editor?.chain().focus().unsetAllMarks().clearNodes().run();
+        },
+        focusEditor(e) {
+            if (!this.editor) return;
+            if (e && e.target && e.target.closest && e.target.closest('.ProseMirror')) {
+                return;
+            }
+            if (!this.editor.isFocused) {
+                try {
+                    this.editor.commands.focus('end');
+                } catch (err) {
+                    // Safe fallback
+                }
+            }
+        },
+        decodeHtml(html) {
+            if (!html || typeof html !== 'string') return '';
+            if (html.includes('&lt;') || html.includes('&gt;') || html.includes('&amp;')) {
+                const txt = document.createElement('textarea');
+                txt.innerHTML = html;
+                return txt.value;
+            }
+            return html;
+        },
+        initEditor() {
+            const el = this.$refs.editor_uraian;
+            if (!el) return;
+            this.destroyEditor();
+            const text = this.decodeHtml(this.form.uraian || '');
+            this.editor = createTipTapEditor({
+                element: el,
+                content: text,
+                onUpdate: (html) => {
+                    this.form.uraian = html;
+                },
+            });
+        },
+        destroyEditor() {
+            if (this.editor) {
+                try {
+                    this.editor.destroy();
+                } catch (e) {
+                    // Ignore
+                }
+                this.editor = null;
+            }
+            const el = this.$refs.editor_uraian;
+            if (el) {
+                el.innerHTML = '';
+            }
+        },
+        resetForm() {
+            this.form = {
+                uraian: '',
+                dilaksanakan_rencana_id: '',
+                dilaksanakan_realisasi_id: '',
+                waktu_rencana: '',
+                waktu_realisasi: '',
+                catatan: '',
+            };
+            this.errors = {};
+        },
+        openCreateModal() {
+            this.editingId = null;
+            this.resetForm();
+            this.modalOpen = true;
+            this.$nextTick(() => {
+                this.initEditor();
+                this.focusEditor();
+            });
+        },
+        openEditModal(row) {
+            this.editingId = row.id;
+            this.form = {
+                uraian: this.decodeHtml(row.uraian || ''),
+                dilaksanakan_rencana_id: row.dilaksanakan_rencana_id ? String(row.dilaksanakan_rencana_id) : '',
+                dilaksanakan_realisasi_id: row.dilaksanakan_realisasi_id ? String(row.dilaksanakan_realisasi_id) : '',
+                waktu_rencana: row.waktu_rencana !== null && row.waktu_rencana !== undefined ? String(row.waktu_rencana) : '',
+                waktu_realisasi: row.waktu_realisasi !== null && row.waktu_realisasi !== undefined ? String(row.waktu_realisasi) : '',
+                catatan: row.catatan || '',
+            };
+            this.errors = {};
+            this.modalOpen = true;
+            this.$nextTick(() => {
+                this.initEditor();
+                this.focusEditor();
+            });
+        },
+        closeModal() {
+            if (this.saving) return;
+            this.modalOpen = false;
+            this.destroyEditor();
+            this.editingId = null;
+            this.resetForm();
+        },
+        async saveItem() {
+            this.saving = true;
+            this.errors = {};
+
+            if (this.editor) {
+                this.form.uraian = this.editor.getHTML();
+            }
+
+            const url = this.editingId ? `${this.baseUrl}/${this.editingId}` : this.storeUrl;
+            const method = this.editingId ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(this.form),
+                });
+
+                const json = await response.json();
+
+                if (response.status === 422) {
+                    this.errors = json.errors || {};
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal menyimpan langkah kerja PKA.');
+                }
+
+                this.modalOpen = false;
+                this.destroyEditor();
+                this.editingId = null;
+                this.resetForm();
+                this.showFlash(json.message || 'Langkah Kerja PKA berhasil disimpan.');
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                this.errors = {
+                    general: [e.message || 'Terjadi kesalahan sistem.'],
+                };
+            } finally {
+                this.saving = false;
+            }
+        },
+        async applyTemplate() {
+            if (!this.selectedTemplateId || this.applyingTemplate) return;
+
+            const tpl = this.templates.find((t) => String(t.id) === String(this.selectedTemplateId));
+            const confirmed = await window.notify.confirm({
+                title: 'Gunakan Template Langkah Kerja?',
+                text: `Seluruh langkah kerja dari template "${tpl?.nama_template || ''}" akan ditambahkan ke PKA ini.`,
+                confirmText: 'Ya, Gunakan',
+            });
+            if (!confirmed) return;
+
+            this.applyingTemplate = true;
+            try {
+                const response = await fetch(this.applyTemplateUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({
+                        template_langkah_kerja_id: this.selectedTemplateId,
+                    }),
+                });
+
+                const json = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal menerapkan template langkah kerja.');
+                }
+
+                this.selectedTemplateId = '';
+                this.showFlash(json.message || 'Berhasil menerapkan template langkah kerja.');
+                this.page = 1;
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                window.notify.error(e.message || 'Terjadi kesalahan saat menerapkan template.');
+            } finally {
+                this.applyingTemplate = false;
+            }
+        },
+        async confirmDelete(row) {
+            const confirmed = await window.notify.confirmDelete({
+                text: `Langkah kerja nomor ${row.DT_RowIndex || ''} akan dihapus.`,
+            });
+            if (!confirmed) return;
+            this.deletingItem = row;
+            this.deleteError = '';
+            await this.deleteItem();
+            if (this.deleteError) {
+                window.notify.error(this.deleteError);
+                this.deleteError = '';
+            }
+        },
+        async deleteItem() {
+            if (!this.deletingItem) return;
+            this.deleting = true;
+            this.deleteError = '';
+
+            try {
+                const response = await fetch(`${this.baseUrl}/${this.deletingItem.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                const json = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal menghapus langkah kerja PKA.');
+                }
+
+                this.selectedIds = this.selectedIds.filter((id) => id !== Number(this.deletingItem.id));
+                this.deletingItem = null;
+                this.showFlash(json.message || 'Langkah Kerja PKA berhasil dihapus.');
+                if (this.rows.length === 1 && this.page > 1) {
+                    this.page--;
+                }
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                this.deleteError = e.message || 'Terjadi kesalahan saat menghapus langkah kerja.';
+            } finally {
+                this.deleting = false;
+            }
+        },
+        async confirmBulkDelete() {
+            if (this.selectedIds.length === 0 || this.bulkDeleting) return;
+            const count = this.selectedIds.length;
+            const confirmed = await window.notify.confirmDelete({
+                text: `${count} langkah kerja yang dipilih akan dihapus.`,
+            });
+            if (!confirmed) return;
+
+            this.bulkDeleting = true;
+            try {
+                const response = await fetch(this.bulkDeleteUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ ids: this.selectedIds }),
+                });
+
+                const json = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal menghapus data terpilih.');
+                }
+
+                this.selectedIds = [];
+                this.showFlash(json.message || `${count} langkah kerja berhasil dihapus.`);
+                this.page = 1;
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                window.notify.error(e.message || 'Terjadi kesalahan saat menghapus data terpilih.');
+            } finally {
+                this.bulkDeleting = false;
+            }
+        },
+        async confirmClearAll() {
+            if (this.clearing) return;
+            const confirmed = await window.notify.confirmDelete({
+                title: 'Kosongkan semua langkah kerja?',
+                text: 'Seluruh langkah kerja pada PKA ini akan dikosongkan.',
+                confirmText: 'Ya, Kosongkan',
+            });
+            if (!confirmed) return;
+
+            this.clearing = true;
+            try {
+                const response = await fetch(this.clearAllUrl, {
+                    method: 'DELETE',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                const json = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal mengosongkan langkah kerja.');
+                }
+
+                this.selectedIds = [];
+                this.showFlash(json.message || 'Berhasil mengosongkan langkah kerja');
+                this.page = 1;
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                window.notify.error(e.message || 'Terjadi kesalahan saat mengosongkan langkah kerja.');
+            } finally {
+                this.clearing = false;
+            }
+        },
+        printPka() {
+            window.print();
+        },
+    }));
 }

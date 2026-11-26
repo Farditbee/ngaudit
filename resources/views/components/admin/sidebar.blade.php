@@ -31,7 +31,7 @@
                     'Taklimat',
                     ['label' => 'PKA', 'href' => route('master.template.pka.index'), 'active' => request()->routeIs('master.template.pka.*')],
                     'KKA',
-                    'Langkah Kerja',
+                    ['label' => 'Langkah Kerja', 'href' => route('master.template.langkah-kerja.index'), 'active' => request()->routeIs('master.template.langkah-kerja.*')],
                 ]],
             ],
         ],
