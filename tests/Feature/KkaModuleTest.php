@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\DataTables\Pelaksanaan\KkaDataTable;
+use App\DataTables\Audit\KkaDataTable;
 use App\Models\Kka;
 use App\Models\KkaReview;
 use App\Models\Pka;
@@ -110,7 +110,7 @@ class KkaModuleTest extends TestCase
     {
         $admin = User::factory()->create();
 
-        $response = $this->actingAs($admin)->get(route('pelaksanaan.kka.index'));
+        $response = $this->actingAs($admin)->get(route('audit.kka.index'));
 
         $response->assertOk();
         $response->assertSee('Kertas Kerja Audit (KKA)');
@@ -125,7 +125,7 @@ class KkaModuleTest extends TestCase
         $this->createKka($pka, $admin, $plotting);
 
         $response = $this->actingAs($admin)
-            ->getJson(route('pelaksanaan.kka.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+            ->getJson(route('audit.kka.index'), ['X-Requested-With' => 'XMLHttpRequest']);
 
         $response->assertOk()
             ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
@@ -165,20 +165,20 @@ class KkaModuleTest extends TestCase
             $params['order'] = [['column' => $sortIndex, 'dir' => 'asc']];
 
             $this->actingAs($admin)
-                ->getJson(route('pelaksanaan.kka.index', $params), ['X-Requested-With' => 'XMLHttpRequest'])
+                ->getJson(route('audit.kka.index', $params), ['X-Requested-With' => 'XMLHttpRequest'])
                 ->assertOk()
                 ->assertJsonPath('recordsFiltered', 1);
         }
 
         $params['search']['value'] = 'Auditor Cari';
         $this->actingAs($admin)
-            ->getJson(route('pelaksanaan.kka.index', $params), ['X-Requested-With' => 'XMLHttpRequest'])
+            ->getJson(route('audit.kka.index', $params), ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertJsonPath('recordsFiltered', 1);
 
         $params['search']['value'] = 'tidak-ada-data';
         $this->actingAs($admin)
-            ->getJson(route('pelaksanaan.kka.index', $params), ['X-Requested-With' => 'XMLHttpRequest'])
+            ->getJson(route('audit.kka.index', $params), ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertJsonPath('recordsFiltered', 0);
     }
@@ -191,13 +191,13 @@ class KkaModuleTest extends TestCase
         $this->createKka($pka, $admin, $plotting);
 
         $matching = $this->actingAs($admin)->getJson(
-            route('pelaksanaan.kka.index', ['bidang' => 'Operasional', 'status' => 'Draft']),
+            route('audit.kka.index', ['bidang' => 'Operasional', 'status' => 'Draft']),
             ['X-Requested-With' => 'XMLHttpRequest']
         );
         $this->assertEquals(1, $matching->json('recordsFiltered'));
 
         $other = $this->actingAs($admin)->getJson(
-            route('pelaksanaan.kka.index', ['bidang' => 'Logistik']),
+            route('audit.kka.index', ['bidang' => 'Logistik']),
             ['X-Requested-With' => 'XMLHttpRequest']
         );
         $this->assertEquals(0, $other->json('recordsFiltered'));
@@ -212,7 +212,7 @@ class KkaModuleTest extends TestCase
         $pka->update(['direviu_oleh_id' => $reviewer->id]);
 
         $response = $this->actingAs($admin)
-            ->postJson(route('pelaksanaan.kka.store'), $this->kkaPayload($pka, $plotting));
+            ->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $plotting));
 
         $response->assertCreated()
             ->assertJsonFragment(['message' => 'Kertas Kerja Audit (KKA) berhasil ditambahkan.']);
@@ -243,7 +243,7 @@ class KkaModuleTest extends TestCase
         Wilayah::query()->create(['kode_wilayah' => '3209', 'provinsi' => 'JAWA BARAT', 'kabupaten_kota' => 'KABUPATEN CIREBON']);
         Wilayah::query()->create(['kode_wilayah' => '320919', 'provinsi' => 'JAWA BARAT', 'kabupaten_kota' => 'KABUPATEN CIREBON', 'kecamatan' => 'WERU']);
 
-        $provinceOnly = $this->actingAs($admin)->postJson(route('pelaksanaan.kka.store'), $this->kkaPayload($pka, $plotting, [
+        $provinceOnly = $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $plotting, [
             'auditee_level' => 'Wilayah',
             'auditee_plotting_id' => null,
             'province_code' => '32',
@@ -251,7 +251,7 @@ class KkaModuleTest extends TestCase
         $provinceOnly->assertCreated();
         $this->assertDatabaseHas('kkas', ['id' => $provinceOnly->json('data.id'), 'auditee_kode_wilayah' => '32', 'auditee_plotting_id' => null]);
 
-        $district = $this->actingAs($admin)->postJson(route('pelaksanaan.kka.store'), $this->kkaPayload($pka, $plotting, [
+        $district = $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $plotting, [
             'auditee_level' => 'Wilayah',
             'auditee_plotting_id' => null,
             'province_code' => '32',
@@ -261,7 +261,7 @@ class KkaModuleTest extends TestCase
         $district->assertCreated();
         $this->assertDatabaseHas('kkas', ['id' => $district->json('data.id'), 'auditee_kode_wilayah' => '320919']);
 
-        $json = $this->actingAs($admin)->getJson(route('pelaksanaan.kka.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $json = $this->actingAs($admin)->getJson(route('audit.kka.index'), ['X-Requested-With' => 'XMLHttpRequest']);
         $names = collect($json->json('data'))->pluck('auditee_name')->all();
         $this->assertContains('Weru', $names);
         $this->assertContains('Jawa Barat', $names);
@@ -278,22 +278,22 @@ class KkaModuleTest extends TestCase
         Wilayah::query()->create(['kode_wilayah' => '3209', 'provinsi' => 'JAWA BARAT', 'kabupaten_kota' => 'KABUPATEN CIREBON']);
         Wilayah::query()->create(['kode_wilayah' => '320919', 'provinsi' => 'JAWA BARAT', 'kabupaten_kota' => 'KABUPATEN CIREBON', 'kecamatan' => 'WERU']);
 
-        $this->actingAs($admin)->postJson(route('pelaksanaan.kka.store'), [])
+        $this->actingAs($admin)->postJson(route('audit.kka.store'), [])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['nomor_kka', 'pka_id', 'tanggal_kka', 'tempat', 'auditee_level', 'status']);
 
-        $this->actingAs($admin)->postJson(route('pelaksanaan.kka.store'), $this->kkaPayload($pka, $plotting, ['auditee_plotting_id' => null]))
+        $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $plotting, ['auditee_plotting_id' => null]))
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['auditee_plotting_id']);
 
-        $this->actingAs($admin)->postJson(route('pelaksanaan.kka.store'), $this->kkaPayload($pka, $plotting, [
+        $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $plotting, [
             'auditee_level' => 'Wilayah',
             'auditee_plotting_id' => null,
         ]))
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['province_code']);
 
-        $this->actingAs($admin)->postJson(route('pelaksanaan.kka.store'), $this->kkaPayload($pka, $plotting, [
+        $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $plotting, [
             'auditee_level' => 'Wilayah',
             'auditee_plotting_id' => null,
             'province_code' => '32',
@@ -302,7 +302,7 @@ class KkaModuleTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['city_code']);
 
-        $this->actingAs($admin)->postJson(route('pelaksanaan.kka.store'), $this->kkaPayload($pka, $plotting, [
+        $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $plotting, [
             'auditee_level' => 'Wilayah',
             'auditee_plotting_id' => null,
             'province_code' => '33',
@@ -311,19 +311,19 @@ class KkaModuleTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['city_code']);
 
-        $this->actingAs($admin)->postJson(route('pelaksanaan.kka.store'), $this->kkaPayload($pka, $plotting, ['status' => 'Lainnya']))
+        $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $plotting, ['status' => 'Lainnya']))
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['status']);
 
         // PKA berstatus Draft tidak boleh dipilih untuk membuat KKA
         $draftPka = $this->createPka($admin, $plotting, 'PKA-DRAFT-2026', 'Draft');
         $finalPka = $this->createPka($admin, $plotting, 'PKA-FINAL-2026', 'Final');
-        $this->actingAs($admin)->postJson(route('pelaksanaan.kka.store'), $this->kkaPayload($draftPka, $plotting))
+        $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($draftPka, $plotting))
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['pka_id']);
 
         // Halaman KKA hanya menyediakan opsi PKA yang berstatus Final
-        $page = $this->actingAs($admin)->get(route('pelaksanaan.kka.index'));
+        $page = $this->actingAs($admin)->get(route('audit.kka.index'));
         $page->assertOk()
             ->assertSee('PKA-FINAL-2026')
             ->assertDontSee('PKA-DRAFT-2026');
@@ -336,13 +336,13 @@ class KkaModuleTest extends TestCase
         $pka = $this->createPka($admin, $plotting);
         $kka = $this->createKka($pka, $admin, $plotting);
 
-        $this->actingAs($admin)->getJson(route('pelaksanaan.kka.show', $kka))
+        $this->actingAs($admin)->getJson(route('audit.kka.show', $kka))
             ->assertOk()
             ->assertJsonFragment(['tempat' => 'Kantor Uji'])
             ->assertJsonFragment(['auditee_level' => 'Nasional'])
             ->assertJsonFragment(['pka_id' => (string) $pka->id]);
 
-        $this->actingAs($admin)->putJson(route('pelaksanaan.kka.update', $kka), $this->kkaPayload($pka, $plotting, [
+        $this->actingAs($admin)->putJson(route('audit.kka.update', $kka), $this->kkaPayload($pka, $plotting, [
             'tempat' => 'Kantor Baru',
             'status' => 'Final',
         ]))
@@ -353,7 +353,7 @@ class KkaModuleTest extends TestCase
 
         $kka->update(['approved_by_katim_date' => now()]);
 
-        $duplicate = $this->actingAs($admin)->postJson(route('pelaksanaan.kka.duplicate', $kka))
+        $duplicate = $this->actingAs($admin)->postJson(route('audit.kka.duplicate', $kka))
             ->assertCreated();
         $this->assertDatabaseHas('kkas', [
             'id' => $duplicate->json('data.id'),
@@ -362,15 +362,15 @@ class KkaModuleTest extends TestCase
             'approved_by_katim_date' => null,
         ]);
 
-        $this->actingAs($admin)->postJson(route('pelaksanaan.kka.update-status', $kka), ['status' => 'Draft'])
+        $this->actingAs($admin)->postJson(route('audit.kka.update-status', $kka), ['status' => 'Draft'])
             ->assertOk()
             ->assertJsonFragment(['status' => 'Draft']);
         $this->assertDatabaseHas('kkas', ['id' => $kka->id, 'status' => 'Draft']);
 
-        $this->actingAs($admin)->postJson(route('pelaksanaan.kka.update-status', $kka), ['status' => 'Selesai'])
+        $this->actingAs($admin)->postJson(route('audit.kka.update-status', $kka), ['status' => 'Selesai'])
             ->assertUnprocessable();
 
-        $this->actingAs($admin)->deleteJson(route('pelaksanaan.kka.destroy', $kka))
+        $this->actingAs($admin)->deleteJson(route('audit.kka.destroy', $kka))
             ->assertOk()
             ->assertJsonFragment(['message' => 'Kertas Kerja Audit (KKA) berhasil dihapus.']);
         $this->assertSoftDeleted('kkas', ['id' => $kka->id]);
@@ -391,7 +391,7 @@ class KkaModuleTest extends TestCase
             'created_by' => $admin->id,
         ]);
 
-        $this->actingAs($admin)->get(route('pelaksanaan.kka.index'))
+        $this->actingAs($admin)->get(route('audit.kka.index'))
             ->assertOk()
             ->assertSee('Template Uji KKA')
             ->assertSee('Langkah template');
@@ -405,16 +405,16 @@ class KkaModuleTest extends TestCase
         $pka = $this->createPka($admin, $plotting);
         $kka = $this->createKka($pka, $admin, $plotting);
 
-        $this->actingAs($stranger)->postJson(route('pelaksanaan.kka.reviews.store', [$kka, 'katim']), ['status' => 'Disetujui'])
+        $this->actingAs($stranger)->postJson(route('audit.kka.reviews.store', [$kka, 'katim']), ['status' => 'Disetujui'])
             ->assertForbidden();
 
-        $this->actingAs($admin)->postJson(route('pelaksanaan.kka.reviews.store', [$kka, 'katim']), ['status' => 'Tidak Valid'])
+        $this->actingAs($admin)->postJson(route('audit.kka.reviews.store', [$kka, 'katim']), ['status' => 'Tidak Valid'])
             ->assertUnprocessable();
 
-        $this->actingAs($admin)->postJson(route('pelaksanaan.kka.reviews.store', [$kka, 'unknown']), ['status' => 'Disetujui'])
+        $this->actingAs($admin)->postJson(route('audit.kka.reviews.store', [$kka, 'unknown']), ['status' => 'Disetujui'])
             ->assertUnprocessable();
 
-        $this->actingAs($admin)->postJson(route('pelaksanaan.kka.reviews.store', [$kka, 'katim']), [
+        $this->actingAs($admin)->postJson(route('audit.kka.reviews.store', [$kka, 'katim']), [
             'status' => 'Disetujui',
             'catatan' => 'KKA sudah sesuai.',
         ])
@@ -429,17 +429,17 @@ class KkaModuleTest extends TestCase
         ]);
         $this->assertNotNull($kka->fresh()->approved_by_katim_date);
 
-        $this->actingAs($admin)->getJson(route('pelaksanaan.kka.reviews.index', [$kka, 'katim']))
+        $this->actingAs($admin)->getJson(route('audit.kka.reviews.index', [$kka, 'katim']))
             ->assertOk()
             ->assertJsonPath('kka.latest_review_status', 'Disetujui')
             ->assertJsonPath('reviews.0.catatan', 'KKA sudah sesuai.');
 
-        $this->actingAs($admin)->postJson(route('pelaksanaan.kka.reviews.store', [$kka, 'katim']), ['status' => 'Koreksi'])
+        $this->actingAs($admin)->postJson(route('audit.kka.reviews.store', [$kka, 'katim']), ['status' => 'Koreksi'])
             ->assertCreated();
         $this->assertNull($kka->fresh()->approved_by_katim_date);
 
         $row = $this->actingAs($admin)
-            ->getJson(route('pelaksanaan.kka.index'), ['X-Requested-With' => 'XMLHttpRequest'])
+            ->getJson(route('audit.kka.index'), ['X-Requested-With' => 'XMLHttpRequest'])
             ->json('data.0');
         $this->assertEquals('Koreksi', $row['latest_katim_review_status']);
     }

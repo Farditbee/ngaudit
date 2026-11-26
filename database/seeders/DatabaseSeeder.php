@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             WilayahSeeder::class,
             UserSeeder::class,
             KodeSeeder::class,
+            KriteriaSeeder::class,
         ]);
     }
 }

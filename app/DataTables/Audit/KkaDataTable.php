@@ -1,8 +1,7 @@
 <?php
 
-namespace App\DataTables\Pelaksanaan;
+namespace App\DataTables\Audit;
 
-use App\DataTables\Audit\PkaDataTable;
 use App\Models\Kka;
 use App\Models\KkaReview;
 use App\Models\Pka;
@@ -43,9 +42,9 @@ class KkaDataTable
     public function config(iterable $pkas, iterable $templates, iterable $plottings, iterable $provinces): array
     {
         return [
-            'indexUrl' => route('pelaksanaan.kka.index'),
-            'storeUrl' => route('pelaksanaan.kka.store'),
-            'baseUrl' => url('/pelaksanaan/kka'),
+            'indexUrl' => route('audit.kka.index'),
+            'storeUrl' => route('audit.kka.store'),
+            'baseUrl' => url('/audit/kka'),
             'bidangs' => Pka::BIDANGS,
             'jenisAudits' => Pka::JENIS_AUDITS,
             'statuses' => Kka::STATUSES,

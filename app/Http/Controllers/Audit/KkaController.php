@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\Pelaksanaan;
+namespace App\Http\Controllers\Audit;
 
-use App\DataTables\Pelaksanaan\KkaDataTable;
+use App\DataTables\Audit\KkaDataTable;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Pelaksanaan\KkaRequest;
+use App\Http\Requests\Audit\KkaRequest;
 use App\Models\Kka;
 use App\Models\KkaReview;
 use App\Models\Pka;
@@ -81,7 +81,7 @@ class KkaController extends Controller
             ->orderBy('kode_wilayah')
             ->get(['kode_wilayah as code', 'provinsi as name']);
 
-        return view('pelaksanaan.kka.index', [
+        return view('audit.kka.index', [
             'dataTableConfig' => $dataTable->config($pkas, $templates, $plottings, $provinces),
             'columns' => $dataTable->columns(),
         ]);

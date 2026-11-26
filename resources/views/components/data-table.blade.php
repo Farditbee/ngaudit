@@ -1,6 +1,7 @@
 @props([
     'searchPlaceholder' => 'Cari data...',
     'emptyMessage' => 'Tidak ada data yang ditemukan.',
+    'fixed' => false,
 ])
 
 <div class="rounded-xl bg-white shadow-sm ring-1 ring-neutral-900/10 dark:bg-neutral-950 dark:ring-white/10">
@@ -40,7 +41,7 @@
     </div>
 
     {{-- Table --}}
-    <div class="relative overflow-x-auto">
+    <div class="relative {{ $fixed ? 'overflow-x-hidden' : 'overflow-x-auto' }}">
         <div
             x-show="loading"
             x-cloak
@@ -52,7 +53,7 @@
             </div>
         </div>
 
-        <table class="min-w-max w-full border-collapse text-left text-sm">
+        <table class="{{ $fixed ? 'table-fixed w-full' : 'min-w-max w-full' }} border-collapse text-left text-sm">
             <thead>
                 <tr class="border-b border-neutral-200 bg-neutral-50/70 text-xs uppercase tracking-wider text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-neutral-400">
                     <template x-for="(col, index) in columns" :key="col.name">

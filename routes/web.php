@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Controllers\Audit\KkaController;
 use App\Http\Controllers\Audit\PkaController;
 use App\Http\Controllers\Audit\PkaLangkahKerjaController;
 use App\Http\Controllers\Audit\SprinController;
 use App\Http\Controllers\Master\KodeController;
+use App\Http\Controllers\Master\KriteriaController;
 use App\Http\Controllers\Master\PlottingController;
 use App\Http\Controllers\Master\SubKodeController;
 use App\Http\Controllers\Master\TemplateKkaController;
@@ -13,7 +15,6 @@ use App\Http\Controllers\Master\TemplatePkaController;
 use App\Http\Controllers\Master\TimController;
 use App\Http\Controllers\Master\UserController;
 use App\Http\Controllers\Master\WilayahController;
-use App\Http\Controllers\Pelaksanaan\KkaController;
 use App\Http\Controllers\ProfileController;
 use App\Models\Kode;
 use Illuminate\Support\Facades\Route;
@@ -58,6 +59,11 @@ Route::middleware('auth')->group(function () {
         Route::put('/sub-kode/{jenis}/{subKode}', [SubKodeController::class, 'update'])->name('master.sub-kode.update');
         Route::delete('/sub-kode/{jenis}/{subKode}', [SubKodeController::class, 'destroy'])->name('master.sub-kode.destroy');
     });
+
+    Route::get('/master/kriteria', [KriteriaController::class, 'index'])->name('master.kriteria.index');
+    Route::post('/master/kriteria', [KriteriaController::class, 'store'])->name('master.kriteria.store');
+    Route::put('/master/kriteria/{kriteria}', [KriteriaController::class, 'update'])->name('master.kriteria.update');
+    Route::delete('/master/kriteria/{kriteria}', [KriteriaController::class, 'destroy'])->name('master.kriteria.destroy');
 
     Route::get('/master/plotting', [PlottingController::class, 'index'])->name('master.plotting.index');
     Route::post('/master/plotting', [PlottingController::class, 'store'])->name('master.plotting.store');
@@ -117,15 +123,15 @@ Route::middleware('auth')->group(function () {
     Route::put('/audit/pka/{pka}/langkah-kerja/{langkahKerja}', [PkaLangkahKerjaController::class, 'update'])->name('audit.pka.langkah-kerja.update');
     Route::delete('/audit/pka/{pka}/langkah-kerja/{langkahKerja}', [PkaLangkahKerjaController::class, 'destroy'])->name('audit.pka.langkah-kerja.destroy');
 
-    Route::get('/pelaksanaan/kka', [KkaController::class, 'index'])->name('pelaksanaan.kka.index');
-    Route::post('/pelaksanaan/kka', [KkaController::class, 'store'])->name('pelaksanaan.kka.store');
-    Route::get('/pelaksanaan/kka/{kka}/reviews/{type}', [KkaController::class, 'getReviews'])->name('pelaksanaan.kka.reviews.index');
-    Route::post('/pelaksanaan/kka/{kka}/reviews/{type}', [KkaController::class, 'storeReview'])->name('pelaksanaan.kka.reviews.store');
-    Route::get('/pelaksanaan/kka/{kka}', [KkaController::class, 'show'])->name('pelaksanaan.kka.show');
-    Route::put('/pelaksanaan/kka/{kka}', [KkaController::class, 'update'])->name('pelaksanaan.kka.update');
-    Route::delete('/pelaksanaan/kka/{kka}', [KkaController::class, 'destroy'])->name('pelaksanaan.kka.destroy');
-    Route::post('/pelaksanaan/kka/{kka}/duplicate', [KkaController::class, 'duplicate'])->name('pelaksanaan.kka.duplicate');
-    Route::match(['patch', 'post'], '/pelaksanaan/kka/{kka}/status', [KkaController::class, 'updateStatus'])->name('pelaksanaan.kka.update-status');
+    Route::get('/audit/kka', [KkaController::class, 'index'])->name('audit.kka.index');
+    Route::post('/audit/kka', [KkaController::class, 'store'])->name('audit.kka.store');
+    Route::get('/audit/kka/{kka}/reviews/{type}', [KkaController::class, 'getReviews'])->name('audit.kka.reviews.index');
+    Route::post('/audit/kka/{kka}/reviews/{type}', [KkaController::class, 'storeReview'])->name('audit.kka.reviews.store');
+    Route::get('/audit/kka/{kka}', [KkaController::class, 'show'])->name('audit.kka.show');
+    Route::put('/audit/kka/{kka}', [KkaController::class, 'update'])->name('audit.kka.update');
+    Route::delete('/audit/kka/{kka}', [KkaController::class, 'destroy'])->name('audit.kka.destroy');
+    Route::post('/audit/kka/{kka}/duplicate', [KkaController::class, 'duplicate'])->name('audit.kka.duplicate');
+    Route::match(['patch', 'post'], '/audit/kka/{kka}/status', [KkaController::class, 'updateStatus'])->name('audit.kka.update-status');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

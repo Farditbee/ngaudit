@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Requests\Pelaksanaan;
+namespace App\Http\Requests\Audit;
 
 use App\Models\Kka;
 use Illuminate\Contracts\Validation\Validator;

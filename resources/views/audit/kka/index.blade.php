@@ -1,4 +1,4 @@
-<x-admin-layout :breadcrumbs="['Pelaksanaan', 'KKA']">
+<x-admin-layout :breadcrumbs="['Audit', 'Pelaksanaan', 'KKA']">
     <x-slot:title>Kertas Kerja Audit (KKA)</x-slot:title>
 
     @php
