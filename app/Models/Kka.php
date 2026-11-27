@@ -131,6 +131,11 @@ class Kka extends Model
         return $this->hasMany(KkaReview::class)->latest('id');
     }
 
+    public function tabulasis(): HasMany
+    {
+        return $this->hasMany(KkaTabulasi::class)->orderBy('id');
+    }
+
     public function latestKatimReview(): HasOne
     {
         return $this->latestReviewOfType(KkaReview::TYPE_KATIM);

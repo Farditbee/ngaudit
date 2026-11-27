@@ -566,11 +566,11 @@
                                         4. Anggaran (Rp) <span class="text-red-500">*</span>
                                     </label>
                                     <input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        x-model="form.anggaran"
-                                        placeholder="Contoh: 50000000"
+                                        type="text"
+                                        inputmode="numeric"
+                                        :value="formatRupiahInput(form.anggaran)"
+                                        x-on:input="onAnggaranInput($event)"
+                                        placeholder="Contoh: 50.000.000"
                                         class="block h-9 w-full rounded-md border border-neutral-200 bg-white px-3 text-xs text-neutral-900 shadow-xs focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
                                     />
                                     <template x-if="errors.anggaran">

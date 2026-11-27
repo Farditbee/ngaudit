@@ -119,6 +119,9 @@ class KkaDataTable
                 'aw.kabupaten_kota as aw_kabupaten_kota',
                 'aw.kecamatan as aw_kecamatan',
                 'aw.desa_kelurahan as aw_desa_kelurahan',
+            ])
+            ->withCount([
+                'tabulasis' => fn (Builder $q) => $q->where('jenis_tabulasi', 'Temuan'),
             ]);
 
         if ($filterBidang !== '') {
@@ -158,7 +161,9 @@ class KkaDataTable
             ->addColumn('auditee_name', fn (Kka $k): string => $this->auditeeName($k))
             ->addColumn('auditee_detail', fn (Kka $k): string => $this->auditeeDetail($k))
             ->addColumn('auditee_hierarchy', fn (Kka $k): array => $this->auditeeHierarchy($k))
-            ->addColumn('tabulasi_count', fn (Kka $k): int => 0);
+            ->addColumn('tabulasi_count', fn (Kka $k): int => (int) ($k->tabulasis_count ?? 0))
+            ->addColumn('tabulasi_url', fn (Kka $k): string => route('audit.kka.tabulasi.index', [$k, 'tabulasi']))
+            ->addColumn('print_url', fn (Kka $k): string => route('audit.kka.print', $k));
 
         foreach (KkaReview::TYPES as $type) {
             $relation = 'latest'.Str::studly($type).'Review';

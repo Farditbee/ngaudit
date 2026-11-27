@@ -21,8 +21,17 @@ class PkaRequest extends FormRequest
             }
         }
 
-        if ($this->has('anggaran') && $this->input('anggaran') === '') {
-            $this->merge(['anggaran' => 0]);
+        if ($this->has('anggaran')) {
+            $raw = $this->input('anggaran');
+            if ($raw === '' || $raw === null) {
+                $this->merge(['anggaran' => 0]);
+            } elseif (is_string($raw) && str_contains($raw, '.')) {
+                $parts = explode('.', $raw);
+                if (count($parts) > 2 || strlen((string) end($parts)) === 3) {
+                    $cleaned = preg_replace('/[^\d]/', '', $raw);
+                    $this->merge(['anggaran' => $cleaned !== '' ? $cleaned : 0]);
+                }
+            }
         }
     }
 

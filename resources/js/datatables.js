@@ -114,6 +114,16 @@ function getBaseDataTableMethods() {
             this.page = 1;
             this.fetchData();
         },
+        formatRupiahInput(val) {
+            if (val === null || val === undefined || val === '') return '';
+            const numStr = String(val).split('.')[0].replace(/\D/g, '');
+            if (!numStr) return '';
+            return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        },
+        parseRupiahDigits(raw) {
+            if (raw === null || raw === undefined) return '';
+            return String(raw).replace(/\D/g, '');
+        },
     };
 }
 
@@ -3235,6 +3245,12 @@ export function registerDataTables(Alpine) {
             this.lampiranFile = files && files.length > 0 ? files[0] : null;
         },
 
+        onAnggaranInput(e) {
+            const digits = this.parseRupiahDigits(e.target.value);
+            this.form.anggaran = digits;
+            e.target.value = this.formatRupiahInput(digits);
+        },
+
         async onTemplateChange(id = null) {
             const templateId = id || this.form.template_pka_id;
             if (!templateId) return;
@@ -6040,4 +6056,546 @@ export function registerDataTables(Alpine) {
             }
         },
     }));
+
+    Alpine.data('kkaTabulasiDataTable', (config) => {
+        const rawEditors = {};
+        const editorElements = {};
+
+        return {
+            ...getBaseDataTableState(config),
+            ...getBaseDataTableMethods(),
+            ...getTipTapToolbarMethods(),
+            bidang: config.bidang || '-',
+            currentJenisTabulasi: config.currentJenisTabulasi || 'Temuan',
+            tabUrls: config.tabUrls || {},
+            jenisTabulasis: config.jenisTabulasis || ['Temuan', 'Konsultasi', 'Positif'],
+            tipeTemuans: config.tipeTemuans || ['Baru', 'Berulang', 'Menonjol'],
+            statuses: config.statuses || ['Draft', 'Final'],
+            kodeWithNilai: config.kodeWithNilai || ['01', '02', '03', '05'],
+            auditors: config.auditors || [],
+            kodeTemuans: config.kodeTemuans || [],
+            kodeSebabs: config.kodeSebabs || [],
+            kodeAkibats: config.kodeAkibats || [],
+            kodeRekomendasis: config.kodeRekomendasis || [],
+            kriterias: config.kriterias || [],
+            kriteriaBidangFilter: '',
+            modalOpen: false,
+            editingId: null,
+            activeTab: 'uraian_temuan',
+            editorKeys: [
+                'uraian_temuan',
+                'uraian_kriteria',
+                'uraian_sebab',
+                'uraian_akibat',
+                'uraian_rekomendasi',
+            ],
+            form: {
+                jenis_tabulasi: config.currentJenisTabulasi || 'Temuan',
+                nomor: '',
+                tipe_temuan: '',
+                kode_temuan_id: '',
+                sub_kode_temuan_id: '',
+                nilai_temuan: '',
+                uraian_temuan: '',
+                kriteria_id: '',
+                uraian_kriteria: '',
+                kode_sebab_id: '',
+                sub_kode_sebab_id: '',
+                uraian_sebab: '',
+                kode_akibat_id: '',
+                sub_kode_akibat_id: '',
+                uraian_akibat: '',
+                kode_rekomendasi_id: '',
+                sub_kode_rekomendasi_id: '',
+                uraian_rekomendasi: '',
+                auditor_id: '',
+                status: 'Draft',
+            },
+            errors: {},
+
+            getActiveEditor() {
+                return rawEditors[this.activeTab] || null;
+            },
+            get selectedKodeTemuan() {
+                if (!this.form.kode_temuan_id) return null;
+                return this.kodeTemuans.find((k) => String(k.id) === String(this.form.kode_temuan_id)) || null;
+            },
+            get requiresNilaiTemuan() {
+                const kt = this.selectedKodeTemuan;
+                if (!kt) return false;
+                return this.kodeWithNilai.includes(String(kt.kode));
+            },
+            get kodeTemuanOptions() {
+                return this.kodeTemuans.map((k) => ({ code: String(k.id), name: k.name }));
+            },
+            get subKodeTemuanOptions() {
+                const kt = this.selectedKodeTemuan;
+                if (!kt || !Array.isArray(kt.sub_kodes)) return [];
+                return kt.sub_kodes.map((s) => ({ code: String(s.id), name: s.name }));
+            },
+            get kodeSebabOptions() {
+                if (!this.form.kode_temuan_id) return [];
+                return this.kodeSebabs
+                    .filter((k) => String(k.kode_temuan_id) === String(this.form.kode_temuan_id))
+                    .map((k) => ({ code: String(k.id), name: k.name }));
+            },
+            get selectedKodeSebab() {
+                if (!this.form.kode_sebab_id) return null;
+                return this.kodeSebabs.find((k) => String(k.id) === String(this.form.kode_sebab_id)) || null;
+            },
+            get subKodeSebabOptions() {
+                const ks = this.selectedKodeSebab;
+                if (!ks || !Array.isArray(ks.sub_kodes)) return [];
+                return ks.sub_kodes.map((s) => ({ code: String(s.id), name: s.name }));
+            },
+            get kodeAkibatOptions() {
+                if (!this.form.kode_temuan_id) return [];
+                return this.kodeAkibats
+                    .filter((k) => String(k.kode_temuan_id) === String(this.form.kode_temuan_id))
+                    .map((k) => ({ code: String(k.id), name: k.name }));
+            },
+            get selectedKodeAkibat() {
+                if (!this.form.kode_akibat_id) return null;
+                return this.kodeAkibats.find((k) => String(k.id) === String(this.form.kode_akibat_id)) || null;
+            },
+            get subKodeAkibatOptions() {
+                const ka = this.selectedKodeAkibat;
+                if (!ka || !Array.isArray(ka.sub_kodes)) return [];
+                return ka.sub_kodes.map((s) => ({ code: String(s.id), name: s.name }));
+            },
+            get kodeRekomendasiOptions() {
+                if (this.form.jenis_tabulasi === 'Konsultasi') {
+                    return this.kodeRekomendasis.map((k) => ({ code: String(k.id), name: k.name }));
+                }
+                if (!this.form.kode_temuan_id) return [];
+                return this.kodeRekomendasis
+                    .filter((k) => String(k.kode_temuan_id) === String(this.form.kode_temuan_id))
+                    .map((k) => ({ code: String(k.id), name: k.name }));
+            },
+            get selectedKodeRekomendasi() {
+                if (!this.form.kode_rekomendasi_id) return null;
+                return this.kodeRekomendasis.find((k) => String(k.id) === String(this.form.kode_rekomendasi_id)) || null;
+            },
+            get subKodeRekomendasiOptions() {
+                const kr = this.selectedKodeRekomendasi;
+                if (!kr || !Array.isArray(kr.sub_kodes)) return [];
+                return kr.sub_kodes.map((s) => ({ code: String(s.id), name: s.name }));
+            },
+            get filteredKriteriaOptions() {
+                const f = this.kriteriaBidangFilter;
+                const list = f ? this.kriterias.filter((kr) => Boolean(kr[f])) : this.kriterias;
+                return list.map((kr) => ({ code: String(kr.id), name: kr.name }));
+            },
+
+            onNilaiTemuanInput(e) {
+                const digits = this.parseRupiahDigits(e.target.value);
+                this.form.nilai_temuan = digits;
+                e.target.value = this.formatRupiahInput(digits);
+            },
+
+            onJenisTabulasiChange() {
+                if (this.form.jenis_tabulasi !== 'Temuan') {
+                    this.form.tipe_temuan = '';
+                    this.form.kode_temuan_id = '';
+                    this.form.sub_kode_temuan_id = '';
+                    this.form.nilai_temuan = '';
+                    this.form.kode_sebab_id = '';
+                    this.form.sub_kode_sebab_id = '';
+                    this.setEditorContent('uraian_sebab', '');
+                    this.form.kode_akibat_id = '';
+                    this.form.sub_kode_akibat_id = '';
+                    this.setEditorContent('uraian_akibat', '');
+                }
+                if (this.form.jenis_tabulasi === 'Positif') {
+                    this.form.kriteria_id = '';
+                    this.setEditorContent('uraian_kriteria', '');
+                    this.form.kode_rekomendasi_id = '';
+                    this.form.sub_kode_rekomendasi_id = '';
+                    this.setEditorContent('uraian_rekomendasi', '');
+                }
+            },
+
+            decodeHtml(html) {
+                if (!html || typeof html !== 'string') return '';
+                if (html.includes('&lt;') || html.includes('&gt;') || html.includes('&amp;')) {
+                    const txt = document.createElement('textarea');
+                    txt.innerHTML = html;
+                    return txt.value;
+                }
+                return html;
+            },
+
+            mountSingleEditor(key) {
+                const el = editorElements[key] || this.$refs?.['editor_' + key] || document.querySelector(`[data-tabulasi-editor="${key}"]`);
+                if (!el) return;
+                editorElements[key] = el;
+
+                if (rawEditors[key]) {
+                    try {
+                        rawEditors[key].destroy();
+                    } catch (e) {
+                        // Ignore
+                    }
+                    delete rawEditors[key];
+                }
+                el.innerHTML = '';
+
+                rawEditors[key] = createTipTapEditor({
+                    element: el,
+                    content: this.decodeHtml(this.form[key] || ''),
+                    onUpdate: (html) => {
+                        this.form[key] = html;
+                    },
+                });
+            },
+            initAllEditors() {
+                this.editorKeys.forEach((key) => {
+                    const el = this.$refs?.['editor_' + key] || document.querySelector(`[data-tabulasi-editor="${key}"]`);
+                    if (el) {
+                        editorElements[key] = el;
+                    }
+                    this.mountSingleEditor(key);
+                });
+            },
+            destroyEditors() {
+                Object.keys(rawEditors).forEach((key) => {
+                    try {
+                        rawEditors[key]?.destroy();
+                    } catch (e) {
+                        // Ignore
+                    }
+                    delete rawEditors[key];
+                });
+                this.editorKeys.forEach((key) => {
+                    const el = editorElements[key] || this.$refs?.['editor_' + key] || document.querySelector(`[data-tabulasi-editor="${key}"]`);
+                    if (el) {
+                        el.innerHTML = '';
+                    }
+                });
+            },
+            setActiveEditor(key, event) {
+                this.activeTab = key;
+                this.focusActiveEditor(event);
+            },
+            setEditorContent(key, html) {
+                this.form[key] = html;
+                this.mountSingleEditor(key);
+            },
+            buildKodeUraianHtml(mainObj, subObj = null) {
+                if (!mainObj) return '';
+                let html = `<p>(${mainObj.kode}) - ${mainObj.nama}</p>`;
+                if (subObj) {
+                    html += `<p>(${subObj.kode}) - ${subObj.nama}</p>`;
+                }
+                return html;
+            },
+
+            // Cascading & Auto-fill Uraian Temuan, Sebab, Akibat, Rekomendasi
+            onKodeTemuanChange() {
+                this.form.sub_kode_temuan_id = '';
+                if (!this.requiresNilaiTemuan) {
+                    this.form.nilai_temuan = '';
+                }
+                const kt = this.selectedKodeTemuan;
+                this.setEditorContent('uraian_temuan', this.buildKodeUraianHtml(kt, null));
+
+                // Reset kode sebab, akibat, rekomendasi karena bergantung pada kode temuan
+                this.form.kode_sebab_id = '';
+                this.form.sub_kode_sebab_id = '';
+                this.setEditorContent('uraian_sebab', '');
+
+                this.form.kode_akibat_id = '';
+                this.form.sub_kode_akibat_id = '';
+                this.setEditorContent('uraian_akibat', '');
+
+                this.form.kode_rekomendasi_id = '';
+                this.form.sub_kode_rekomendasi_id = '';
+                this.setEditorContent('uraian_rekomendasi', '');
+            },
+            onSubKodeTemuanChange() {
+                const kt = this.selectedKodeTemuan;
+                if (!kt) return;
+                const sub = (kt.sub_kodes || []).find((s) => String(s.id) === String(this.form.sub_kode_temuan_id)) || null;
+                this.setEditorContent('uraian_temuan', this.buildKodeUraianHtml(kt, sub));
+            },
+
+            onKodeSebabChange() {
+                this.form.sub_kode_sebab_id = '';
+                const ks = this.selectedKodeSebab;
+                this.setEditorContent('uraian_sebab', this.buildKodeUraianHtml(ks, null));
+            },
+            onSubKodeSebabChange() {
+                const ks = this.selectedKodeSebab;
+                if (!ks) return;
+                const sub = (ks.sub_kodes || []).find((s) => String(s.id) === String(this.form.sub_kode_sebab_id)) || null;
+                this.setEditorContent('uraian_sebab', this.buildKodeUraianHtml(ks, sub));
+            },
+
+            onKodeAkibatChange() {
+                this.form.sub_kode_akibat_id = '';
+                const ka = this.selectedKodeAkibat;
+                this.setEditorContent('uraian_akibat', this.buildKodeUraianHtml(ka, null));
+            },
+            onSubKodeAkibatChange() {
+                const ka = this.selectedKodeAkibat;
+                if (!ka) return;
+                const sub = (ka.sub_kodes || []).find((s) => String(s.id) === String(this.form.sub_kode_akibat_id)) || null;
+                this.setEditorContent('uraian_akibat', this.buildKodeUraianHtml(ka, sub));
+            },
+
+            onKodeRekomendasiChange() {
+                this.form.sub_kode_rekomendasi_id = '';
+                const kr = this.selectedKodeRekomendasi;
+                this.setEditorContent('uraian_rekomendasi', this.buildKodeUraianHtml(kr, null));
+            },
+            onSubKodeRekomendasiChange() {
+                const kr = this.selectedKodeRekomendasi;
+                if (!kr) return;
+                const sub = (kr.sub_kodes || []).find((s) => String(s.id) === String(this.form.sub_kode_rekomendasi_id)) || null;
+                this.setEditorContent('uraian_rekomendasi', this.buildKodeUraianHtml(kr, sub));
+            },
+
+            onKriteriaFilterChange() {
+                if (this.form.kriteria_id) {
+                    const exists = this.filteredKriteriaOptions.some((o) => String(o.code) === String(this.form.kriteria_id));
+                    if (!exists) {
+                        this.form.kriteria_id = '';
+                    }
+                }
+            },
+            appendSelectedKriteria() {
+                if (!this.form.kriteria_id) return;
+                const kr = this.kriterias.find((item) => String(item.id) === String(this.form.kriteria_id));
+                if (!kr) return;
+
+                const currentHtml = rawEditors.uraian_kriteria
+                    ? rawEditors.uraian_kriteria.getHTML()
+                    : (this.form.uraian_kriteria || '');
+                const stripped = currentHtml.replace(/<[^>]*>?/gm, '').trim();
+                const newParagraph = `<p>${kr.nama}</p>`;
+                const nextHtml = stripped === '' ? newParagraph : `${currentHtml}${newParagraph}`;
+
+                this.setEditorContent('uraian_kriteria', nextHtml);
+            },
+
+            defaultKriteriaBidang() {
+                const b = (this.bidang || '').toLowerCase();
+                if (b.includes('operasional')) return 'is_opsnal';
+                if (b.includes('logistik')) return 'is_logistik';
+                if (b.includes('sumber daya manusia') || b.includes('sdm')) return 'is_sdm';
+                if (b.includes('anggaran') || b.includes('keuangan')) return 'is_garkeu';
+                return '';
+            },
+
+            resetForm() {
+                this.kriteriaBidangFilter = this.defaultKriteriaBidang();
+                this.form = {
+                    jenis_tabulasi: this.currentJenisTabulasi || 'Temuan',
+                    nomor: '',
+                    tipe_temuan: '',
+                    kode_temuan_id: '',
+                    sub_kode_temuan_id: '',
+                    nilai_temuan: '',
+                    uraian_temuan: '',
+                    kriteria_id: '',
+                    uraian_kriteria: '',
+                    kode_sebab_id: '',
+                    sub_kode_sebab_id: '',
+                    uraian_sebab: '',
+                    kode_akibat_id: '',
+                    sub_kode_akibat_id: '',
+                    uraian_akibat: '',
+                    kode_rekomendasi_id: '',
+                    sub_kode_rekomendasi_id: '',
+                    uraian_rekomendasi: '',
+                    auditor_id: '',
+                    status: 'Draft',
+                };
+                this.errors = {};
+            },
+            openCreateModal() {
+                this.destroyEditors();
+                this.editingId = null;
+                this.resetForm();
+                this.activeTab = 'uraian_temuan';
+                this.modalOpen = true;
+                this.$nextTick(() => {
+                    this.initAllEditors();
+                });
+            },
+            async openEditModal(row) {
+                this.destroyEditors();
+                this.editingId = row.id;
+                this.resetForm();
+                this.activeTab = 'uraian_temuan';
+                this.modalOpen = true;
+
+                try {
+                    const response = await fetch(`${this.baseUrl}/${row.id}`, {
+                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    });
+                    if (!response.ok) {
+                        throw new Error('Gagal memuat data tabulasi.');
+                    }
+                    const data = await response.json();
+
+                    this.form = {
+                        jenis_tabulasi: data.jenis_tabulasi || 'Temuan',
+                        nomor: data.nomor || '',
+                        tipe_temuan: data.tipe_temuan || '',
+                        kode_temuan_id: data.kode_temuan_id || '',
+                        sub_kode_temuan_id: data.sub_kode_temuan_id || '',
+                        nilai_temuan: data.nilai_temuan || '',
+                        uraian_temuan: this.decodeHtml(data.uraian_temuan || ''),
+                        kriteria_id: data.kriteria_id || '',
+                        uraian_kriteria: this.decodeHtml(data.uraian_kriteria || ''),
+                        kode_sebab_id: data.kode_sebab_id || '',
+                        sub_kode_sebab_id: data.sub_kode_sebab_id || '',
+                        uraian_sebab: this.decodeHtml(data.uraian_sebab || ''),
+                        kode_akibat_id: data.kode_akibat_id || '',
+                        sub_kode_akibat_id: data.sub_kode_akibat_id || '',
+                        uraian_akibat: this.decodeHtml(data.uraian_akibat || ''),
+                        kode_rekomendasi_id: data.kode_rekomendasi_id || '',
+                        sub_kode_rekomendasi_id: data.sub_kode_rekomendasi_id || '',
+                        uraian_rekomendasi: this.decodeHtml(data.uraian_rekomendasi || ''),
+                        auditor_id: data.auditor_id || '',
+                        status: data.status || 'Draft',
+                    };
+
+                    this.$nextTick(() => {
+                        this.initAllEditors();
+                    });
+                } catch (e) {
+                    console.error(e);
+                    this.errors = { general: [e.message || 'Gagal memuat data tabulasi.'] };
+                }
+            },
+            closeModal(force = false) {
+                if (this.saving && !force) return;
+                this.modalOpen = false;
+                this.destroyEditors();
+                this.editingId = null;
+                this.resetForm();
+            },
+            async saveTabulasi() {
+                this.saving = true;
+                this.errors = {};
+
+                this.editorKeys.forEach((key) => {
+                    if (rawEditors[key]) {
+                        this.form[key] = rawEditors[key].getHTML();
+                    }
+                });
+
+            const url = this.editingId ? `${this.baseUrl}/${this.editingId}` : this.storeUrl;
+            const method = this.editingId ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(this.form),
+                });
+
+                const json = await response.json();
+
+                if (!response.ok) {
+                    if (response.status === 422 && json.errors) {
+                        this.errors = json.errors;
+                        const firstKey = Object.keys(json.errors)[0];
+                        const firstMsg = json.errors[firstKey]?.[0] || 'Validasi formulir gagal.';
+                        this.errors.general = [`Terdapat kesalahan pengisian: ${firstMsg}`];
+                    } else {
+                        this.errors = { general: [json.message || 'Terjadi kesalahan saat menyimpan data.'] };
+                    }
+                    this.$refs.modalScrollArea?.scrollTo({ top: 0, behavior: 'smooth' });
+                    return;
+                }
+
+                const savedJenis = this.form.jenis_tabulasi;
+                this.closeModal(true);
+                this.showFlash(json.message || 'Data tabulasi berhasil disimpan.');
+                if (savedJenis && savedJenis !== this.currentJenisTabulasi && this.tabUrls[savedJenis]) {
+                    window.location.href = this.tabUrls[savedJenis];
+                    return;
+                }
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                this.errors = { general: [e.message || 'Terjadi kesalahan jaringan.'] };
+                this.$refs.modalScrollArea?.scrollTo({ top: 0, behavior: 'smooth' });
+            } finally {
+                this.saving = false;
+            }
+        },
+        async confirmDelete(row) {
+            const confirmed = await window.notify.confirmDelete({ label: window.notify.rowLabel(row) });
+            if (!confirmed) return;
+
+            this.deleting = true;
+            try {
+                const response = await fetch(`${this.baseUrl}/${row.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const json = await response.json();
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal menghapus data tabulasi.');
+                }
+                this.showFlash(json.message || 'Data tabulasi berhasil dihapus.');
+                if (this.rows.length === 1 && this.page > 1) {
+                    this.page--;
+                }
+                this.fetchData();
+            } catch (e) {
+                console.error(e);
+                window.notify.error(e.message || 'Terjadi kesalahan saat menghapus data tabulasi.');
+            } finally {
+                this.deleting = false;
+            }
+        },
+        async toggleRowStatus(row, targetStatus = null) {
+            if (row.updatingStatus) return;
+            const currentStatus = row.status || 'Draft';
+            const newStatus = targetStatus ? targetStatus : (currentStatus === 'Final' ? 'Draft' : 'Final');
+            if (targetStatus && targetStatus === currentStatus) return;
+
+            row.updatingStatus = true;
+            row.status = newStatus;
+
+            try {
+                const response = await fetch(`${this.baseUrl}/${row.id}/status`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ status: newStatus }),
+                });
+                const json = await response.json();
+                if (!response.ok) {
+                    throw new Error(json.message || 'Gagal mengubah status tabulasi.');
+                }
+                this.showFlash(json.message || `Status tabulasi berhasil diubah menjadi ${newStatus}.`);
+            } catch (e) {
+                console.error(e);
+                row.status = currentStatus;
+                this.showFlash(e.message || 'Terjadi kesalahan saat mengubah status.', 'error');
+            } finally {
+                row.updatingStatus = false;
+            }
+        },
+        };
+    });
 }

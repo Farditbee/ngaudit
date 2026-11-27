@@ -28,16 +28,22 @@
             <span>data</span>
         </div>
 
-        <div class="relative w-full sm:w-72">
-            <x-lucide-search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-            <input
-                type="search"
-                x-model="search"
-                x-on:input.debounce.350ms="onSearchInput()"
-                placeholder="{{ $searchPlaceholder }}"
-                class="block h-9 w-full rounded-md border border-neutral-200 bg-white pl-9 pr-3 text-sm text-neutral-900 shadow-xs placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:focus:border-neutral-100 dark:focus:ring-white/20"
-            />
-        </div>
+        @isset($toolbarRight)
+            <div>
+                {{ $toolbarRight }}
+            </div>
+        @else
+            <div class="relative w-full sm:w-72">
+                <x-lucide-search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                <input
+                    type="search"
+                    x-model="search"
+                    x-on:input.debounce.350ms="onSearchInput()"
+                    placeholder="{{ $searchPlaceholder }}"
+                    class="block h-9 w-full rounded-md border border-neutral-200 bg-white pl-9 pr-3 text-sm text-neutral-900 shadow-xs placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:focus:border-neutral-100 dark:focus:ring-white/20"
+                />
+            </div>
+        @endisset
     </div>
 
     {{-- Table --}}
@@ -58,7 +64,7 @@
                 <tr class="border-b border-neutral-200 bg-neutral-50/70 text-xs uppercase tracking-wider text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-neutral-400">
                     <template x-for="(col, index) in columns" :key="col.name">
                         <th
-                            class="whitespace-nowrap border-r border-neutral-200 px-4 py-3 font-medium select-none last:border-r-0 dark:border-neutral-800"
+                            class="{{ $fixed ? 'whitespace-normal break-words px-2 py-2.5 text-[11px] leading-tight' : 'whitespace-nowrap px-4 py-3' }} border-r border-neutral-200 font-medium select-none last:border-r-0 dark:border-neutral-800"
                             :class="[
                                 col.sortable ? 'cursor-pointer hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60' : '',
                                 col.width || '',
@@ -66,13 +72,13 @@
                             ]"
                             x-on:click="toggleSort(index)"
                         >
-                            <div class="flex items-center justify-between gap-2" :class="col.align === 'center' ? 'justify-center' : ''">
+                            <div class="flex items-center justify-between gap-1" :class="col.align === 'center' ? 'justify-center' : ''">
                                 <span x-text="col.label"></span>
                                 <template x-if="col.sortable">
-                                    <span class="inline-flex flex-col text-neutral-400">
-                                        <x-lucide-chevrons-up-down x-show="sortCol !== index" class="h-3.5 w-3.5 opacity-60" />
-                                        <x-lucide-chevron-up x-show="sortCol === index && sortDir === 'asc'" x-cloak class="h-3.5 w-3.5 text-neutral-900 dark:text-neutral-100" />
-                                        <x-lucide-chevron-down x-show="sortCol === index && sortDir === 'desc'" x-cloak class="h-3.5 w-3.5 text-neutral-900 dark:text-neutral-100" />
+                                    <span class="inline-flex shrink-0 flex-col text-neutral-400">
+                                        <x-lucide-chevrons-up-down x-show="sortCol !== index" class="h-3 w-3 opacity-60" />
+                                        <x-lucide-chevron-up x-show="sortCol === index && sortDir === 'asc'" x-cloak class="h-3 w-3 text-neutral-900 dark:text-neutral-100" />
+                                        <x-lucide-chevron-down x-show="sortCol === index && sortDir === 'desc'" x-cloak class="h-3 w-3 text-neutral-900 dark:text-neutral-100" />
                                     </span>
                                 </template>
                             </div>

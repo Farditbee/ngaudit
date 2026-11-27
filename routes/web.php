@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Audit\KkaController;
+use App\Http\Controllers\Audit\KkaTabulasiController;
 use App\Http\Controllers\Audit\PkaController;
 use App\Http\Controllers\Audit\PkaLangkahKerjaController;
 use App\Http\Controllers\Audit\SprinController;
@@ -127,11 +128,21 @@ Route::middleware('auth')->group(function () {
     Route::post('/audit/kka', [KkaController::class, 'store'])->name('audit.kka.store');
     Route::get('/audit/kka/{kka}/reviews/{type}', [KkaController::class, 'getReviews'])->name('audit.kka.reviews.index');
     Route::post('/audit/kka/{kka}/reviews/{type}', [KkaController::class, 'storeReview'])->name('audit.kka.reviews.store');
+    Route::get('/audit/kka/{kka}/print', [KkaController::class, 'print'])->name('audit.kka.print');
     Route::get('/audit/kka/{kka}', [KkaController::class, 'show'])->name('audit.kka.show');
     Route::put('/audit/kka/{kka}', [KkaController::class, 'update'])->name('audit.kka.update');
     Route::delete('/audit/kka/{kka}', [KkaController::class, 'destroy'])->name('audit.kka.destroy');
     Route::post('/audit/kka/{kka}/duplicate', [KkaController::class, 'duplicate'])->name('audit.kka.duplicate');
     Route::match(['patch', 'post'], '/audit/kka/{kka}/status', [KkaController::class, 'updateStatus'])->name('audit.kka.update-status');
+
+    Route::get('/audit/kka/{kka}/{tab}', [KkaTabulasiController::class, 'index'])
+        ->where('tab', 'tabulasi|konsultasi|positif')
+        ->name('audit.kka.tabulasi.index');
+    Route::post('/audit/kka/{kka}/tabulasi', [KkaTabulasiController::class, 'store'])->name('audit.kka.tabulasi.store');
+    Route::get('/audit/kka/{kka}/tabulasi/{tabulasi}', [KkaTabulasiController::class, 'show'])->name('audit.kka.tabulasi.show');
+    Route::put('/audit/kka/{kka}/tabulasi/{tabulasi}', [KkaTabulasiController::class, 'update'])->name('audit.kka.tabulasi.update');
+    Route::delete('/audit/kka/{kka}/tabulasi/{tabulasi}', [KkaTabulasiController::class, 'destroy'])->name('audit.kka.tabulasi.destroy');
+    Route::match(['patch', 'post'], '/audit/kka/{kka}/tabulasi/{tabulasi}/status', [KkaTabulasiController::class, 'updateStatus'])->name('audit.kka.tabulasi.update-status');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

@@ -137,6 +137,50 @@ class KkaController extends Controller
         ]);
     }
 
+    public function print(Request $request, Kka $kka): View
+    {
+        if (! $this->canAccessKka($request->user(), $kka)) {
+            abort(403, 'Anda tidak memiliki hak akses untuk mencetak KKA ini.');
+        }
+
+        $kka->load([
+            'pka.sprin.pengendaliMutu:id,name,username,jabatan,role',
+            'pka.sprin.pengawasTim:id,name,username,jabatan,role',
+            'pka.sprin.ketuaTim:id,name,username,jabatan,role',
+            'pka.sprin.ketuaTim2:id,name,username,jabatan,role',
+            'dibuatOleh:id,name,username,jabatan,role',
+            'direviuOleh:id,name,username,jabatan,role',
+            'creator:id,name,username,jabatan,role',
+            'auditeePlotting:id,plot',
+            'tabulasis.kodeTemuan:id,kode,nama',
+            'tabulasis.subKodeTemuan:id,kode_id,kode,nama',
+        ]);
+
+        $auditeeName = '-';
+        if ($kka->auditee_level === 'Nasional') {
+            $auditeeName = $kka->auditeePlotting?->plot ?? '-';
+        } elseif ($kka->auditee_kode_wilayah) {
+            $wilayah = DB::table('wilayah')
+                ->where('kode_wilayah', $kka->auditee_kode_wilayah)
+                ->whereNull('deleted_at')
+                ->first();
+            if ($wilayah) {
+                $auditeeName = $wilayah->desa_kelurahan
+                    ?? $wilayah->kecamatan
+                    ?? $wilayah->kabupaten_kota
+                    ?? $wilayah->provinsi
+                    ?? '-';
+            }
+        }
+
+        return view('audit.kka.print', [
+            'kka' => $kka,
+            'pka' => $kka->pka,
+            'sprin' => $kka->pka?->sprin,
+            'auditeeName' => $auditeeName,
+        ]);
+    }
+
     public function update(KkaRequest $request, Kka $kka): JsonResponse
     {
         if (! $this->canAccessKka($request->user(), $kka)) {

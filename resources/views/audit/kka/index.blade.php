@@ -212,14 +212,14 @@
 
                     {{-- 7. Tabulasi --}}
                     <td class="whitespace-nowrap border-r border-neutral-200 px-3 py-3 text-center dark:border-neutral-800">
-                        <button
-                            type="button"
+                        <a
+                            :href="row.tabulasi_url || (`/audit/kka/${row.id}/tabulasi`)"
                             class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 shadow-2xs hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                             title="Tabulasi KKA"
                         >
                             <x-lucide-table-2 class="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
                             <span>Tabulasi (<span x-text="row.tabulasi_count ?? 0"></span>)</span>
-                        </button>
+                        </a>
                     </td>
 
                     {{-- 8. Status (toggle) & Aksi --}}
@@ -264,6 +264,14 @@
                             </div>
 
                             <div class="inline-flex items-center justify-center gap-1">
+                                <a
+                                    :href="row.print_url || `${baseUrl}/${row.id}/print`"
+                                    target="_blank"
+                                    class="{{ $rowButtonClass }}"
+                                    title="Cetak / Print PDF KKA"
+                                >
+                                    <x-lucide-printer class="h-3.5 w-3.5" />
+                                </a>
                                 <button type="button" x-on:click="confirmDuplicate(row)" class="{{ $rowButtonClass }}" title="Duplikasi KKA">
                                     <x-lucide-copy class="h-3.5 w-3.5" />
                                 </button>
