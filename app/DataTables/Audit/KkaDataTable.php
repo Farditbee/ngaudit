@@ -121,7 +121,9 @@ class KkaDataTable
                 'aw.desa_kelurahan as aw_desa_kelurahan',
             ])
             ->withCount([
-                'tabulasis' => fn (Builder $q) => $q->where('jenis_tabulasi', 'Temuan'),
+                'tabulasis as tabulasi_temuan_count' => fn (Builder $q) => $q->where('jenis_tabulasi', 'Temuan'),
+                'tabulasis as tabulasi_konsultasi_count' => fn (Builder $q) => $q->where('jenis_tabulasi', 'Konsultasi'),
+                'tabulasis as tabulasi_positif_count' => fn (Builder $q) => $q->where('jenis_tabulasi', 'Positif'),
             ]);
 
         if ($filterBidang !== '') {
@@ -161,8 +163,13 @@ class KkaDataTable
             ->addColumn('auditee_name', fn (Kka $k): string => $this->auditeeName($k))
             ->addColumn('auditee_detail', fn (Kka $k): string => $this->auditeeDetail($k))
             ->addColumn('auditee_hierarchy', fn (Kka $k): array => $this->auditeeHierarchy($k))
-            ->addColumn('tabulasi_count', fn (Kka $k): int => (int) ($k->tabulasis_count ?? 0))
+            ->addColumn('tabulasi_count', fn (Kka $k): int => (int) ($k->tabulasi_temuan_count ?? 0))
+            ->addColumn('temuan_count', fn (Kka $k): int => (int) ($k->tabulasi_temuan_count ?? 0))
+            ->addColumn('konsultasi_count', fn (Kka $k): int => (int) ($k->tabulasi_konsultasi_count ?? 0))
+            ->addColumn('positif_count', fn (Kka $k): int => (int) ($k->tabulasi_positif_count ?? 0))
             ->addColumn('tabulasi_url', fn (Kka $k): string => route('audit.kka.tabulasi.index', [$k, 'tabulasi']))
+            ->addColumn('konsultasi_url', fn (Kka $k): string => route('audit.kka.tabulasi.index', [$k, 'konsultasi']))
+            ->addColumn('positif_url', fn (Kka $k): string => route('audit.kka.tabulasi.index', [$k, 'positif']))
             ->addColumn('print_url', fn (Kka $k): string => route('audit.kka.print', $k));
 
         foreach (KkaReview::TYPES as $type) {

@@ -84,6 +84,12 @@ class KkaTabulasiTest extends TestCase
         $this->seed([KodeSeeder::class, KriteriaSeeder::class]);
         $kka = $this->createKka($admin);
 
+        $this->actingAs($admin)->get(route('audit.tabulasi.index'))
+            ->assertOk()
+            ->assertSee('Temuan')
+            ->assertSee('Konsultasi')
+            ->assertSee('Positif');
+
         $this->actingAs($admin)->get(route('audit.kka.tabulasi.index', [$kka, 'tabulasi']))
             ->assertOk()
             ->assertSee('Tabulasi Temuan')

@@ -5,6 +5,7 @@ use App\Http\Controllers\Audit\KkaTabulasiController;
 use App\Http\Controllers\Audit\PkaController;
 use App\Http\Controllers\Audit\PkaLangkahKerjaController;
 use App\Http\Controllers\Audit\SprinController;
+use App\Http\Controllers\Audit\TabulasiController;
 use App\Http\Controllers\Master\KodeController;
 use App\Http\Controllers\Master\KriteriaController;
 use App\Http\Controllers\Master\PlottingController;
@@ -125,6 +126,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/audit/pka/{pka}/langkah-kerja/{langkahKerja}', [PkaLangkahKerjaController::class, 'destroy'])->name('audit.pka.langkah-kerja.destroy');
 
     Route::get('/audit/kka', [KkaController::class, 'index'])->name('audit.kka.index');
+    Route::get('/audit/tabulasi', [TabulasiController::class, 'index'])->name('audit.tabulasi.index');
     Route::post('/audit/kka', [KkaController::class, 'store'])->name('audit.kka.store');
     Route::get('/audit/kka/{kka}/reviews/{type}', [KkaController::class, 'getReviews'])->name('audit.kka.reviews.index');
     Route::post('/audit/kka/{kka}/reviews/{type}', [KkaController::class, 'storeReview'])->name('audit.kka.reviews.store');

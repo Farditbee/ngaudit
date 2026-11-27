@@ -17,8 +17,9 @@
                     ['label' => 'PKA', 'href' => route('audit.pka.index'), 'active' => request()->routeIs('audit.pka.*')],
                     'Dokumen Pendahuluan',
                 ]],
-                ['label' => 'Pelaksanaan', 'icon' => 'panel-top-open', 'open' => request()->routeIs('audit.kka.*'), 'children' => [
-                    ['label' => 'KKA', 'href' => route('audit.kka.index'), 'active' => request()->routeIs('audit.kka.*')],
+                ['label' => 'Pelaksanaan', 'icon' => 'panel-top-open', 'open' => request()->routeIs('audit.kka.*', 'audit.tabulasi.*'), 'children' => [
+                    ['label' => 'KKA', 'href' => route('audit.kka.index'), 'active' => request()->routeIs('audit.kka.*') && ! request()->routeIs('audit.kka.tabulasi.*')],
+                    ['label' => 'Tabulasi', 'href' => route('audit.tabulasi.index'), 'active' => request()->routeIs('audit.tabulasi.*', 'audit.kka.tabulasi.*')],
                 ]],
             ],
         ],
@@ -235,8 +236,12 @@
                     @foreach ($group['items'] as $item)
                         <li>
                             @if (! empty($item['children']))
-                                <div x-data="{ open: {{ ! empty($item['open']) ? 'true' : 'false' }} }">
-                                    <button type="button" x-on:click="open = !open" class="{{ $itemClass }}">
+                                @php
+                                    $hasActiveChild = collect($item['children'])->contains(fn ($c) => is_array($c) && ! empty($c['active']));
+                                    $isOpen = ! empty($item['open']) || $hasActiveChild;
+                                @endphp
+                                <div x-data="{ open: {{ $isOpen ? 'true' : 'false' }} }">
+                                    <button type="button" x-on:click="open = !open" class="{{ $itemClass }} {{ $hasActiveChild ? 'bg-neutral-100/70 font-medium text-neutral-900 dark:bg-neutral-800/70 dark:text-neutral-100' : '' }}">
                                         <x-dynamic-component :component="'lucide-'.$item['icon']"  class="h-4 w-4 shrink-0" />
                                         <span class="flex-1 truncate text-left group-[.rail]:lg:hidden">{{ $item['label'] }}</span>
                                         @if (! empty($item['pro']))
