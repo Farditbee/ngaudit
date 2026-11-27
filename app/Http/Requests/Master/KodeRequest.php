@@ -21,7 +21,7 @@ class KodeRequest extends FormRequest
         /** @var Kode|null $current */
         $current = $this->route('kode');
         $jenis = (string) $this->route('jenis');
-        $requiresTemuan = $jenis !== Kode::JENIS_TEMUAN;
+        $requiresTemuan = Kode::requiresTemuan($jenis);
 
         $uniqueRule = Rule::unique('kodes', 'kode')
             ->where('jenis', $jenis)

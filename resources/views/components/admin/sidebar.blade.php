@@ -21,6 +21,7 @@
                     ['label' => 'KKA', 'href' => route('audit.kka.index'), 'active' => request()->routeIs('audit.kka.*') && ! request()->routeIs('audit.kka.tabulasi.*')],
                     ['label' => 'Tabulasi', 'href' => route('audit.tabulasi.index'), 'active' => request()->routeIs('audit.tabulasi.*', 'audit.kka.tabulasi.*')],
                 ]],
+                ['label' => 'Auditee', 'icon' => 'book-user', 'children' => ['Tindak Lanjut Auditee', 'Dummy'], 'open' => false],
             ],
         ],
 
@@ -46,8 +47,8 @@
                     ['label' => 'Sub Kode Akibat', 'href' => route('master.sub-kode.index', 'akibat'), 'active' => request()->is('master/sub-kode/akibat')],
                     ['label' => 'Kode Rekomendasi', 'href' => route('master.kode.index', 'rekomendasi'), 'active' => request()->is('master/kode/rekomendasi')],
                     ['label' => 'Sub Kode Rekomendasi', 'href' => route('master.sub-kode.index', 'rekomendasi'), 'active' => request()->is('master/sub-kode/rekomendasi')],
-                    'Kode Tinjut',
-                    'Sub Kode Tinjut',
+                    ['label' => 'Kode Tinjut', 'href' => route('master.kode.index', 'tinjut'), 'active' => request()->is('master/kode/tinjut')],
+                    ['label' => 'Sub Kode Tinjut', 'href' => route('master.sub-kode.index', 'tinjut'), 'active' => request()->is('master/sub-kode/tinjut')],
                     ['label' => 'Kriteria', 'href' => route('master.kriteria.index'), 'active' => request()->routeIs('master.kriteria.*')],
                 ]],
             ],

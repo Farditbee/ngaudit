@@ -19,7 +19,7 @@ class KodeDataTable
             ['data' => 'DT_RowIndex', 'name' => 'DT_RowIndex', 'label' => '#', 'sortable' => false, 'searchable' => false, 'align' => 'center', 'width' => 'w-16'],
         ];
 
-        if ($jenis !== Kode::JENIS_TEMUAN) {
+        if (Kode::requiresTemuan($jenis)) {
             $columns[] = ['data' => 'temuan_label', 'name' => 'temuan_label', 'label' => 'KODE TEMUAN', 'sortable' => false, 'searchable' => true];
         }
 
@@ -36,7 +36,7 @@ class KodeDataTable
      */
     public function config(string $jenis): array
     {
-        $requiresTemuan = $jenis !== Kode::JENIS_TEMUAN;
+        $requiresTemuan = Kode::requiresTemuan($jenis);
 
         $parents = $requiresTemuan
             ? Kode::query()
@@ -75,7 +75,7 @@ class KodeDataTable
             ->with('kodeTemuan:id,kode,nama')
             ->withCount('subKodes');
 
-        if ($jenis !== Kode::JENIS_TEMUAN && $kodeTemuanId > 0) {
+        if (Kode::requiresTemuan($jenis) && $kodeTemuanId > 0) {
             $query->where('kodes.kode_temuan_id', $kodeTemuanId);
         }
 

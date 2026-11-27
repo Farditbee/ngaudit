@@ -51,6 +51,24 @@ class KodeSeeder extends Seeder
                 }
             }
         }
+
+        foreach ($this->tinjutData() as $kode => [$nama, $subKodes]) {
+            $tinjut = Kode::query()->updateOrCreate(
+                [
+                    'jenis' => Kode::JENIS_TINJUT,
+                    'kode_temuan_id' => null,
+                    'kode' => $kode,
+                ],
+                ['nama' => $nama],
+            );
+
+            foreach ($subKodes as $subKode => $subNama) {
+                SubKode::query()->updateOrCreate(
+                    ['kode_id' => $tinjut->id, 'kode' => $subKode],
+                    ['nama' => $subNama],
+                );
+            }
+        }
     }
 
     /**
@@ -652,6 +670,94 @@ class KodeSeeder extends Seeder
                     ]],
                 ],
             ],
+        ];
+    }
+
+    /**
+     * 15 Kode Induk Tinjut beserta Sub Kode Tinjut (tidak terikat dengan Kode Temuan).
+     *
+     * @return array<string, array{0: string, 1: array<string, string>}>
+     */
+    private function tinjutData(): array
+    {
+        return [
+            '01' => ['Penyetoran Uang ke Kas Negara/Daerah', [
+                '01.01' => 'Bukti setor pengembalian kerugian negara (SSPB/SSBP/NTPN) telah diverifikasi lunas',
+                '01.02' => 'Bukti setor pajak (PPN/PPh) dan denda keterlambatan telah diterima di Kas Negara',
+                '01.03' => 'Penyetoran sisa UP/TUP dan penerimaan PNBP telah tercatat pada rekening Kas Negara',
+                '01.04' => 'Angsuran tuntutan ganti rugi (TGR) telah disetorkan sesuai jadwal SKTJM',
+            ]],
+            '02' => ['Pemotongan atau Perhitungan Pembayaran Termin', [
+                '02.01' => 'Berita acara pemotongan pembayaran termin terakhir atas kekurangan volume pekerjaan',
+                '02.02' => 'Bukti pemotongan tagihan penyedia atas kelebihan pembayaran harga satuan',
+                '02.03' => 'Kompensasi nilai denda keterlambatan pada SPM pembayaran akhir',
+            ]],
+            '03' => ['Pencairan Jaminan Bank / Garansi', [
+                '03.01' => 'Bukti pencairan jaminan pelaksanaan atas pemutusan kontrak wanprestasi',
+                '03.02' => 'Bukti pencairan jaminan uang muka dan penyetoran ke Kas Negara',
+                '03.03' => 'Bukti klaim jaminan pemeliharaan atas cacat mutu pekerjaan',
+            ]],
+            '04' => ['Perbaikan atau Penggantian Fisik Pekerjaan/Barang', [
+                '04.01' => 'Berita Acara Pemeriksaan Fisik penyelesaian kekurangan volume pekerjaan konstruksi',
+                '04.02' => 'Berita Acara penggantian barang pengadaan sesuai spesifikasi teknis kontrak',
+                '04.03' => 'Dokumentasi dan hasil uji mutu perbaikan pekerjaan selama masa pemeliharaan',
+            ]],
+            '05' => ['Penarikan, Pengamanan, dan Sertifikasi Aset (BMN)', [
+                '05.01' => 'Berita Acara penarikan kembali kendaraan/aset negara dari pihak yang tidak berhak',
+                '05.02' => 'Pengurusan sertifikat kepemilikan tanah/bangunan dan pengamanan fisik BMN',
+                '05.03' => 'Pencatatan dan pemutakhiran daftar inventaris barang pada aplikasi SIMAK-BMN/SAKTI',
+                '05.04' => 'Persetujuan pemanfaatan/sewa atau penghapusan BMN dari Pengelola Barang',
+            ]],
+            '06' => ['Penyusunan dan Penetapan SOP / Kebijakan Internal', [
+                '06.01' => 'Penetapan Standar Operasional Prosedur (SOP) baru oleh pimpinan satuan kerja',
+                '06.02' => 'Revisi petunjuk teknis atau pedoman kerja selaras dengan regulasi terbaru',
+                '06.03' => 'Penetapan Standar Pelayanan (SP) dan maklumat pelayanan publik',
+            ]],
+            '07' => ['Penerbitan Teguran Tertulis dan Sanksi Administratif', [
+                '07.01' => 'Surat teguran tertulis kepada PPK, Pokja Pemilihan, atau Pejabat Pengadaan',
+                '07.02' => 'Surat peringatan/teguran tertulis kepada Bendahara atau pelaksana kegiatan',
+                '07.03' => 'Surat peringatan dan penetapan daftar hitam (Blacklist) kepada penyedia barang/jasa',
+            ]],
+            '08' => ['Penjatuhan Hukuman Disiplin Pegawai', [
+                '08.01' => 'Surat Keputusan penjatuhan hukuman disiplin ringan kepada pegawai terkait',
+                '08.02' => 'Surat Keputusan penjatuhan hukuman disiplin sedang sesuai PP Disiplin PNS',
+                '08.03' => 'Surat Keputusan penjatuhan hukuman disiplin berat atau pemberhentian dari jabatan',
+            ]],
+            '09' => ['Kelengkapan Dokumen Pertanggungjawaban dan Kearsipan', [
+                '09.01' => 'Penyampaian kelengkapan bukti pertanggungjawaban belanja dan perjalanan dinas',
+                '09.02' => 'Penertiban register penomoran surat, SK, kontrak, dan berita acara serah terima',
+                '09.03' => 'Penataan arsip terpusat dan digitalisasi dokumen kontrak/keuangan',
+            ]],
+            '10' => ['Koreksi Akuntansi, Pembukuan, dan Revisi Anggaran', [
+                '10.01' => 'Bukti ralat SPM/SP2D dan jurnal koreksi kesalahan akun belanja pada aplikasi SAKTI',
+                '10.02' => 'Pengesahan revisi DIPA/POK dan pemutakhiran Rencana Penarikan Dana (Halaman III DIPA)',
+                '10.03' => 'Berita Acara Rekonsiliasi (BAR) kas, pajak, PNBP, dan aset dengan KPPN/KPKNL',
+            ]],
+            '11' => ['Penataan Organisasi, Tupoksi, dan Pendelegasian Wewenang', [
+                '11.01' => 'Surat Keputusan penetapan uraian tugas, pemisahan fungsi, dan pendelegasian wewenang',
+                '11.02' => 'Pembentukan atau revitalisasi Satgas SPIP dan tim kerja beserta rencana kerjanya',
+                '11.03' => 'Notula dan bukti pelaksanaan rapat koordinasi berkala lintas unit kerja',
+            ]],
+            '12' => ['Pembinaan, Pelatihan, dan Sertifikasi SDM', [
+                '12.01' => 'Sertifikat kelulusan ujian kompetensi Pengadaan Barang/Jasa atau Bendahara Negara (BNT)',
+                '12.02' => 'Laporan pelaksanaan bimbingan teknis, sosialisasi regulasi, atau diklat pegawai',
+                '12.03' => 'Pemutakhiran dokumen Anjab-ABK dan penataan distribusi penempatan pegawai',
+            ]],
+            '13' => ['Perbaikan Perencanaan, IKU, dan Laporan Kinerja', [
+                '13.01' => 'Dokumen reviu Indikator Kinerja Utama (IKU) dan Perjanjian Kinerja berorientasi outcome',
+                '13.02' => 'Laporan monitoring evaluasi kinerja triwulanan dan validasi bukti dukung LKj/LAKIP',
+                '13.03' => 'Berita acara serah terima operasionalisasi dan pemanfaatan output kegiatan',
+            ]],
+            '14' => ['Pengembangan dan Integrasi Sistem Informasi', [
+                '14.01' => 'Implementasi atau pemutakhiran modul aplikasi pelayanan dan pengendalian internal',
+                '14.02' => 'Penertiban otorisasi hak akses pengguna (user access matrix) pada sistem informasi',
+                '14.03' => 'Pemutakhiran dan validasi akurasi basis data operasional satuan kerja',
+            ]],
+            '15' => ['Pelimpahan Proses Hukum / Penyelesaian Khusus', [
+                '15.01' => 'Penerbitan SK Pembebanan Penggantian Kerugian Negara melalui Majelis TP-TGR',
+                '15.02' => 'Penyerahan pengurusan piutang negara macet kepada PUPN/KPKNL',
+                '15.03' => 'Pelimpahan berkas pemeriksaan berindikasi tindak pidana kepada Aparat Penegak Hukum (APH)',
+            ]],
         ];
     }
 }

@@ -22,7 +22,7 @@ class KodeController extends Controller
         return view('master.kode.index', [
             'jenis' => $jenis,
             'isSub' => false,
-            'requiresTemuan' => $jenis !== Kode::JENIS_TEMUAN,
+            'requiresTemuan' => Kode::requiresTemuan($jenis),
             'title' => 'Kode '.ucfirst($jenis),
             'tableConfig' => $dataTable->config($jenis),
         ]);
@@ -34,7 +34,7 @@ class KodeController extends Controller
 
         $kode = Kode::query()->create([
             'jenis' => $jenis,
-            'kode_temuan_id' => $jenis !== Kode::JENIS_TEMUAN ? $validated['kode_temuan_id'] : null,
+            'kode_temuan_id' => Kode::requiresTemuan($jenis) ? $validated['kode_temuan_id'] : null,
             'kode' => trim($validated['kode']),
             'nama' => trim($validated['nama']),
         ]);
@@ -52,7 +52,7 @@ class KodeController extends Controller
         $validated = $request->validated();
 
         $kode->update([
-            'kode_temuan_id' => $jenis !== Kode::JENIS_TEMUAN ? $validated['kode_temuan_id'] : null,
+            'kode_temuan_id' => Kode::requiresTemuan($jenis) ? $validated['kode_temuan_id'] : null,
             'kode' => trim($validated['kode']),
             'nama' => trim($validated['nama']),
         ]);

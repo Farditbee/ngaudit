@@ -52,6 +52,11 @@ class KodeMasterTest extends TestCase
         $this->assertSame('Pelanggaran Terhadap Peraturan Perundang-Undangan', $temuans->firstWhere('kode', '03')?->nama);
         $this->assertSame('Pelanggaran Disiplin Anggaran', $temuans->firstWhere('kode', '05')?->nama);
 
+        // Kode Tinjut memiliki 15 kode induk dan tidak terikat dengan kode temuan
+        $tinjuts = Kode::query()->where('jenis', Kode::JENIS_TINJUT)->orderBy('kode')->get();
+        $this->assertCount(15, $tinjuts);
+        $this->assertTrue($tinjuts->every(fn (Kode $t): bool => $t->kode_temuan_id === null && $t->subKodes()->count() > 0));
+
         // Kode Sebab, Akibat, Rekomendasi semuanya terikat ke kode_temuan_id
         foreach ([Kode::JENIS_SEBAB, Kode::JENIS_AKIBAT, Kode::JENIS_REKOMENDASI] as $jenis) {
             $this->assertSame(0, Kode::query()->where('jenis', $jenis)->whereNull('kode_temuan_id')->count());

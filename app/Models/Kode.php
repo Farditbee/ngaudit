@@ -22,6 +22,8 @@ class Kode extends Model
 
     public const JENIS_REKOMENDASI = 'rekomendasi';
 
+    public const JENIS_TINJUT = 'tinjut';
+
     /**
      * @var list<string>
      */
@@ -30,7 +32,17 @@ class Kode extends Model
         self::JENIS_SEBAB,
         self::JENIS_AKIBAT,
         self::JENIS_REKOMENDASI,
+        self::JENIS_TINJUT,
     ];
+
+    public static function requiresTemuan(string $jenis): bool
+    {
+        return in_array($jenis, [
+            self::JENIS_SEBAB,
+            self::JENIS_AKIBAT,
+            self::JENIS_REKOMENDASI,
+        ], true);
+    }
 
     /**
      * @var list<string>
