@@ -170,6 +170,9 @@ class KkaDataTable
             ->addColumn('tabulasi_url', fn (Kka $k): string => route('audit.kka.tabulasi.index', [$k, 'tabulasi']))
             ->addColumn('konsultasi_url', fn (Kka $k): string => route('audit.kka.tabulasi.index', [$k, 'konsultasi']))
             ->addColumn('positif_url', fn (Kka $k): string => route('audit.kka.tabulasi.index', [$k, 'positif']))
+            ->addColumn('tinjut_temuan_url', fn (Kka $k): string => route('audit.tindak-lanjut.show', [$k, 'tabulasi']))
+            ->addColumn('tinjut_konsultasi_url', fn (Kka $k): string => route('audit.tindak-lanjut.show', [$k, 'konsultasi']))
+            ->addColumn('tinjut_positif_url', fn (Kka $k): string => route('audit.tindak-lanjut.show', [$k, 'positif']))
             ->addColumn('print_url', fn (Kka $k): string => route('audit.kka.print', $k));
 
         foreach (KkaReview::TYPES as $type) {

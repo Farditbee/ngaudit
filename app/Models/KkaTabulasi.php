@@ -6,6 +6,7 @@ use Database\Factories\KkaTabulasiFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class KkaTabulasi extends Model
@@ -37,6 +38,26 @@ class KkaTabulasi extends Model
     public const STATUSES = [
         'Draft',
         'Final',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    public const STATUS_TINJUTS = [
+        'Belum Ditinjut',
+        'Dalam Proses',
+        'Belum Sesuai',
+        'Selesai',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    public const KESIMPULAN_TINJUTS = [
+        'Sesuai Rekomendasi',
+        'Belum Sesuai / Dalam Proses',
+        'Belum Ditindaklanjuti',
+        'Tidak Dapat Ditindaklanjuti',
     ];
 
     /**
@@ -77,6 +98,15 @@ class KkaTabulasi extends Model
         'uraian_rekomendasi',
         'auditor_id',
         'status',
+        'status_tinjut',
+        'kode_tinjut_id',
+        'sub_kode_tinjut_id',
+        'tindak_lanjut',
+        'nilai_pengembalian',
+        'kesimpulan_tinjut',
+        'alasan_tinjut',
+        'lampiran_tinjut_path',
+        'lampiran_tinjut_name',
         'created_by',
     ];
 
@@ -87,6 +117,7 @@ class KkaTabulasi extends Model
     {
         return [
             'nilai_temuan' => 'decimal:2',
+            'nilai_pengembalian' => 'decimal:2',
         ];
     }
 
@@ -147,6 +178,26 @@ class KkaTabulasi extends Model
     public function subKodeRekomendasi(): BelongsTo
     {
         return $this->belongsTo(SubKode::class, 'sub_kode_rekomendasi_id');
+    }
+
+    public function kodeTinjut(): BelongsTo
+    {
+        return $this->belongsTo(Kode::class, 'kode_tinjut_id');
+    }
+
+    public function subKodeTinjut(): BelongsTo
+    {
+        return $this->belongsTo(SubKode::class, 'sub_kode_tinjut_id');
+    }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(KkaTabulasiMessage::class, 'kka_tabulasi_id')->orderBy('id');
+    }
+
+    public function lampirans(): HasMany
+    {
+        return $this->hasMany(KkaTabulasiLampiran::class, 'kka_tabulasi_id')->latest('id');
     }
 
     public function auditor(): BelongsTo

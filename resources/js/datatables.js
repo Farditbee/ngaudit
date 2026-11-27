@@ -163,11 +163,103 @@ function getTodayLocalDate() {
 function getTipTapToolbarMethods() {
     return {
         getActiveEditor() {
-            return this.editors[this.activeTab] || null;
+            if (this.editor) {
+                return this.editor;
+            }
+            return this.editors?.[this.activeTab] || null;
         },
         isActive(name, opts = {}) {
             const editor = this.getActiveEditor();
             return editor ? editor.isActive(name, opts) : false;
+        },
+        currentFontFamily() {
+            const editor = this.getActiveEditor();
+            if (!editor) return '';
+            return editor.getAttributes('fontStyle')?.fontFamily || '';
+        },
+        setFontFamily(fontFamily) {
+            const editor = this.getActiveEditor();
+            if (!editor) return;
+            if (!fontFamily) {
+                editor.chain().focus().unsetFontFamily().run();
+            } else {
+                editor.chain().focus().setFontFamily(fontFamily).run();
+            }
+        },
+        currentFontSize() {
+            const editor = this.getActiveEditor();
+            if (!editor) return '11pt';
+            return editor.getAttributes('fontStyle')?.fontSize || '11pt';
+        },
+        setFontSize(fontSize) {
+            const editor = this.getActiveEditor();
+            if (!editor) return;
+            if (!fontSize) {
+                editor.chain().focus().unsetFontSize().run();
+            } else {
+                editor.chain().focus().setFontSize(fontSize).run();
+            }
+        },
+        currentLineHeight() {
+            const editor = this.getActiveEditor();
+            if (!editor) return '1.5';
+            return (
+                editor.getAttributes('paragraph')?.lineHeight ||
+                editor.getAttributes('heading')?.lineHeight ||
+                '1.5'
+            );
+        },
+        setLineHeight(lineHeight) {
+            const editor = this.getActiveEditor();
+            if (!editor) return;
+            editor.chain().focus().setLineHeight(String(lineHeight)).run();
+        },
+        currentListStyle() {
+            const editor = this.getActiveEditor();
+            if (!editor) return '';
+            if (editor.isActive('orderedList')) {
+                return editor.getAttributes('orderedList')?.listStyleType || 'decimal';
+            }
+            if (editor.isActive('bulletList')) {
+                return editor.getAttributes('bulletList')?.listStyleType || 'disc';
+            }
+            return '';
+        },
+        setOrderedListStyle(styleType = 'decimal') {
+            const editor = this.getActiveEditor();
+            if (!editor) return;
+            if (!editor.isActive('orderedList')) {
+                editor
+                    .chain()
+                    .focus()
+                    .toggleOrderedList()
+                    .updateAttributes('orderedList', { listStyleType: styleType })
+                    .run();
+            } else {
+                editor
+                    .chain()
+                    .focus()
+                    .updateAttributes('orderedList', { listStyleType: styleType })
+                    .run();
+            }
+        },
+        setBulletListStyle(styleType = 'disc') {
+            const editor = this.getActiveEditor();
+            if (!editor) return;
+            if (!editor.isActive('bulletList')) {
+                editor
+                    .chain()
+                    .focus()
+                    .toggleBulletList()
+                    .updateAttributes('bulletList', { listStyleType: styleType })
+                    .run();
+            } else {
+                editor
+                    .chain()
+                    .focus()
+                    .updateAttributes('bulletList', { listStyleType: styleType })
+                    .run();
+            }
         },
         toggleBold() {
             this.getActiveEditor()?.chain().focus().toggleBold().run();
@@ -224,7 +316,9 @@ function getTipTapToolbarMethods() {
             return Boolean(this.getActiveEditor()?.can().redo());
         },
         insertTable(rows = 3, cols = 3) {
-            this.getActiveEditor()?.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run();
+            const r = Math.max(1, Math.min(50, Number(rows) || 3));
+            const c = Math.max(1, Math.min(20, Number(cols) || 3));
+            this.getActiveEditor()?.chain().focus().insertTable({ rows: r, cols: c, withHeaderRow: true }).run();
         },
         addColumnAfter() {
             this.getActiveEditor()?.chain().focus().addColumnAfter().run();
@@ -277,6 +371,9 @@ function getTipTapToolbarMethods() {
                     // Safe fallback
                 }
             }
+        },
+        focusEditor(e) {
+            this.focusActiveEditor(e);
         },
     };
 }
@@ -4093,117 +4190,7 @@ export function registerDataTables(Alpine) {
         },
 
         // TipTap Editor & Toolbar Helpers
-        getActiveEditor() {
-            return this.editor;
-        },
-        isActive(name, opts = {}) {
-            return this.editor ? this.editor.isActive(name, opts) : false;
-        },
-        toggleBold() {
-            this.editor?.chain().focus().toggleBold().run();
-        },
-        toggleItalic() {
-            this.editor?.chain().focus().toggleItalic().run();
-        },
-        toggleUnderline() {
-            this.editor?.chain().focus().toggleUnderline().run();
-        },
-        toggleStrike() {
-            this.editor?.chain().focus().toggleStrike().run();
-        },
-        toggleSubscript() {
-            this.editor?.chain().focus().toggleSubscript().run();
-        },
-        toggleSuperscript() {
-            this.editor?.chain().focus().toggleSuperscript().run();
-        },
-        setHeading(level) {
-            if (!this.editor) return;
-            if (level === 0) {
-                this.editor.chain().focus().setParagraph().run();
-            } else {
-                this.editor.chain().focus().toggleHeading({ level }).run();
-            }
-        },
-        toggleBulletList() {
-            this.editor?.chain().focus().toggleBulletList().run();
-        },
-        toggleOrderedList() {
-            this.editor?.chain().focus().toggleOrderedList().run();
-        },
-        sinkListItem() {
-            this.editor?.chain().focus().sinkListItem('listItem').run();
-        },
-        liftListItem() {
-            this.editor?.chain().focus().liftListItem('listItem').run();
-        },
-        setTextAlign(alignment) {
-            this.editor?.chain().focus().setTextAlign(alignment).run();
-        },
-        undo() {
-            this.editor?.chain().focus().undo().run();
-        },
-        redo() {
-            this.editor?.chain().focus().redo().run();
-        },
-        canUndo() {
-            return Boolean(this.editor?.can().undo());
-        },
-        canRedo() {
-            return Boolean(this.editor?.can().redo());
-        },
-        insertTable(rows = 3, cols = 3) {
-            this.editor?.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run();
-        },
-        addColumnAfter() {
-            this.editor?.chain().focus().addColumnAfter().run();
-        },
-        deleteColumn() {
-            this.editor?.chain().focus().deleteColumn().run();
-        },
-        addRowAfter() {
-            this.editor?.chain().focus().addRowAfter().run();
-        },
-        deleteRow() {
-            this.editor?.chain().focus().deleteRow().run();
-        },
-        deleteTable() {
-            this.editor?.chain().focus().deleteTable().run();
-        },
-        setLink() {
-            if (!this.editor) return;
-            const previousUrl = this.editor.getAttributes('link').href;
-            const url = window.prompt('Masukkan URL Link:', previousUrl);
-            if (url === null) return;
-            if (url === '') {
-                this.editor.chain().focus().extendMarkRange('link').unsetLink().run();
-                return;
-            }
-            this.editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
-        },
-        insertImage() {
-            if (!this.editor) return;
-            const url = window.prompt('Masukkan URL Gambar / Embed:');
-            if (url) {
-                this.editor.chain().focus().setImage({ src: url }).run();
-            }
-        },
-        clearFormatting() {
-            this.editor?.chain().focus().unsetAllMarks().clearNodes().run();
-        },
-        focusEditor(e) {
-            if (!this.editor) return;
-            if (e && e.target && e.target.closest && e.target.closest('.ProseMirror')) {
-                return;
-            }
-            if (!this.editor.isFocused) {
-                try {
-                    this.editor.commands.focus('end');
-                } catch (err) {
-                    // Safe fallback
-                }
-            }
-        },
+        ...getTipTapToolbarMethods(),
         decodeHtml(html) {
             if (!html || typeof html !== 'string') return '';
             if (html.includes('&lt;') || html.includes('&gt;') || html.includes('&amp;')) {
@@ -4497,117 +4484,7 @@ export function registerDataTables(Alpine) {
         },
 
         // TipTap Editor & Toolbar Helpers
-        getActiveEditor() {
-            return this.editor;
-        },
-        isActive(name, opts = {}) {
-            return this.editor ? this.editor.isActive(name, opts) : false;
-        },
-        toggleBold() {
-            this.editor?.chain().focus().toggleBold().run();
-        },
-        toggleItalic() {
-            this.editor?.chain().focus().toggleItalic().run();
-        },
-        toggleUnderline() {
-            this.editor?.chain().focus().toggleUnderline().run();
-        },
-        toggleStrike() {
-            this.editor?.chain().focus().toggleStrike().run();
-        },
-        toggleSubscript() {
-            this.editor?.chain().focus().toggleSubscript().run();
-        },
-        toggleSuperscript() {
-            this.editor?.chain().focus().toggleSuperscript().run();
-        },
-        setHeading(level) {
-            if (!this.editor) return;
-            if (level === 0) {
-                this.editor.chain().focus().setParagraph().run();
-            } else {
-                this.editor.chain().focus().toggleHeading({ level }).run();
-            }
-        },
-        toggleBulletList() {
-            this.editor?.chain().focus().toggleBulletList().run();
-        },
-        toggleOrderedList() {
-            this.editor?.chain().focus().toggleOrderedList().run();
-        },
-        sinkListItem() {
-            this.editor?.chain().focus().sinkListItem('listItem').run();
-        },
-        liftListItem() {
-            this.editor?.chain().focus().liftListItem('listItem').run();
-        },
-        setTextAlign(alignment) {
-            this.editor?.chain().focus().setTextAlign(alignment).run();
-        },
-        undo() {
-            this.editor?.chain().focus().undo().run();
-        },
-        redo() {
-            this.editor?.chain().focus().redo().run();
-        },
-        canUndo() {
-            return Boolean(this.editor?.can().undo());
-        },
-        canRedo() {
-            return Boolean(this.editor?.can().redo());
-        },
-        insertTable(rows = 3, cols = 3) {
-            this.editor?.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run();
-        },
-        addColumnAfter() {
-            this.editor?.chain().focus().addColumnAfter().run();
-        },
-        deleteColumn() {
-            this.editor?.chain().focus().deleteColumn().run();
-        },
-        addRowAfter() {
-            this.editor?.chain().focus().addRowAfter().run();
-        },
-        deleteRow() {
-            this.editor?.chain().focus().deleteRow().run();
-        },
-        deleteTable() {
-            this.editor?.chain().focus().deleteTable().run();
-        },
-        setLink() {
-            if (!this.editor) return;
-            const previousUrl = this.editor.getAttributes('link').href;
-            const url = window.prompt('Masukkan URL Link:', previousUrl);
-            if (url === null) return;
-            if (url === '') {
-                this.editor.chain().focus().extendMarkRange('link').unsetLink().run();
-                return;
-            }
-            this.editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
-        },
-        insertImage() {
-            if (!this.editor) return;
-            const url = window.prompt('Masukkan URL Gambar / Embed:');
-            if (url) {
-                this.editor.chain().focus().setImage({ src: url }).run();
-            }
-        },
-        clearFormatting() {
-            this.editor?.chain().focus().unsetAllMarks().clearNodes().run();
-        },
-        focusEditor(e) {
-            if (!this.editor) return;
-            if (e && e.target && e.target.closest && e.target.closest('.ProseMirror')) {
-                return;
-            }
-            if (!this.editor.isFocused) {
-                try {
-                    this.editor.commands.focus('end');
-                } catch (err) {
-                    // Safe fallback
-                }
-            }
-        },
+        ...getTipTapToolbarMethods(),
         decodeHtml(html) {
             if (!html || typeof html !== 'string') return '';
             if (html.includes('&lt;') || html.includes('&gt;') || html.includes('&amp;')) {
@@ -6596,6 +6473,409 @@ export function registerDataTables(Alpine) {
                 row.updatingStatus = false;
             }
         },
+        };
+    });
+
+    Alpine.data('tindakLanjutAuditeePage', (config) => {
+        let rawEditor = null;
+
+        return {
+            ...getTipTapToolbarMethods(),
+            baseUrl: config.baseUrl,
+            jenisTabulasi: config.jenisTabulasi || 'Temuan',
+            canUjiNilaiRole: Boolean(config.canUjiNilaiRole),
+            userRole: config.userRole || '',
+            rows: config.items || [],
+            kodeTinjuts: config.kodeTinjuts || [],
+            statusTinjuts: config.statusTinjuts || ['Belum Ditinjut', 'Dalam Proses', 'Belum Sesuai', 'Selesai'],
+            kesimpulanTinjuts: config.kesimpulanTinjuts || [],
+            showCompleted: true,
+            tanggapiModalOpen: false,
+            sidebarTab: 'informasi',
+            activeRow: null,
+            activeTab: 'tindak_lanjut',
+            saving: false,
+            savingUji: false,
+            sendingChat: false,
+            uploadingLampiran: false,
+            lampiranFile: null,
+            chatFile: null,
+            chatError: '',
+            chatForm: {
+                pesan: '',
+            },
+            form: {
+                status_tinjut: 'Belum Ditinjut',
+                kode_tinjut_id: '',
+                sub_kode_tinjut_id: '',
+                tindak_lanjut: '',
+                nilai_pengembalian: '',
+            },
+            ujiForm: {
+                kesimpulan_tinjut: '',
+                alasan_tinjut: '',
+                status_tinjut: 'Dalam Proses',
+            },
+            lampiranForm: {
+                jenis_unggahan: 'file',
+                link_url: '',
+                keterangan: '',
+            },
+            errors: {},
+            ujiErrors: {},
+            lampiranErrors: {},
+
+            get filteredRows() {
+                if (this.showCompleted) {
+                    return this.rows;
+                }
+                return this.rows.filter((r) => r.status_tinjut !== 'Selesai');
+            },
+            get canEditUjiNilai() {
+                return Boolean(this.canUjiNilaiRole && this.activeRow?.has_tinjut);
+            },
+            get kodeTinjutOptions() {
+                return this.kodeTinjuts.map((k) => ({ code: String(k.id), name: k.name }));
+            },
+            get selectedKodeTinjut() {
+                if (!this.form.kode_tinjut_id) return null;
+                return this.kodeTinjuts.find((k) => String(k.id) === String(this.form.kode_tinjut_id)) || null;
+            },
+            get subKodeTinjutOptions() {
+                const kt = this.selectedKodeTinjut;
+                if (!kt || !Array.isArray(kt.sub_kodes)) return [];
+                return kt.sub_kodes.map((s) => ({ code: String(s.id), name: s.name }));
+            },
+
+            formatRupiahInput(val) {
+                if (val === null || val === undefined || val === '') return '';
+                const numStr = String(val).split('.')[0].replace(/\D/g, '');
+                if (!numStr) return '';
+                return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            },
+            onNilaiPengembalianInput(e) {
+                const digits = String(e.target.value || '').replace(/\D/g, '');
+                this.form.nilai_pengembalian = digits;
+                e.target.value = this.formatRupiahInput(digits);
+            },
+
+            csrfToken() {
+                return document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '';
+            },
+            showFlash(message, type = 'success') {
+                window.notify.show(type, message);
+            },
+            getActiveEditor() {
+                return rawEditor;
+            },
+            mountEditor() {
+                const el = this.$refs?.editor_tindak_lanjut || document.querySelector('[data-tinjut-editor="tindak_lanjut"]');
+                if (!el) return;
+                if (rawEditor) {
+                    try {
+                        rawEditor.destroy();
+                    } catch (e) {
+                        // Ignore
+                    }
+                    rawEditor = null;
+                }
+                el.innerHTML = '';
+                rawEditor = createTipTapEditor({
+                    element: el,
+                    content: this.form.tindak_lanjut || '',
+                    onUpdate: (html) => {
+                        this.form.tindak_lanjut = html;
+                    },
+                });
+            },
+            destroyEditor() {
+                if (rawEditor) {
+                    try {
+                        rawEditor.destroy();
+                    } catch (e) {
+                        // Ignore
+                    }
+                    rawEditor = null;
+                }
+                const el = this.$refs?.editor_tindak_lanjut || document.querySelector('[data-tinjut-editor="tindak_lanjut"]');
+                if (el) {
+                    el.innerHTML = '';
+                }
+            },
+            setEditorContent(html) {
+                this.form.tindak_lanjut = html;
+                this.mountEditor();
+            },
+            buildKodeUraianHtml(mainObj, subObj = null) {
+                if (!mainObj) return '';
+                let html = `<p>(${mainObj.kode}) - ${mainObj.nama}</p>`;
+                if (subObj) {
+                    html += `<p>(${subObj.kode}) - ${subObj.nama}</p>`;
+                }
+                return html;
+            },
+            onKodeTinjutChange() {
+                this.form.sub_kode_tinjut_id = '';
+                const kt = this.selectedKodeTinjut;
+                this.setEditorContent(this.buildKodeUraianHtml(kt, null));
+            },
+            onSubKodeTinjutChange() {
+                const kt = this.selectedKodeTinjut;
+                if (!kt) return;
+                const sub = (kt.sub_kodes || []).find((s) => String(s.id) === String(this.form.sub_kode_tinjut_id)) || null;
+                this.setEditorContent(this.buildKodeUraianHtml(kt, sub));
+            },
+
+            switchSidebarTab(tab) {
+                if (this.sidebarTab === 'informasi' && rawEditor) {
+                    this.form.tindak_lanjut = rawEditor.getHTML();
+                }
+                this.sidebarTab = tab;
+                if (tab === 'informasi') {
+                    this.$nextTick(() => {
+                        this.mountEditor();
+                    });
+                }
+            },
+
+            syncActiveRow(updated) {
+                if (!updated) return;
+                const idx = this.rows.findIndex((r) => r.id === updated.id);
+                if (idx !== -1) {
+                    this.rows[idx] = updated;
+                }
+                this.activeRow = updated;
+                this.ujiForm.kesimpulan_tinjut = updated.kesimpulan_tinjut || '';
+                this.ujiForm.alasan_tinjut = updated.alasan_tinjut || '';
+                this.ujiForm.status_tinjut = updated.status_tinjut || 'Dalam Proses';
+            },
+
+            openTanggapiModal(row, initialTab = 'informasi') {
+                this.destroyEditor();
+                this.activeRow = row;
+                this.sidebarTab = initialTab;
+                this.errors = {};
+                this.ujiErrors = {};
+                this.lampiranErrors = {};
+                this.chatError = '';
+                this.chatForm = { pesan: '' };
+                this.chatFile = null;
+                this.lampiranFile = null;
+                if (this.$refs.chatFileInput) this.$refs.chatFileInput.value = '';
+                if (this.$refs.lampiranInput) this.$refs.lampiranInput.value = '';
+
+                this.form = {
+                    status_tinjut: row.status_tinjut || 'Belum Ditinjut',
+                    kode_tinjut_id: row.kode_tinjut_id ? String(row.kode_tinjut_id) : '',
+                    sub_kode_tinjut_id: row.sub_kode_tinjut_id ? String(row.sub_kode_tinjut_id) : '',
+                    tindak_lanjut: row.tindak_lanjut || '',
+                    nilai_pengembalian: row.nilai_pengembalian ? String(row.nilai_pengembalian) : '',
+                };
+                this.ujiForm = {
+                    kesimpulan_tinjut: row.kesimpulan_tinjut || '',
+                    alasan_tinjut: row.alasan_tinjut || '',
+                    status_tinjut: row.status_tinjut && row.status_tinjut !== 'Belum Ditinjut' ? row.status_tinjut : 'Dalam Proses',
+                };
+                this.lampiranForm = {
+                    jenis_unggahan: 'file',
+                    link_url: '',
+                    keterangan: '',
+                };
+
+                this.tanggapiModalOpen = true;
+                this.$nextTick(() => {
+                    this.mountEditor();
+                });
+            },
+            closeTanggapiModal() {
+                if (this.saving || this.savingUji || this.uploadingLampiran || this.sendingChat) return;
+                this.tanggapiModalOpen = false;
+                this.destroyEditor();
+                this.activeRow = null;
+            },
+
+            onChatFileSelect(e) {
+                const files = e.target.files;
+                this.chatFile = files && files.length > 0 ? files[0] : null;
+            },
+            async sendChatMessage() {
+                if (!this.activeRow) return;
+                this.sendingChat = true;
+                this.chatError = '';
+
+                const formData = new FormData();
+                if (this.chatForm.pesan && this.chatForm.pesan.trim() !== '') {
+                    formData.append('pesan', this.chatForm.pesan.trim());
+                }
+                if (this.chatFile) {
+                    formData.append('file', this.chatFile);
+                }
+
+                try {
+                    const response = await fetch(`${this.baseUrl}/tabulasi/${this.activeRow.id}/messages`, {
+                        method: 'POST',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-CSRF-TOKEN': this.csrfToken(),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: formData,
+                    });
+
+                    const json = await response.json();
+                    if (response.status === 422) {
+                        const errs = json.errors || {};
+                        this.chatError = errs.pesan?.[0] || errs.file?.[0] || json.message || 'Pesan atau file wajib diisi.';
+                        return;
+                    }
+                    if (!response.ok) {
+                        throw new Error(json.message || 'Gagal mengirim pesan.');
+                    }
+
+                    this.syncActiveRow(json.data);
+                    this.chatForm.pesan = '';
+                    this.chatFile = null;
+                    if (this.$refs.chatFileInput) {
+                        this.$refs.chatFileInput.value = '';
+                    }
+                    this.showFlash(json.message || 'Pesan berhasil dikirim.');
+                } catch (e) {
+                    console.error(e);
+                    this.chatError = e.message || 'Terjadi kesalahan saat mengirim pesan.';
+                } finally {
+                    this.sendingChat = false;
+                }
+            },
+
+            async saveTanggapan() {
+                if (!this.activeRow) return;
+                this.saving = true;
+                this.errors = {};
+
+                if (rawEditor) {
+                    this.form.tindak_lanjut = rawEditor.getHTML();
+                }
+
+                try {
+                    const response = await fetch(`${this.baseUrl}/tabulasi/${this.activeRow.id}/tanggapan`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json',
+                            'X-CSRF-TOKEN': this.csrfToken(),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify(this.form),
+                    });
+
+                    const json = await response.json();
+                    if (response.status === 422) {
+                        this.errors = json.errors || {};
+                        return;
+                    }
+                    if (!response.ok) {
+                        throw new Error(json.message || 'Gagal menyimpan tindak lanjut.');
+                    }
+
+                    this.syncActiveRow(json.data);
+                    this.showFlash(json.message || 'Tindak lanjut berhasil disimpan.');
+                } catch (e) {
+                    console.error(e);
+                    this.showFlash(e.message || 'Terjadi kesalahan.', 'error');
+                } finally {
+                    this.saving = false;
+                }
+            },
+
+            async saveUjiNilai() {
+                if (!this.activeRow) return;
+                this.savingUji = true;
+                this.ujiErrors = {};
+
+                try {
+                    const response = await fetch(`${this.baseUrl}/tabulasi/${this.activeRow.id}/uji-nilai`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json',
+                            'X-CSRF-TOKEN': this.csrfToken(),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify(this.ujiForm),
+                    });
+
+                    const json = await response.json();
+                    if (response.status === 422) {
+                        this.ujiErrors = json.errors || {};
+                        return;
+                    }
+                    if (!response.ok) {
+                        throw new Error(json.message || 'Gagal menyimpan Uji Nilai.');
+                    }
+
+                    this.syncActiveRow(json.data);
+                    this.showFlash(json.message || 'Hasil Uji Nilai berhasil disimpan.');
+                } catch (e) {
+                    console.error(e);
+                    this.showFlash(e.message || 'Terjadi kesalahan.', 'error');
+                } finally {
+                    this.savingUji = false;
+                }
+            },
+
+            onFileSelect(e) {
+                const files = e.target.files;
+                this.lampiranFile = files && files.length > 0 ? files[0] : null;
+            },
+            async uploadLampiran() {
+                if (!this.activeRow) return;
+                this.uploadingLampiran = true;
+                this.lampiranErrors = {};
+
+                const formData = new FormData();
+                formData.append('jenis_unggahan', this.lampiranForm.jenis_unggahan);
+                formData.append('keterangan', this.lampiranForm.keterangan || '');
+                if (this.lampiranForm.jenis_unggahan === 'file' && this.lampiranFile) {
+                    formData.append('lampiran', this.lampiranFile);
+                } else if (this.lampiranForm.jenis_unggahan === 'link') {
+                    formData.append('link_url', this.lampiranForm.link_url || '');
+                }
+
+                try {
+                    const response = await fetch(`${this.baseUrl}/tabulasi/${this.activeRow.id}/lampiran`, {
+                        method: 'POST',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-CSRF-TOKEN': this.csrfToken(),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: formData,
+                    });
+
+                    const json = await response.json();
+                    if (response.status === 422) {
+                        this.lampiranErrors = json.errors || {};
+                        return;
+                    }
+                    if (!response.ok) {
+                        throw new Error(json.message || 'Gagal mengirim lampiran.');
+                    }
+
+                    this.syncActiveRow(json.data);
+                    this.lampiranFile = null;
+                    this.lampiranForm.link_url = '';
+                    this.lampiranForm.keterangan = '';
+                    if (this.$refs.lampiranInput) {
+                        this.$refs.lampiranInput.value = '';
+                    }
+                    this.showFlash(json.message || 'Lampiran berhasil dikirim.');
+                } catch (e) {
+                    console.error(e);
+                    this.showFlash(e.message || 'Gagal mengirim lampiran.', 'error');
+                } finally {
+                    this.uploadingLampiran = false;
+                }
+            },
         };
     });
 }

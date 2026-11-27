@@ -91,6 +91,17 @@ class Kka extends Model
             return;
         }
 
+        if ($user->role === 'Auditee') {
+            if ($user->plotting_id) {
+                $query->where('kkas.auditee_plotting_id', $user->plotting_id);
+            } elseif ($user->kode_wilayah) {
+                $cleanCode = str_replace('.', '', (string) $user->kode_wilayah);
+                $query->where('kkas.auditee_kode_wilayah', 'like', $cleanCode.'%');
+            }
+
+            return;
+        }
+
         $query->whereHas('pka', function (Builder $pkaQuery) use ($user): void {
             $pkaQuery->visibleTo($user);
         });

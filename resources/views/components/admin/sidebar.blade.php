@@ -21,7 +21,10 @@
                     ['label' => 'KKA', 'href' => route('audit.kka.index'), 'active' => request()->routeIs('audit.kka.*') && ! request()->routeIs('audit.kka.tabulasi.*')],
                     ['label' => 'Tabulasi', 'href' => route('audit.tabulasi.index'), 'active' => request()->routeIs('audit.tabulasi.*', 'audit.kka.tabulasi.*')],
                 ]],
-                ['label' => 'Auditee', 'icon' => 'book-user', 'children' => ['Tindak Lanjut Auditee', 'Dummy'], 'open' => false],
+                ['label' => 'Auditee', 'icon' => 'book-user', 'open' => request()->routeIs('audit.tindak-lanjut.*'), 'children' => [
+                    ['label' => 'Tindak Lanjut Auditee', 'href' => route('audit.tindak-lanjut.index'), 'active' => request()->routeIs('audit.tindak-lanjut.*')],
+                    'Dummy',
+                ]],
             ],
         ],
 

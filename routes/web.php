@@ -6,6 +6,7 @@ use App\Http\Controllers\Audit\PkaController;
 use App\Http\Controllers\Audit\PkaLangkahKerjaController;
 use App\Http\Controllers\Audit\SprinController;
 use App\Http\Controllers\Audit\TabulasiController;
+use App\Http\Controllers\Audit\TindakLanjutAuditeeController;
 use App\Http\Controllers\Master\KodeController;
 use App\Http\Controllers\Master\KriteriaController;
 use App\Http\Controllers\Master\PlottingController;
@@ -145,6 +146,16 @@ Route::middleware('auth')->group(function () {
     Route::put('/audit/kka/{kka}/tabulasi/{tabulasi}', [KkaTabulasiController::class, 'update'])->name('audit.kka.tabulasi.update');
     Route::delete('/audit/kka/{kka}/tabulasi/{tabulasi}', [KkaTabulasiController::class, 'destroy'])->name('audit.kka.tabulasi.destroy');
     Route::match(['patch', 'post'], '/audit/kka/{kka}/tabulasi/{tabulasi}/status', [KkaTabulasiController::class, 'updateStatus'])->name('audit.kka.tabulasi.update-status');
+
+    Route::get('/audit/tindak-lanjut', [TindakLanjutAuditeeController::class, 'index'])->name('audit.tindak-lanjut.index');
+    Route::get('/audit/tindak-lanjut/{kka}/print', [TindakLanjutAuditeeController::class, 'print'])->name('audit.tindak-lanjut.print');
+    Route::post('/audit/tindak-lanjut/{kka}/tabulasi/{tabulasi}/tanggapan', [TindakLanjutAuditeeController::class, 'storeTanggapan'])->name('audit.tindak-lanjut.tanggapan');
+    Route::post('/audit/tindak-lanjut/{kka}/tabulasi/{tabulasi}/uji-nilai', [TindakLanjutAuditeeController::class, 'storeUjiNilai'])->name('audit.tindak-lanjut.uji-nilai');
+    Route::post('/audit/tindak-lanjut/{kka}/tabulasi/{tabulasi}/messages', [TindakLanjutAuditeeController::class, 'storeMessage'])->name('audit.tindak-lanjut.messages.store');
+    Route::post('/audit/tindak-lanjut/{kka}/tabulasi/{tabulasi}/lampiran', [TindakLanjutAuditeeController::class, 'storeLampiran'])->name('audit.tindak-lanjut.lampiran');
+    Route::get('/audit/tindak-lanjut/{kka}/{tab?}', [TindakLanjutAuditeeController::class, 'show'])
+        ->where('tab', 'tabulasi|konsultasi|positif')
+        ->name('audit.tindak-lanjut.show');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
