@@ -113,4 +113,33 @@ class StrukturPerangkatDaerah extends Model
 
         return $parts->implode(' > ');
     }
+
+    /**
+     * Ambil ID unit ini beserta seluruh keturunan (sub-unit, seksi, dsb.) di bawahnya.
+     *
+     * @return list<int>
+     */
+    public static function getDescendantIds(int $unitId): array
+    {
+        $allIds = [$unitId];
+        $currentLevelIds = [$unitId];
+
+        while (! empty($currentLevelIds)) {
+            $childIds = self::query()
+                ->whereIn('parent_id', $currentLevelIds)
+                ->pluck('id')
+                ->map(fn ($id): int => (int) $id)
+                ->all();
+
+            $newIds = array_values(array_diff($childIds, $allIds));
+            if (empty($newIds)) {
+                break;
+            }
+
+            $allIds = array_merge($allIds, $newIds);
+            $currentLevelIds = $newIds;
+        }
+
+        return $allIds;
+    }
 }

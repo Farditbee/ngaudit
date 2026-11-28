@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Pka;
 use App\Models\TemplateKka;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -38,9 +39,18 @@ class TabulasiController extends Controller
             WHEN 'Investigasi' THEN 5 
             ELSE 6 END";
 
-        $pkas = Pka::query()
+        $pkasQuery = Pka::query()
             ->visibleTo($authUser)
-            ->where('pkas.status', 'Final')
+            ->where('pkas.status', 'Final');
+
+        if ($authUser?->role === 'Auditor') {
+            $pkasQuery->where(function (Builder $q) use ($authUser): void {
+                $q->where('pkas.dibuat_oleh_id', $authUser->id)
+                    ->orWhere('pkas.created_by', $authUser->id);
+            });
+        }
+
+        $pkas = $pkasQuery
             ->with([
                 'sprin:id,no_sprin,tahap,sprin_tipe',
                 'dibuatOleh:id,name,username',

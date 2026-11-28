@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Master;
 
+use App\Http\Controllers\Master\UserController;
+use App\Models\StrukturPerangkatDaerah;
 use App\Models\User;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
@@ -12,6 +14,20 @@ class UserRequest extends FormRequest
 {
     public function authorize(): bool
     {
+        $authUser = $this->user();
+        if (! $authUser) {
+            return false;
+        }
+
+        if ($authUser->role === 'Super Admin') {
+            return true;
+        }
+
+        $targetUser = $this->route('user');
+        if ($targetUser instanceof User) {
+            return app(UserController::class)->canManageUser($authUser, $targetUser);
+        }
+
         return true;
     }
 
@@ -74,6 +90,25 @@ class UserRequest extends FormRequest
             'nullable',
             'integer',
             Rule::exists('struktur_perangkat_daerah', 'id'),
+            function (string $attribute, mixed $value, Closure $fail) use ($isAdminNasional, $isAdminWilayah): void {
+                if (! $value) {
+                    return;
+                }
+                $unit = StrukturPerangkatDaerah::find($value);
+                if (! $unit) {
+                    return;
+                }
+                $root = $unit;
+                while ($root->parent) {
+                    $root = $root->parent;
+                }
+                if ($isAdminNasional && $root->jenis_unit === 'Kecamatan') {
+                    $fail('Admin Dinas tidak dapat memilih unit di lingkup Kecamatan.');
+                }
+                if ($isAdminWilayah && $root->jenis_unit !== 'Kecamatan') {
+                    $fail('Admin Kecamatan tidak dapat memilih unit di lingkup Dinas / OPD.');
+                }
+            },
         ];
 
         $provinceRules = [

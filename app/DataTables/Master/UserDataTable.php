@@ -2,7 +2,9 @@
 
 namespace App\DataTables\Master;
 
+use App\Models\StrukturPerangkatDaerah;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
@@ -54,11 +56,15 @@ class UserDataTable
             'storeUrl' => route('master.user.store'),
             'baseUrl' => url('/master/user'),
             'authRole' => $authUser?->role,
-            'authPlottingId' => $isAdminNasional ? $authUser?->plotting_id : null,
+            'authPlottingId' => $isAdminNasional ? $authUser?->struktur_perangkat_daerah_id : null,
             'authProvinceCode' => $authProvinceCode,
             'canImpersonate' => $canImpersonate,
             'roles' => $roles,
-            'levels' => User::LEVELS,
+            'levels' => match (true) {
+                $isAdminNasional => User::ADMIN_NASIONAL_LEVELS,
+                $isAdminWilayah => User::ADMIN_WILAYAH_LEVELS,
+                default => User::LEVELS,
+            },
             'bidangs' => User::BIDANGS,
             'plottings' => $plottings,
             'provinces' => $provinces,
@@ -96,11 +102,38 @@ class UserDataTable
         }
 
         $authUser = $request->user();
-        if (in_array($authUser?->role, ['Admin Nasional', 'Admin Dinas'], true) && $authUser->plotting_id) {
-            $query->where('users.struktur_perangkat_daerah_id', $authUser->plotting_id);
-        } elseif (in_array($authUser?->role, ['Admin Wilayah', 'Admin Kecamatan'], true) && $authUser->kode_wilayah) {
-            $cleanAuthWilayah = str_replace('.', '', (string) $authUser->kode_wilayah);
-            $query->whereRaw("{$cleanCodeSql} LIKE ?", [$cleanAuthWilayah.'%']);
+        if (in_array($authUser?->role, ['Admin Nasional', 'Admin Dinas'], true)) {
+            $query->where(function (Builder $q): void {
+                $q->where('users.level', 'Dinas')
+                    ->orWhere('users.role', 'Admin Dinas');
+            })->whereNotIn('users.role', ['Super Admin', 'Admin Kecamatan']);
+
+            if ($authUser->struktur_perangkat_daerah_id) {
+                $unitIds = StrukturPerangkatDaerah::getDescendantIds((int) $authUser->struktur_perangkat_daerah_id);
+                $query->where(function (Builder $q) use ($unitIds, $authUser): void {
+                    $q->whereIn('users.struktur_perangkat_daerah_id', $unitIds)
+                        ->orWhere('users.id', $authUser->id);
+                });
+            }
+        } elseif (in_array($authUser?->role, ['Admin Wilayah', 'Admin Kecamatan'], true)) {
+            $query->where(function (Builder $q): void {
+                $q->where('users.level', 'Kecamatan')
+                    ->orWhere('users.role', 'Admin Kecamatan');
+            })->whereNotIn('users.role', ['Super Admin', 'Admin Dinas']);
+
+            if ($authUser->struktur_perangkat_daerah_id) {
+                $unitIds = StrukturPerangkatDaerah::getDescendantIds((int) $authUser->struktur_perangkat_daerah_id);
+                $query->where(function (Builder $q) use ($unitIds, $authUser): void {
+                    $q->whereIn('users.struktur_perangkat_daerah_id', $unitIds)
+                        ->orWhere('users.id', $authUser->id);
+                });
+            } elseif ($authUser->kode_wilayah) {
+                $cleanAuthWilayah = str_replace('.', '', (string) $authUser->kode_wilayah);
+                $query->where(function (Builder $q) use ($cleanCodeSql, $cleanAuthWilayah, $authUser): void {
+                    $q->whereRaw("{$cleanCodeSql} LIKE ?", [$cleanAuthWilayah.'%'])
+                        ->orWhere('users.id', $authUser->id);
+                });
+            }
         }
 
         if (! $request->has('order')) {

@@ -99,8 +99,12 @@ class Pka extends Model
             return;
         }
 
-        $query->whereHas('sprin', function (Builder $sprinQuery) use ($user): void {
-            $sprinQuery->visibleTo($user);
+        $query->where(function (Builder $pkaQuery) use ($user): void {
+            $pkaQuery->whereHas('sprin', function (Builder $sprinQuery) use ($user): void {
+                $sprinQuery->visibleTo($user);
+            })
+                ->orWhere('pkas.dibuat_oleh_id', $user->id)
+                ->orWhere('pkas.created_by', $user->id);
         });
     }
 

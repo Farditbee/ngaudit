@@ -218,4 +218,150 @@ class UserMasterTest extends TestCase
         $this->assertEquals('Kecamatan Bandar Surabaya', $seksiRow['unit_parent']);
         $this->assertEquals('Seksi Ketentraman dan Ketertiban Umum', $seksiRow['unit_sub']);
     }
+
+    public function test_admin_dinas_and_admin_kecamatan_cannot_see_or_manage_each_others_scope(): void
+    {
+        $superAdmin = User::factory()->create(['role' => 'Super Admin', 'level' => null]);
+
+        $dinasUnit = DB::table('struktur_perangkat_daerah')->insertGetId([
+            'nama_unit' => 'Dinas Perhubungan',
+            'level' => 1,
+            'jenis_unit' => 'Dinas',
+        ]);
+
+        $kecamatanUnit = DB::table('struktur_perangkat_daerah')->insertGetId([
+            'nama_unit' => 'Kecamatan Bandar Surabaya',
+            'level' => 1,
+            'jenis_unit' => 'Kecamatan',
+        ]);
+
+        $adminDinas = User::factory()->create([
+            'name' => 'Admin Dinas User',
+            'role' => 'Admin Dinas',
+            'level' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $dinasUnit,
+        ]);
+
+        $adminKecamatan = User::factory()->create([
+            'name' => 'Admin Kecamatan User',
+            'role' => 'Admin Kecamatan',
+            'level' => 'Kecamatan',
+            'struktur_perangkat_daerah_id' => $kecamatanUnit,
+        ]);
+
+        $userDinas = User::factory()->create([
+            'name' => 'Auditee Dinas',
+            'role' => 'Auditee',
+            'level' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $dinasUnit,
+            'bidang' => 'Operasional',
+        ]);
+
+        $userKecamatan = User::factory()->create([
+            'name' => 'Auditee Kecamatan',
+            'role' => 'Auditee',
+            'level' => 'Kecamatan',
+            'struktur_perangkat_daerah_id' => $kecamatanUnit,
+            'bidang' => 'Operasional',
+        ]);
+
+        // 1. Admin Dinas views user datatable
+        $resDinas = $this->actingAs($adminDinas)->getJson(route('master.user.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $resDinas->assertOk();
+        $dinasRows = collect($resDinas->json('data'));
+
+        $this->assertTrue($dinasRows->contains('id', $adminDinas->id));
+        $this->assertTrue($dinasRows->contains('id', $userDinas->id));
+        $this->assertFalse($dinasRows->contains('id', $superAdmin->id));
+        $this->assertFalse($dinasRows->contains('id', $adminKecamatan->id));
+        $this->assertFalse($dinasRows->contains('id', $userKecamatan->id));
+
+        // Admin Dinas options: kecamatans returns empty, dinas returns data
+        $optKecForDinas = $this->actingAs($adminDinas)->getJson(route('master.user.index', ['options' => 'kecamatans']));
+        $optKecForDinas->assertOk();
+        $this->assertEmpty($optKecForDinas->json());
+
+        $optDinasForDinas = $this->actingAs($adminDinas)->getJson(route('master.user.index', ['options' => 'dinas']));
+        $optDinasForDinas->assertOk();
+        $this->assertNotEmpty($optDinasForDinas->json());
+
+        // Admin Dinas cannot update, delete, or reset password of Kecamatan user
+        $this->actingAs($adminDinas)->deleteJson(route('master.user.destroy', $userKecamatan))->assertForbidden();
+        $this->actingAs($adminDinas)->deleteJson(route('master.user.destroy', $adminKecamatan))->assertForbidden();
+        $this->actingAs($adminDinas)->postJson(route('master.user.reset-password', $userKecamatan))->assertForbidden();
+        $this->actingAs($adminDinas)->putJson(route('master.user.update', $userKecamatan), [
+            'name' => 'Modified by Admin Dinas',
+            'username' => $userKecamatan->username,
+            'email' => $userKecamatan->email,
+            'phone' => '081234567890',
+            'role' => 'Auditee',
+            'level' => 'Kecamatan',
+        ])->assertForbidden();
+
+        // Admin Dinas cannot create user with role Admin Kecamatan or level Kecamatan
+        $this->actingAs($adminDinas)->postJson(route('master.user.store'), [
+            'name' => 'Unauthorized Kec Admin',
+            'username' => 'unauthkecadmin',
+            'email' => 'unauthkec@example.com',
+            'phone' => '081234567891',
+            'role' => 'Admin Kecamatan',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertUnprocessable();
+
+        // 2. Admin Kecamatan views user datatable
+        $resKec = $this->actingAs($adminKecamatan)->getJson(route('master.user.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $resKec->assertOk();
+        $kecRows = collect($resKec->json('data'));
+
+        $this->assertTrue($kecRows->contains('id', $adminKecamatan->id));
+        $this->assertTrue($kecRows->contains('id', $userKecamatan->id));
+        $this->assertFalse($kecRows->contains('id', $superAdmin->id));
+        $this->assertFalse($kecRows->contains('id', $adminDinas->id));
+        $this->assertFalse($kecRows->contains('id', $userDinas->id));
+
+        // Admin Kecamatan options: dinas returns empty, kecamatans returns data
+        $optDinasForKec = $this->actingAs($adminKecamatan)->getJson(route('master.user.index', ['options' => 'dinas']));
+        $optDinasForKec->assertOk();
+        $this->assertEmpty($optDinasForKec->json());
+
+        $optKecForKec = $this->actingAs($adminKecamatan)->getJson(route('master.user.index', ['options' => 'kecamatans']));
+        $optKecForKec->assertOk();
+        $this->assertNotEmpty($optKecForKec->json());
+
+        // Admin Kecamatan cannot update, delete, or reset password of Dinas user
+        $this->actingAs($adminKecamatan)->deleteJson(route('master.user.destroy', $userDinas))->assertForbidden();
+        $this->actingAs($adminKecamatan)->deleteJson(route('master.user.destroy', $adminDinas))->assertForbidden();
+        $this->actingAs($adminKecamatan)->postJson(route('master.user.reset-password', $userDinas))->assertForbidden();
+        $this->actingAs($adminKecamatan)->putJson(route('master.user.update', $userDinas), [
+            'name' => 'Modified by Admin Kecamatan',
+            'username' => $userDinas->username,
+            'email' => $userDinas->email,
+            'phone' => '081234567890',
+            'role' => 'Auditee',
+            'level' => 'Dinas',
+        ])->assertForbidden();
+
+        // Admin Kecamatan cannot create user with role Admin Dinas or level Dinas
+        $this->actingAs($adminKecamatan)->postJson(route('master.user.store'), [
+            'name' => 'Unauthorized Dinas Admin',
+            'username' => 'unauthdinasadmin',
+            'email' => 'unauthdinas@example.com',
+            'phone' => '081234567892',
+            'role' => 'Admin Dinas',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertUnprocessable();
+
+        // 3. Super Admin sees both
+        $resSuper = $this->actingAs($superAdmin)->getJson(route('master.user.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $resSuper->assertOk();
+        $superRows = collect($resSuper->json('data'));
+
+        $this->assertTrue($superRows->contains('id', $superAdmin->id));
+        $this->assertTrue($superRows->contains('id', $adminDinas->id));
+        $this->assertTrue($superRows->contains('id', $userDinas->id));
+        $this->assertTrue($superRows->contains('id', $adminKecamatan->id));
+        $this->assertTrue($superRows->contains('id', $userKecamatan->id));
+    }
 }

@@ -97,6 +97,13 @@ class UserController extends Controller
 
     public function destroy(User $user): JsonResponse
     {
+        $authUser = auth()->user();
+        if (! $this->canManageUser($authUser, $user)) {
+            return response()->json([
+                'message' => 'Anda tidak memiliki hak akses untuk menghapus user ini.',
+            ], 403);
+        }
+
         if ($user->id === auth()->id()) {
             return response()->json([
                 'message' => 'Anda tidak dapat menghapus akun yang sedang digunakan.',
@@ -116,6 +123,13 @@ class UserController extends Controller
 
     public function resetPassword(User $user): JsonResponse
     {
+        $authUser = auth()->user();
+        if (! $this->canManageUser($authUser, $user)) {
+            return response()->json([
+                'message' => 'Anda tidak memiliki hak akses untuk mereset password user ini.',
+            ], 403);
+        }
+
         $user->update([
             'password' => 'Password123',
         ]);
@@ -246,36 +260,124 @@ class UserController extends Controller
         return $payload;
     }
 
+    public function canManageUser(?User $authUser, User $targetUser): bool
+    {
+        if (! $authUser) {
+            return false;
+        }
+
+        if ($authUser->role === 'Super Admin') {
+            return true;
+        }
+
+        if (in_array($authUser->role, ['Admin Nasional', 'Admin Dinas'], true)) {
+            if ($targetUser->role === 'Super Admin' || $targetUser->role === 'Admin Kecamatan' || $targetUser->level === 'Kecamatan') {
+                return false;
+            }
+
+            if ($authUser->struktur_perangkat_daerah_id) {
+                if ($targetUser->id === $authUser->id) {
+                    return true;
+                }
+                $allowedIds = StrukturPerangkatDaerah::getDescendantIds((int) $authUser->struktur_perangkat_daerah_id);
+
+                return in_array($targetUser->struktur_perangkat_daerah_id, $allowedIds, true);
+            }
+
+            return true;
+        }
+
+        if (in_array($authUser->role, ['Admin Wilayah', 'Admin Kecamatan'], true)) {
+            if ($targetUser->role === 'Super Admin' || $targetUser->role === 'Admin Dinas' || $targetUser->level === 'Dinas') {
+                return false;
+            }
+
+            if ($authUser->struktur_perangkat_daerah_id) {
+                if ($targetUser->id === $authUser->id) {
+                    return true;
+                }
+                $allowedIds = StrukturPerangkatDaerah::getDescendantIds((int) $authUser->struktur_perangkat_daerah_id);
+
+                return in_array($targetUser->struktur_perangkat_daerah_id, $allowedIds, true);
+            }
+
+            if ($authUser->kode_wilayah) {
+                if ($targetUser->id === $authUser->id) {
+                    return true;
+                }
+                $cleanAuthWilayah = str_replace('.', '', (string) $authUser->kode_wilayah);
+                $cleanTargetWilayah = str_replace('.', '', (string) $targetUser->kode_wilayah);
+
+                return str_starts_with($cleanTargetWilayah, $cleanAuthWilayah);
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
     protected function options(Request $request): JsonResponse
     {
+        $authUser = $request->user();
+        $isAdminDinas = in_array($authUser?->role, ['Admin Nasional', 'Admin Dinas'], true);
+        $isAdminKecamatan = in_array($authUser?->role, ['Admin Wilayah', 'Admin Kecamatan'], true);
+
         $type = (string) $request->query('options');
         $parent = (string) $request->query('parent');
 
-        $targetWilayahTable = DB::table('struktur_perangkat_daerah')->whereNotNull('kode_wilayah')->exists()
-            ? 'struktur_perangkat_daerah'
-            : 'wilayah';
+        if ($isAdminDinas && $type === 'kecamatans') {
+            return response()->json([]);
+        }
+        if ($isAdminKecamatan && $type === 'dinas') {
+            return response()->json([]);
+        }
 
         $items = match ($type) {
-            'dinas' => StrukturPerangkatDaerah::dinas()
-                ->orderBy('nama_unit')
-                ->get()
-                ->map(fn ($u): array => [
-                    'id' => $u->id,
-                    'code' => (string) $u->id,
-                    'name' => $u->nama_unit,
-                    'pimpinan' => $u->pimpinan,
-                    'jenis_unit' => $u->jenis_unit,
-                ]),
-            'kecamatans' => StrukturPerangkatDaerah::kecamatan()
-                ->orderBy('nama_unit')
-                ->get()
-                ->map(fn ($u): array => [
-                    'id' => $u->id,
-                    'code' => (string) $u->id,
-                    'name' => $u->nama_unit,
-                    'pimpinan' => $u->pimpinan,
-                    'jenis_unit' => $u->jenis_unit,
-                ]),
+            'dinas' => ($isAdminDinas && $authUser->struktur_perangkat_daerah_id)
+                ? StrukturPerangkatDaerah::dinas()
+                    ->where('id', $authUser->struktur_perangkat_daerah_id)
+                    ->orderBy('nama_unit')
+                    ->get()
+                    ->map(fn ($u): array => [
+                        'id' => $u->id,
+                        'code' => (string) $u->id,
+                        'name' => $u->nama_unit,
+                        'pimpinan' => $u->pimpinan,
+                        'jenis_unit' => $u->jenis_unit,
+                    ])
+                : StrukturPerangkatDaerah::dinas()
+                    ->orderBy('nama_unit')
+                    ->get()
+                    ->map(fn ($u): array => [
+                        'id' => $u->id,
+                        'code' => (string) $u->id,
+                        'name' => $u->nama_unit,
+                        'pimpinan' => $u->pimpinan,
+                        'jenis_unit' => $u->jenis_unit,
+                    ]),
+            'kecamatans' => ($isAdminKecamatan && $authUser->struktur_perangkat_daerah_id)
+                ? StrukturPerangkatDaerah::kecamatan()
+                    ->where('id', $authUser->struktur_perangkat_daerah_id)
+                    ->orderBy('nama_unit')
+                    ->get()
+                    ->map(fn ($u): array => [
+                        'id' => $u->id,
+                        'code' => (string) $u->id,
+                        'name' => $u->nama_unit,
+                        'pimpinan' => $u->pimpinan,
+                        'jenis_unit' => $u->jenis_unit,
+                    ])
+                : StrukturPerangkatDaerah::kecamatan()
+                    ->orderBy('nama_unit')
+                    ->get()
+                    ->map(fn ($u): array => [
+                        'id' => $u->id,
+                        'code' => (string) $u->id,
+                        'name' => $u->nama_unit,
+                        'pimpinan' => $u->pimpinan,
+                        'jenis_unit' => $u->jenis_unit,
+                    ]),
             'sub_units' => StrukturPerangkatDaerah::query()
                 ->where(function ($q) use ($parent): void {
                     $q->where('parent_id', $parent)

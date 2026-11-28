@@ -518,4 +518,53 @@ class KkaModuleTest extends TestCase
         $this->assertCount(0, $responseUnassigned->json('data'));
         $this->actingAs($unassignedAuditor)->getJson(route('audit.kka.show', $kka))->assertForbidden();
     }
+
+    public function test_auditor_only_sees_assigned_pka_options_when_creating_kka_while_admin_sees_all(): void
+    {
+        $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+        $auditor1 = User::factory()->create(['role' => 'Auditor']);
+        $auditor2 = User::factory()->create(['role' => 'Auditor']);
+
+        $pka1 = $this->createPka($superAdmin, null, 'PKA/AUDITOR1/2026', 'Final');
+        $pka1->update(['dibuat_oleh_id' => $auditor1->id]);
+
+        $pka2 = $this->createPka($superAdmin, null, 'PKA/AUDITOR2/2026', 'Final');
+        $pka2->update(['dibuat_oleh_id' => $auditor2->id]);
+
+        // 1. Super Admin sees both PKAs in create modal options
+        $responseAdmin = $this->actingAs($superAdmin)->get(route('audit.kka.index'));
+        $responseAdmin->assertOk();
+        $pkasAdmin = collect($responseAdmin->viewData('dataTableConfig')['pkas']);
+        $this->assertCount(2, $pkasAdmin);
+
+        // 2. Auditor 1 only sees PKA 1
+        $responseAuditor1 = $this->actingAs($auditor1)->get(route('audit.kka.index'));
+        $responseAuditor1->assertOk();
+        $pkasAuditor1 = collect($responseAuditor1->viewData('dataTableConfig')['pkas']);
+        $this->assertCount(1, $pkasAuditor1);
+        $this->assertEquals($pka1->id, $pkasAuditor1->first()['id']);
+
+        // 3. Auditor 2 only sees PKA 2
+        $responseAuditor2 = $this->actingAs($auditor2)->get(route('audit.kka.index'));
+        $responseAuditor2->assertOk();
+        $pkasAuditor2 = collect($responseAuditor2->viewData('dataTableConfig')['pkas']);
+        $this->assertCount(1, $pkasAuditor2);
+        $this->assertEquals($pka2->id, $pkasAuditor2->first()['id']);
+
+        // 4. Auditor 1 cannot create KKA with PKA 2 (forbidden)
+        $unit = StrukturPerangkatDaerah::query()->create([
+            'nama_unit' => 'Dinas Perhubungan',
+            'level' => 1,
+            'jenis_unit' => 'Dinas',
+        ]);
+
+        $payload = $this->kkaPayload($pka2, $unit);
+        $this->actingAs($auditor1)->postJson(route('audit.kka.store'), $payload)
+            ->assertForbidden();
+
+        // 5. Auditor 1 can create KKA with PKA 1 (assigned)
+        $payloadPka1 = $this->kkaPayload($pka1, $unit);
+        $this->actingAs($auditor1)->postJson(route('audit.kka.store'), $payloadPka1)
+            ->assertCreated();
+    }
 }
