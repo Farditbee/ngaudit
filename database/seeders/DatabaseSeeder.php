@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
             TimSeeder::class,
             SprinSeeder::class,
             PkaSeeder::class,
+            AnevDummyTemuanSeeder::class,
         ]);
     }
 }

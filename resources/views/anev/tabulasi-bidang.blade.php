@@ -7,6 +7,53 @@
             tahap1: @js($tahap1),
             tahap2: @js($tahap2),
             selectedSatker: null,
+            hoveredSlice: null,
+            _slices: [],
+            setHovered(key) {
+                if (this.hoveredSlice !== key) {
+                    this.hoveredSlice = key;
+                    this.drawChart();
+                }
+            },
+            handleCanvasMouseMove(e) {
+                const canvas = this.$refs.chartCanvas;
+                if (!canvas) return;
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = 400 / rect.width;
+                const scaleY = 260 / rect.height;
+                const mx = (e.clientX - rect.left) * scaleX;
+                const my = (e.clientY - rect.top) * scaleY;
+
+                const x0 = 200;
+                const y0 = 120;
+                const Rx = 105;
+                const Ry = 95;
+                const rx = 58;
+                const ry = 52;
+                const H = 7;
+
+                const dx = mx - x0;
+                const dy = my - y0;
+
+                // Cek hit-area berbentuk elips luar dan elips dalam (termasuk kedalaman 3D)
+                const dOuter = Math.pow(dx / (Rx + 16), 2) + Math.pow(dy / (Ry + H + 12), 2);
+                const dInner = Math.pow(dx / (rx - 8), 2) + Math.pow(dy / (ry - 8), 2);
+
+                if (dOuter <= 1.2 && dInner >= 0.8) {
+                    let angle = Math.atan2(dy, dx);
+                    if (angle < -Math.PI / 2) {
+                        angle += 2 * Math.PI;
+                    }
+                    const s = (this._slices || []).find(sl => angle >= sl.start && angle < sl.end);
+                    if (s && s.val > 0) {
+                        this.setHovered(s.key);
+                        canvas.style.cursor = 'pointer';
+                        return;
+                    }
+                }
+                this.setHovered(null);
+                canvas.style.cursor = 'default';
+            },
             get currentData() {
                 return this.activeTahap === 1 ? this.tahap1 : this.tahap2;
             },
@@ -83,12 +130,14 @@
                 let curAngle = -Math.PI / 2;
                 const slices = rawData.map(s => {
                     const frac = total > 0 ? (s.val / total) : 0.25;
+                    const pct = total > 0 ? ((s.val / total) * 100).toFixed(1) : '0.0';
                     const angle = frac * 2 * Math.PI;
                     const start = curAngle;
                     const end = curAngle + angle;
                     curAngle += angle;
-                    return { ...s, frac, start, end };
+                    return { ...s, frac, pct, start, end };
                 });
+                this._slices = slices;
 
                 const x0 = w / 2;
                 const y0 = 120;
@@ -98,7 +147,7 @@
                 const ry = 52;
                 const H = 7;
 
-                // 1. Drop Shadow
+                // 1. Drop Shadow Donut Dasar
                 ctx.save();
                 ctx.beginPath();
                 ctx.ellipse(x0, y0 + H + 6, Rx * 0.98, Ry * 0.95, 0, 0, Math.PI * 2);
@@ -106,49 +155,107 @@
                 ctx.fill();
                 ctx.restore();
 
-                // 2. 3D Extrusion Side Layers (Bottom to Top)
-                for (let depth = H; depth >= 1; depth -= 1) {
-                    slices.forEach(s => {
-                        if (s.frac > 0) {
+                // Hitung offset timbul / elevasi 3D untuk irisan yang di-hover
+                const sliceData = slices.map(s => {
+                    const isHovered = this.hoveredSlice === s.key && s.val > 0;
+                    const mid = (s.start + s.end) / 2;
+                    const pushDist = isHovered ? 14 : 0;
+                    const lift = isHovered ? 5 : 0;
+                    const sx = Math.cos(mid) * pushDist;
+                    const sy = Math.sin(mid) * (pushDist * 0.9);
+                    return { ...s, isHovered, mid, sx, sy, lift };
+                });
+
+                // Shadow lantai khusus untuk potongan yang timbul
+                const hoveredItem = sliceData.find(s => s.isHovered);
+                if (hoveredItem) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.ellipse(
+                        x0 + hoveredItem.sx * 1.15,
+                        y0 + hoveredItem.sy * 1.15 + H + 9,
+                        (Rx - rx) * 0.65,
+                        (Ry - ry) * 0.55,
+                        hoveredItem.mid,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                // Helper untuk menggambar dinding ketebalan 3D (extrusion)
+                const drawSliceExtrusion = (s) => {
+                    if (s.frac <= 0) return;
+                    const curH = H + s.lift;
+                    for (let depth = curH; depth >= 1; depth -= 1) {
+                        ctx.beginPath();
+                        ctx.ellipse(x0 + s.sx, y0 + s.sy - s.lift + depth, Rx, Ry, 0, s.start, s.end);
+                        ctx.ellipse(x0 + s.sx, y0 + s.sy - s.lift + depth, rx, ry, 0, s.end, s.start, true);
+                        ctx.closePath();
+                        ctx.fillStyle = s.dark;
+                        ctx.fill();
+                    }
+
+                    // Jika di-hover dan timbul keluar, gambar dinding penampang radialnya agar tampak pejal 3D
+                    if (s.isHovered) {
+                        [s.start, s.end].forEach(a => {
                             ctx.beginPath();
-                            ctx.ellipse(x0, y0 + depth, Rx, Ry, 0, s.start, s.end);
-                            ctx.ellipse(x0, y0 + depth, rx, ry, 0, s.end, s.start, true);
+                            ctx.moveTo(x0 + s.sx + rx * Math.cos(a), y0 + s.sy - s.lift + ry * Math.sin(a));
+                            ctx.lineTo(x0 + s.sx + Rx * Math.cos(a), y0 + s.sy - s.lift + Ry * Math.sin(a));
+                            ctx.lineTo(x0 + s.sx + Rx * Math.cos(a), y0 + s.sy + H + Ry * Math.sin(a));
+                            ctx.lineTo(x0 + s.sx + rx * Math.cos(a), y0 + s.sy + H + ry * Math.sin(a));
                             ctx.closePath();
                             ctx.fillStyle = s.dark;
                             ctx.fill();
-                        }
-                    });
-                }
-
-                // 3. Top Faces
-                slices.forEach(s => {
-                    if (s.frac > 0) {
-                        ctx.beginPath();
-                        ctx.ellipse(x0, y0, Rx, Ry, 0, s.start, s.end);
-                        ctx.ellipse(x0, y0, rx, ry, 0, s.end, s.start, true);
-                        ctx.closePath();
-                        ctx.fillStyle = s.color;
-                        ctx.fill();
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.lineWidth = 2;
-                        ctx.stroke();
+                        });
                     }
-                });
+                };
 
-                // 4. Slice Count Labels
-                slices.forEach(s => {
+                // Gambar lapisan extrusion: gambar slice normal dulu, slice yang timbul digambar paling atas
+                sliceData.filter(s => !s.isHovered).forEach(drawSliceExtrusion);
+                sliceData.filter(s => s.isHovered).forEach(drawSliceExtrusion);
+
+                // Helper untuk menggambar permukaan atas (top face)
+                const drawSliceTop = (s) => {
+                    if (s.frac <= 0) return;
+                    ctx.save();
+                    if (s.isHovered) {
+                        ctx.shadowColor = s.color;
+                        ctx.shadowBlur = 10;
+                    }
+                    ctx.beginPath();
+                    const scaleR = s.isHovered ? 1.03 : 1.0;
+                    ctx.ellipse(x0 + s.sx, y0 + s.sy - s.lift, Rx * scaleR, Ry * scaleR, 0, s.start, s.end);
+                    ctx.ellipse(x0 + s.sx, y0 + s.sy - s.lift, rx * (s.isHovered ? 0.97 : 1.0), ry * (s.isHovered ? 0.97 : 1.0), 0, s.end, s.start, true);
+                    ctx.closePath();
+                    ctx.fillStyle = s.color;
+                    ctx.fill();
+
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = s.isHovered ? 3 : 2;
+                    ctx.stroke();
+                    ctx.restore();
+                };
+
+                // Gambar permukaan atas: yang normal dulu, lalu yang timbul
+                sliceData.filter(s => !s.isHovered).forEach(drawSliceTop);
+                sliceData.filter(s => s.isHovered).forEach(drawSliceTop);
+
+                // 4. Label Jumlah Temuan di Irisan
+                sliceData.forEach(s => {
                     if (s.val > 0 && s.frac > 0.04) {
-                        const mid = (s.start + s.end) / 2;
                         const midR_x = (Rx + rx) / 2;
                         const midR_y = (Ry + ry) / 2;
-                        const lx = x0 + midR_x * Math.cos(mid);
-                        const ly = y0 + midR_y * Math.sin(mid);
+                        const lx = x0 + s.sx + midR_x * Math.cos(s.mid);
+                        const ly = y0 + s.sy - s.lift + midR_y * Math.sin(s.mid);
 
                         ctx.save();
-                        ctx.shadowColor = 'rgba(0,0,0,0.8)';
-                        ctx.shadowBlur = 4;
+                        ctx.shadowColor = 'rgba(0,0,0,0.85)';
+                        ctx.shadowBlur = s.isHovered ? 6 : 4;
                         ctx.fillStyle = '#ffffff';
-                        ctx.font = 'bold 14px sans-serif';
+                        ctx.font = s.isHovered ? 'bold 16px sans-serif' : 'bold 14px sans-serif';
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         ctx.fillText(s.val, lx, ly);
@@ -170,17 +277,31 @@
                 ctx.stroke();
 
                 ctx.textAlign = 'center';
-                ctx.fillStyle = isDark ? '#a3a3a3' : '#64748b';
-                ctx.font = 'bold 8px sans-serif';
-                ctx.fillText('TOTAL', x0, y0 - 10);
+                if (hoveredItem && hoveredItem.val > 0) {
+                    ctx.fillStyle = hoveredItem.color;
+                    ctx.font = 'bold 8px sans-serif';
+                    ctx.fillText(hoveredItem.label, x0, y0 - 11);
 
-                ctx.fillStyle = isDark ? '#ffffff' : '#0f172a';
-                ctx.font = 'bold 18px sans-serif';
-                ctx.fillText(total, x0, y0 + 6);
+                    ctx.fillStyle = isDark ? '#ffffff' : '#0f172a';
+                    ctx.font = 'bold 20px sans-serif';
+                    ctx.fillText(hoveredItem.val, x0, y0 + 6);
 
-                ctx.fillStyle = isDark ? '#a3a3a3' : '#64748b';
-                ctx.font = 'bold 8px sans-serif';
-                ctx.fillText('TEMUAN', x0, y0 + 19);
+                    ctx.fillStyle = isDark ? '#a3a3a3' : '#64748b';
+                    ctx.font = 'bold 9px sans-serif';
+                    ctx.fillText(hoveredItem.pct + '% TEMUAN', x0, y0 + 20);
+                } else {
+                    ctx.fillStyle = isDark ? '#a3a3a3' : '#64748b';
+                    ctx.font = 'bold 8px sans-serif';
+                    ctx.fillText('TOTAL', x0, y0 - 10);
+
+                    ctx.fillStyle = isDark ? '#ffffff' : '#0f172a';
+                    ctx.font = 'bold 18px sans-serif';
+                    ctx.fillText(total, x0, y0 + 6);
+
+                    ctx.fillStyle = isDark ? '#a3a3a3' : '#64748b';
+                    ctx.font = 'bold 8px sans-serif';
+                    ctx.fillText('TEMUAN', x0, y0 + 19);
+                }
                 ctx.restore();
             }
         }"
@@ -386,13 +507,25 @@
                 <div class="grid grid-cols-1 lg:grid-cols-12 items-center gap-6">
                     {{-- 3D Donut Chart (Canvas) --}}
                     <div class="lg:col-span-7 flex flex-col items-center justify-center py-2">
-                        <canvas x-ref="chartCanvas" class="w-full max-w-[400px] h-[260px]"></canvas>
+                        <canvas
+                            x-ref="chartCanvas"
+                            class="w-full max-w-[400px] h-[260px] cursor-pointer"
+                            @mousemove="handleCanvasMouseMove($event)"
+                            @mouseleave="setHovered(null)"
+                        ></canvas>
                     </div>
 
                     {{-- Legend Cards with Findings Count & Percentage --}}
                     <div class="lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
                         <template x-for="item in chartData.items" :key="'card-' + item.key">
-                            <div class="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-3 shadow-2xs dark:border-neutral-800 dark:bg-neutral-950">
+                            <div
+                                class="flex items-center justify-between rounded-lg border p-3 transition-all duration-200 cursor-pointer"
+                                :class="hoveredSlice === item.key
+                                    ? 'border-sky-500 bg-sky-50/80 shadow-md ring-2 ring-sky-300 dark:border-sky-500 dark:bg-sky-950/50 dark:ring-sky-700 scale-[1.02] -translate-y-0.5'
+                                    : 'border-neutral-200 bg-white shadow-2xs dark:border-neutral-800 dark:bg-neutral-950 hover:border-neutral-300 dark:hover:border-neutral-700'"
+                                @mouseenter="setHovered(item.key)"
+                                @mouseleave="setHovered(null)"
+                            >
                                 <div class="flex items-center gap-3">
                                     <span class="h-4 w-4 rounded-full shrink-0 shadow-xs" :style="`background-color: ${item.color};`"></span>
                                     <div>
@@ -421,7 +554,7 @@
                                 <span x-text="lingkup === 'Dinas' ? 'DINAS' : 'KECAMATAN'"></span>
                             </th>
                             <th colspan="4" class="border border-sky-300 px-4 py-2 align-middle dark:border-neutral-700 text-center">
-                                TEMUAN BIDANG JEMEN
+                                BIDANG
                             </th>
                             <th rowspan="2" class="border border-sky-300 px-4 py-3 align-middle dark:border-neutral-700 w-24 text-center">
                                 JUMLAH
