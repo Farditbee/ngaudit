@@ -132,6 +132,37 @@ class TindakLanjutAuditeeTest extends TestCase
             ->assertSee('Auditee belum melakukan tinjut');
     }
 
+    public function test_auditee_sidebar_only_shows_dashboard_and_auditee_menus(): void
+    {
+        $auditee = User::factory()->create(['role' => 'Auditee']);
+        $auditorUser = User::factory()->create(['role' => 'Auditor']);
+        $admin = User::factory()->create(['role' => 'Super Admin']);
+
+        // Auditee views tindak-lanjut page: should only see Dashboard & Auditee
+        $this->actingAs($auditee)->get(route('audit.tindak-lanjut.index'))
+            ->assertOk()
+            ->assertSee('Tindak Lanjut Auditee')
+            ->assertSee('Dashboard')
+            ->assertDontSee('Data Master');
+
+        // Auditor views page: should see Dashboard and all Audit modules, but NOT Data Master
+        $this->actingAs($auditorUser)->get(route('audit.tindak-lanjut.index'))
+            ->assertOk()
+            ->assertSee('Dashboard')
+            ->assertSee('Persiapan')
+            ->assertSee('Pelaksanaan')
+            ->assertSee('Auditee')
+            ->assertDontSee('Data Master');
+
+        // Admin views page: should see full menus
+        $this->actingAs($admin)->get(route('audit.tindak-lanjut.index'))
+            ->assertOk()
+            ->assertSee('Dashboard')
+            ->assertSee('Persiapan')
+            ->assertSee('Pelaksanaan')
+            ->assertSee('Data Master');
+    }
+
     public function test_user_can_submit_tanggapan_uji_nilai_messages_and_upload_lampiran(): void
     {
         Storage::fake('public');
@@ -403,5 +434,23 @@ class TindakLanjutAuditeeTest extends TestCase
         $responseSameBidang->assertOk();
         $this->assertCount(1, $responseSameBidang->json('data'));
         $this->actingAs($auditeeSameBidang)->get(route('audit.tindak-lanjut.show', [$kka, 'tabulasi']))->assertOk();
+    }
+
+    public function test_dashboard_page_renders_welcome_message_and_papan_pengumuman(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'Admin Fardit',
+            'role' => 'Super Admin',
+        ]);
+
+        $this->actingAs($user)->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Selamat Datang, Admin Fardit!')
+            ->assertSee('Papan Pengumuman')
+            ->assertSee('Audit '.date('Y'))
+            ->assertSee('Input Sprin '.date('Y'))
+            ->assertSee('Input PKA '.date('Y'))
+            ->assertSee('Input KKA '.date('Y'))
+            ->assertSee('Tinjut Auditi '.date('Y'));
     }
 }

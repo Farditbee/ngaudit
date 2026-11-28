@@ -55,86 +55,58 @@
                 ]],
             ],
         ],
-        [
-            'label' => 'Apps',
-            'items' => [
-                ['label' => 'Mail', 'icon' => 'mail'],
-                ['label' => 'Calendar', 'icon' => 'calendar'],
-                ['label' => 'Users', 'icon' => 'users', 'children' => ['List', 'View'], 'open' => true],
-                ['label' => 'Chat', 'icon' => 'message-circle', 'pro' => true],
-                ['label' => 'Kanban', 'icon' => 'kanban', 'pro' => true],
-                ['label' => 'Contact', 'icon' => 'contact', 'pro' => true],
-                ['label' => 'Roles & Permissions', 'icon' => 'shield-check', 'pro' => true, 'children' => ['Roles', 'Permissions']],
-            ],
-        ],
-        [
-            'label' => 'Pages',
-            'items' => [
-                ['label' => 'User Settings', 'icon' => 'user-cog', 'children' => [
-                    'General', 'Workspace',
-                    ['label' => 'Notifications', 'pro' => true], ['label' => 'Integrations', 'pro' => true],
-                    ['label' => 'Members', 'pro' => true], ['label' => 'Security', 'pro' => true],
-                    ['label' => 'Billing & Usage', 'pro' => true],
-                ]],
-                ['label' => 'User Profile', 'icon' => 'user', 'children' => [
-                    ['label' => 'Profile', 'href' => route('profile.edit')], 'Connections',
-                    ['label' => 'Teams', 'pro' => true], ['label' => 'Projects', 'pro' => true],
-                ]],
-                ['label' => 'Authentication', 'icon' => 'lock-keyhole', 'children' => array_map(
-                    fn (string $name): array => ['label' => $name, 'children' => [
-                        $name.' v1', ['label' => $name.' v2', 'pro' => true], ['label' => $name.' v3', 'pro' => true],
-                    ]],
-                    ['Login', 'Register', 'Forgot Password', 'Verify Email', 'Reset Password', 'Two Steps'],
-                )],
-                ['label' => 'Error Pages', 'icon' => 'bug', 'children' => [
-                    'Error Page',
-                    ['label' => 'Error Page - 404', 'pro' => true], ['label' => 'Not Authorized - 401', 'pro' => true],
-                    ['label' => 'Forbidden - 403', 'pro' => true], ['label' => 'Server Error - 500', 'pro' => true],
-                    ['label' => 'Under Maintenance', 'pro' => true],
-                ]],
-                ['label' => 'Landing Page', 'icon' => 'rocket', 'pro' => true],
-                ['label' => 'Pricing', 'icon' => 'dollar-sign', 'pro' => true],
-                ['label' => 'FAQ', 'icon' => 'circle-help', 'pro' => true],
-                ['label' => 'Onboarding', 'icon' => 'footprints', 'pro' => true, 'children' => ['Onboarding v1', 'Onboarding v2']],
-                ['label' => 'Empty State', 'icon' => 'file', 'pro' => true, 'children' => ['Empty State v1', 'Empty State v2']],
-            ],
-        ],
-        [
-            'label' => 'Forms & Tables',
-            'items' => [
-                ['label' => 'Form Layouts', 'icon' => 'layout-template', 'children' => [
-                    'Vertical Layout', 'Horizontal Layout', ['label' => 'Sticky Actions', 'pro' => true],
-                ]],
-                ['label' => 'Form Validation', 'icon' => 'badge-check'],
-                ['label' => 'Data Table', 'icon' => 'table'],
-                ['label' => 'Form Wizard', 'icon' => 'list-todo', 'pro' => true, 'children' => ['Icons', 'Numbered']],
-            ],
-        ],
-        [
-            'label' => 'Components & Charts',
-            'items' => [
-                ['label' => 'Components', 'icon' => 'layout-grid'],
-                ['label' => 'Charts', 'icon' => 'line-chart'],
-                ['label' => 'Statistics', 'icon' => 'chart-column'],
-                ['label' => 'Card Nav', 'icon' => 'panel-top', 'pro' => true],
-                ['label' => 'Widgets', 'icon' => 'puzzle'],
-            ],
-        ],
-        [
-            'label' => 'Miscellaneous',
-            'items' => [
-                ['label' => 'Menu Level', 'icon' => 'menu', 'children' => [
-                    'Menu Item', ['label' => 'Menu Level 1', 'children' => ['Menu Level 2']],
-                ]],
-                ['label' => 'Support', 'icon' => 'info'],
-                ['label' => 'Documentation', 'icon' => 'book-open-text'],
-            ],
-        ],
     ];
     $itemClass = 'flex h-8 w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800';
 
     $authUser = auth()->user();
     $sidebarRegions = [];
+
+    if ($authUser?->role === 'Auditee') {
+        $groups = [
+            [
+                'label' => 'Dashboard',
+                'items' => [
+                    ['label' => 'Dashboard', 'icon' => 'gauge', 'href' => route('dashboard'), 'active' => request()->routeIs('dashboard')],
+                ],
+            ],
+            [
+                'label' => 'Audit',
+                'items' => [
+                    ['label' => 'Auditee', 'icon' => 'book-user', 'open' => true, 'children' => [
+                        ['label' => 'Tindak Lanjut Auditee', 'href' => route('audit.tindak-lanjut.index'), 'active' => request()->routeIs('audit.tindak-lanjut.*')],
+                    ]],
+                ],
+            ],
+        ];
+    } elseif (in_array($authUser?->role, ['Auditor', 'Ketua Tim', 'Koordinator dan Pengendali', 'Pengawas Tim'], true)) {
+        $groups = [
+            [
+                'label' => 'Dashboard',
+                'items' => [
+                    ['label' => 'Dashboard', 'icon' => 'gauge', 'href' => route('dashboard'), 'active' => request()->routeIs('dashboard')],
+                ],
+            ],
+            [
+                'label' => 'Audit',
+                'items' => [
+                    ['label' => 'Persiapan', 'icon' => 'square-kanban-plus', 'open' => request()->routeIs('audit.sprin.*', 'audit.pka.*'), 'children' => [
+                        ['label' => 'Sprin', 'href' => route('audit.sprin.index'), 'active' => request()->routeIs('audit.sprin.*')],
+                        'Entry Meeting',
+                        ['label' => 'PKA', 'href' => route('audit.pka.index'), 'active' => request()->routeIs('audit.pka.*')],
+                        'Dokumen Pendahuluan',
+                    ]],
+                    ['label' => 'Pelaksanaan', 'icon' => 'panel-top-open', 'open' => request()->routeIs('audit.kka.*', 'audit.tabulasi.*'), 'children' => [
+                        ['label' => 'KKA', 'href' => route('audit.kka.index'), 'active' => request()->routeIs('audit.kka.*') && ! request()->routeIs('audit.kka.tabulasi.*')],
+                        ['label' => 'Tabulasi', 'href' => route('audit.tabulasi.index'), 'active' => request()->routeIs('audit.tabulasi.*', 'audit.kka.tabulasi.*')],
+                    ]],
+                    ['label' => 'Auditee', 'icon' => 'book-user', 'open' => request()->routeIs('audit.tindak-lanjut.*'), 'children' => [
+                        ['label' => 'Tindak Lanjut Auditee', 'href' => route('audit.tindak-lanjut.index'), 'active' => request()->routeIs('audit.tindak-lanjut.*')],
+                        'Dummy',
+                    ]],
+                ],
+            ],
+        ];
+    }
 
     if ($authUser) {
         if ($authUser->struktur_perangkat_daerah_id) {
