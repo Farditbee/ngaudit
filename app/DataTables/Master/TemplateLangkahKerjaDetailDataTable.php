@@ -32,7 +32,7 @@ class TemplateLangkahKerjaDetailDataTable
             'templateId' => $template->id,
             'namaTemplate' => $template->nama_template,
             'lingkup' => $template->lingkup,
-            'scopeName' => $template->lingkup === 'Nasional' ? $template->plotName() : $template->provinceName(),
+            'scopeName' => $template->plotName(),
             'jumlahLangkahKerja' => (int) $template->jumlah_langkah_kerja,
             'backUrl' => route('master.template.langkah-kerja.index'),
             'indexUrl' => route('master.template.langkah-kerja.details.index', $template),

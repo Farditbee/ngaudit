@@ -26,7 +26,7 @@ class SprinController extends Controller
 
         $tims = Tim::query()
             ->visibleTo($request->user())
-            ->with(['plotting:id,plot', 'province:id,kode_wilayah,provinsi', 'daltu:id,name', 'dalnis:id,name', 'ketuaTim:id,name', 'ketuaTim2:id,name', 'auditors:id,name'])
+            ->with(['plotting:id,nama_unit', 'province:id,kode_wilayah,provinsi', 'daltu:id,name', 'dalnis:id,name', 'ketuaTim:id,name', 'ketuaTim2:id,name', 'auditors:id,name'])
             ->orderBy('nama_tim')
             ->get()
             ->map(fn (Tim $tim): array => [
@@ -34,7 +34,7 @@ class SprinController extends Controller
                 'code' => (string) $tim->id,
                 'name' => $tim->nama_tim,
                 'lingkup' => $tim->lingkup,
-                'scope_name' => $tim->lingkup === 'Nasional' ? $tim->plotting?->plot : $tim->province?->provinsi,
+                'scope_name' => $tim->strukturPerangkatDaerah?->nama_unit ?? $tim->nama_tim,
                 'daltu_name' => $tim->daltu?->name,
                 'dalnis_name' => $tim->dalnis?->name,
                 'ketua_tim_name' => $tim->ketuaTim?->name,
@@ -190,6 +190,7 @@ class SprinController extends Controller
             'tgl_mulai' => $validated['tgl_mulai'],
             'tgl_akhir' => $validated['tgl_akhir'],
             'tim_id' => $tim->id,
+            'struktur_perangkat_daerah_id' => $tim->struktur_perangkat_daerah_id ?? null,
             'plotting_id' => $tim->lingkup === 'Nasional' ? $tim->plotting_id : null,
             'kode_wilayah' => $tim->lingkup === 'Wilayah' ? $tim->province_code : null,
             'katim' => $tim->ketua_tim_id,
@@ -243,14 +244,14 @@ class SprinController extends Controller
             return true;
         }
 
-        if ($user->role === 'Admin Nasional') {
-            return $user->plotting_id && (int) $sprin->plotting_id === (int) $user->plotting_id;
+        if (in_array($user->role, ['Admin Nasional', 'Admin Dinas'], true)) {
+            return ! $user->plotting_id || (int) $sprin->plotting_id === (int) $user->plotting_id;
         }
 
-        if ($user->role === 'Admin Wilayah') {
+        if (in_array($user->role, ['Admin Wilayah', 'Admin Kecamatan'], true)) {
             $provinceCode = substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2);
 
-            return $sprin->sprin_tipe === 'Wilayah' && $sprin->kode_wilayah === $provinceCode;
+            return ! $provinceCode || ($sprin->sprin_tipe === 'Wilayah' && $sprin->kode_wilayah === $provinceCode);
         }
 
         if ($user->role === 'Koordinator dan Pengendali') {

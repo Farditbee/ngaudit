@@ -8,6 +8,7 @@ use App\Models\Kode;
 use App\Models\Pka;
 use App\Models\Plotting;
 use App\Models\Sprin;
+use App\Models\StrukturPerangkatDaerah;
 use App\Models\SubKode;
 use App\Models\Tim;
 use App\Models\User;
@@ -208,5 +209,146 @@ class TindakLanjutAuditeeTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('data.lampirans.0.jenis_unggahan', 'link')
             ->assertJsonPath('data.lampirans.0.url', 'https://drive.google.com/drive/folders/example123');
+    }
+
+    public function test_draft_kka_does_not_appear_in_tindak_lanjut_and_cannot_be_accessed(): void
+    {
+        $admin = User::factory()->create(['role' => 'Super Admin']);
+        $this->seed(KodeSeeder::class);
+        [$kka] = $this->createKkaWithTabulasi($admin);
+
+        $kka->update(['status' => 'Draft']);
+
+        $response = $this->actingAs($admin)->getJson(route('audit.tindak-lanjut.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $response->assertOk();
+        $this->assertCount(0, $response->json('data'));
+
+        $this->actingAs($admin)->get(route('audit.tindak-lanjut.show', [$kka, 'tabulasi']))
+            ->assertForbidden();
+    }
+
+    public function test_only_assigned_auditor_can_access_kka_in_tindak_lanjut(): void
+    {
+        $admin = User::factory()->create(['role' => 'Super Admin']);
+        $assignedAuditor = User::factory()->create(['role' => 'Auditor']);
+        $unassignedAuditor = User::factory()->create(['role' => 'Auditor']);
+        $this->seed(KodeSeeder::class);
+
+        [$kka] = $this->createKkaWithTabulasi($admin);
+        $kka->update([
+            'dibuat_oleh_id' => $assignedAuditor->id,
+            'status' => 'Final',
+        ]);
+
+        // Assigned auditor can view in datatable and access show
+        $response = $this->actingAs($assignedAuditor)->getJson(route('audit.tindak-lanjut.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $response->assertOk();
+        $this->assertCount(1, $response->json('data'));
+        $this->actingAs($assignedAuditor)->get(route('audit.tindak-lanjut.show', [$kka, 'tabulasi']))->assertOk();
+
+        // Unassigned auditor cannot see in datatable and gets 403 on show
+        $responseUnassigned = $this->actingAs($unassignedAuditor)->getJson(route('audit.tindak-lanjut.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $responseUnassigned->assertOk();
+        $this->assertCount(0, $responseUnassigned->json('data'));
+        $this->actingAs($unassignedAuditor)->get(route('audit.tindak-lanjut.show', [$kka, 'tabulasi']))->assertForbidden();
+    }
+
+    public function test_auditee_with_matching_level_and_hierarchy_can_access_kka_in_tindak_lanjut(): void
+    {
+        $admin = User::factory()->create(['role' => 'Super Admin']);
+        $this->seed(KodeSeeder::class);
+
+        $dinasDishub = StrukturPerangkatDaerah::query()->create([
+            'nama_unit' => 'Dinas Perhubungan',
+            'level' => 1,
+            'jenis_unit' => 'Dinas',
+        ]);
+
+        $uptDishub = StrukturPerangkatDaerah::query()->create([
+            'parent_id' => $dinasDishub->id,
+            'nama_unit' => 'UPT Dinas Perhubungan',
+            'level' => 2,
+            'jenis_unit' => 'UPTD',
+        ]);
+
+        $dinasDinkes = StrukturPerangkatDaerah::query()->create([
+            'nama_unit' => 'Dinas Kesehatan',
+            'level' => 1,
+            'jenis_unit' => 'Dinas',
+        ]);
+
+        [$kka] = $this->createKkaWithTabulasi($admin);
+        $kka->update([
+            'auditee_level' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $uptDishub->id,
+            'status' => 'Final',
+        ]);
+
+        // 1. Auditee at parent Dinas (Dinas Perhubungan) CANNOT see KKA for UPT (must be same exact unit)
+        $auditeeDishub = User::factory()->create([
+            'role' => 'Auditee',
+            'level' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $dinasDishub->id,
+        ]);
+        $responseDishub = $this->actingAs($auditeeDishub)->getJson(route('audit.tindak-lanjut.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $responseDishub->assertOk();
+        $this->assertCount(0, $responseDishub->json('data'));
+        $this->actingAs($auditeeDishub)->get(route('audit.tindak-lanjut.show', [$kka, 'tabulasi']))->assertForbidden();
+
+        // 2. Auditee at exact child unit (UPT Dinas Perhubungan) CAN see KKA
+        $auditeeUpt = User::factory()->create([
+            'role' => 'Auditee',
+            'level' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $uptDishub->id,
+        ]);
+        $responseUpt = $this->actingAs($auditeeUpt)->getJson(route('audit.tindak-lanjut.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $responseUpt->assertOk();
+        $this->assertCount(1, $responseUpt->json('data'));
+        $this->actingAs($auditeeUpt)->get(route('audit.tindak-lanjut.show', [$kka, 'tabulasi']))->assertOk();
+
+        // 3. Auditee at different Dinas (Dinas Kesehatan) cannot see KKA
+        $auditeeDinkes = User::factory()->create([
+            'role' => 'Auditee',
+            'level' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $dinasDinkes->id,
+        ]);
+        $responseDinkes = $this->actingAs($auditeeDinkes)->getJson(route('audit.tindak-lanjut.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $responseDinkes->assertOk();
+        $this->assertCount(0, $responseDinkes->json('data'));
+        $this->actingAs($auditeeDinkes)->get(route('audit.tindak-lanjut.show', [$kka, 'tabulasi']))->assertForbidden();
+
+        // 4. Auditee with different level (Kecamatan) cannot see KKA
+        $auditeeKec = User::factory()->create([
+            'role' => 'Auditee',
+            'level' => 'Kecamatan',
+        ]);
+        $responseKec = $this->actingAs($auditeeKec)->getJson(route('audit.tindak-lanjut.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $responseKec->assertOk();
+        $this->assertCount(0, $responseKec->json('data'));
+        $this->actingAs($auditeeKec)->get(route('audit.tindak-lanjut.show', [$kka, 'tabulasi']))->assertForbidden();
+
+        // 5. Auditee with same unit but DIFFERENT bidang cannot see KKA
+        $auditeeDiffBidang = User::factory()->create([
+            'role' => 'Auditee',
+            'level' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $uptDishub->id,
+            'bidang' => 'Sumber Daya Manusia',
+        ]);
+        $responseDiffBidang = $this->actingAs($auditeeDiffBidang)->getJson(route('audit.tindak-lanjut.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $responseDiffBidang->assertOk();
+        $this->assertCount(0, $responseDiffBidang->json('data'));
+        $this->actingAs($auditeeDiffBidang)->get(route('audit.tindak-lanjut.show', [$kka, 'tabulasi']))->assertForbidden();
+
+        // 6. Auditee with same unit and SAME bidang CAN see KKA
+        $auditeeSameBidang = User::factory()->create([
+            'role' => 'Auditee',
+            'level' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $uptDishub->id,
+            'bidang' => 'Operasional',
+        ]);
+        $responseSameBidang = $this->actingAs($auditeeSameBidang)->getJson(route('audit.tindak-lanjut.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $responseSameBidang->assertOk();
+        $this->assertCount(1, $responseSameBidang->json('data'));
+        $this->actingAs($auditeeSameBidang)->get(route('audit.tindak-lanjut.show', [$kka, 'tabulasi']))->assertOk();
     }
 }

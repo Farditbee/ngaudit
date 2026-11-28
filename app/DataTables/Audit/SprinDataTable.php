@@ -43,11 +43,11 @@ class SprinDataTable
         $scopeName = null;
         if ($isAdminNasional || ($isDaltu && $authUser?->plotting_id)) {
             $scopeLabel = 'WIL';
-            $scopeName = $authUser->plotting?->plot;
+            $scopeName = $authUser->plotting?->nama_unit ?? $authUser->plotting?->plot;
         } elseif ($isAdminWilayah || ($isDaltu && $authUser?->kode_wilayah)) {
             $scopeLabel = 'Provinsi';
             $provinceCode = substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2);
-            $scopeName = DB::table('wilayah')->where('kode_wilayah', $provinceCode)->value('provinsi');
+            $scopeName = DB::table('struktur_perangkat_daerah')->where('kode_wilayah', $provinceCode)->value('nama_unit');
         }
 
         return [
@@ -72,17 +72,20 @@ class SprinDataTable
         $query = Sprin::query()
             ->visibleTo($authUser)
             ->join('tims', 'tims.id', '=', 'sprins.tim_id')
-            ->leftJoin('plottings', 'plottings.id', '=', 'sprins.plotting_id')
-            ->leftJoin('wilayah as p', function ($join): void {
-                $join->on('p.kode_wilayah', '=', 'sprins.kode_wilayah')
-                    ->whereNull('p.kabupaten_kota');
+            ->leftJoin('struktur_perangkat_daerah as spd', function ($join): void {
+                $join->on('spd.id', '=', 'sprins.struktur_perangkat_daerah_id')
+                    ->orOn('spd.kode_wilayah', '=', 'sprins.kode_wilayah')
+                    ->whereNull('spd.deleted_at');
             })
             ->with(['latestReview:id,sprin_id,status,created_at'])
             ->select([
                 'sprins.*',
                 'tims.nama_tim',
-                'plottings.plot as plot_name',
-                'p.provinsi as province_name',
+                'spd.nama_unit as plot_name',
+                'spd.nama_unit as province_name',
+                'spd.nama_unit as unit_name',
+                'spd.jenis_unit',
+                'spd.pimpinan',
             ]);
 
         if ($filterTahap !== '') {
@@ -124,8 +127,8 @@ class SprinDataTable
                     $builder->orderByDesc('sprins.created_at')->orderByDesc('sprins.id');
                 }
             })
-            ->addColumn('plot_name', fn (Sprin $sprin): ?string => $sprin->plot_name ?? $sprin->plotName())
-            ->addColumn('province_name', fn (Sprin $sprin): ?string => $sprin->province_name ?? $sprin->provinceName())
+            ->addColumn('plot_name', fn (Sprin $sprin): ?string => in_array($sprin->sprin_tipe, ['Nasional', 'Dinas'], true) ? ($sprin->plot_name ?? $sprin->plotName()) : null)
+            ->addColumn('province_name', fn (Sprin $sprin): ?string => in_array($sprin->sprin_tipe, ['Wilayah', 'Kecamatan'], true) ? ($sprin->province_name ?? $sprin->provinceName()) : null)
             ->editColumn('tgl_mulai', fn (Sprin $sprin): string => $sprin->tgl_mulai->format('Y-m-d'))
             ->addColumn('tgl_akhir_value', fn (Sprin $sprin): string => $sprin->tgl_akhir->format('Y-m-d'))
             ->editColumn('approved_by_daltu_date', fn (Sprin $sprin): ?string => $sprin->approved_by_daltu_date?->timezone('Asia/Jakarta')->format('Y-m-d H:i'))
@@ -164,8 +167,7 @@ class SprinDataTable
             ->filterColumn('sprin_tipe', function (Builder $query, string $keyword): void {
                 $query->where(function (Builder $q) use ($keyword): void {
                     $q->where('sprins.sprin_tipe', 'like', "%{$keyword}%")
-                        ->orWhere('plottings.plot', 'like', "%{$keyword}%")
-                        ->orWhere('p.provinsi', 'like', "%{$keyword}%");
+                        ->orWhere('spd.nama_unit', 'like', "%{$keyword}%");
                 });
             })
             ->toJson();

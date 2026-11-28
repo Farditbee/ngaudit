@@ -58,16 +58,16 @@
                         <div class="inline-flex flex-col items-center gap-1">
                             <span
                                 class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                                :class="row.sprin_tipe === 'Nasional'
+                                :class="(row.sprin_tipe === 'Nasional' || row.sprin_tipe === 'Dinas')
                                     ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
                                     : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'"
-                                x-text="row.sprin_tipe"
+                                x-text="row.sprin_tipe === 'Nasional' ? 'Dinas' : (row.sprin_tipe === 'Wilayah' ? 'Kecamatan' : row.sprin_tipe)"
                             ></span>
-                            <template x-if="row.sprin_tipe === 'Nasional' && row.plot_name">
+                            <template x-if="(row.sprin_tipe === 'Nasional' || row.sprin_tipe === 'Dinas') && row.plot_name">
                                 <span class="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-medium text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" x-text="row.plot_name"></span>
                             </template>
-                            <template x-if="row.sprin_tipe === 'Wilayah' && row.province_name">
-                                <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" x-text="row.province_name"></span>
+                            <template x-if="(row.sprin_tipe === 'Wilayah' || row.sprin_tipe === 'Kecamatan') && (row.unit_name || row.province_name)">
+                                <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" x-text="row.unit_name || row.province_name"></span>
                             </template>
                         </div>
                     </td>

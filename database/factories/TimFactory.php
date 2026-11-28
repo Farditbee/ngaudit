@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\Plotting;
 use App\Models\Tim;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -21,9 +20,8 @@ class TimFactory extends Factory
     {
         return [
             'nama_tim' => 'Tim Audit '.strtoupper(fake()->unique()->lexify('???')),
-            'lingkup' => 'Nasional',
-            'plotting_id' => Plotting::factory(),
-            'province_code' => null,
+            'lingkup' => 'Dinas',
+            'struktur_perangkat_daerah_id' => null,
             'daltu_id' => User::factory()->state(['role' => 'Koordinator dan Pengendali']),
             'dalnis_id' => User::factory()->state(['role' => 'Pengawas Tim']),
             'ketua_tim_id' => User::factory()->state(['role' => 'Ketua Tim']),

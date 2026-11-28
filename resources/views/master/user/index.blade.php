@@ -72,20 +72,27 @@
 
                             <template x-if="row.level">
                                 <div class="flex flex-col items-start gap-1">
-                                    <template x-if="row.level === 'Nasional' && row.plot_name">
-                                        <span class="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-[10px] leading-tight font-medium text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" x-text="row.plot_name"></span>
+                                    {{-- Baris 1: Nama Kecamatan / Dinas --}}
+                                    <template x-if="row.unit_parent || row.perangkat_daerah_name || row.plot_name">
+                                        <span
+                                            class="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium leading-normal"
+                                            :class="row.level === 'Dinas'
+                                                ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800/60 dark:bg-indigo-950/40 dark:text-indigo-300'
+                                                : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'"
+                                            x-text="row.unit_parent || row.perangkat_daerah_name || row.plot_name"
+                                        ></span>
                                     </template>
-                                    <template x-if="row.province_name">
-                                        <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] leading-tight font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" x-text="row.province_name"></span>
+
+                                    {{-- Baris 2: Sub-unit / Satker / Seksi (jika ada) --}}
+                                    <template x-if="row.unit_parent && row.unit_sub">
+                                        <span
+                                            class="inline-flex items-center rounded-md border border-purple-200 bg-purple-50/80 px-2 py-0.5 text-[11px] font-medium leading-normal text-purple-700 dark:border-purple-800/60 dark:bg-purple-950/40 dark:text-purple-300"
+                                            x-text="row.unit_sub"
+                                        ></span>
                                     </template>
-                                    <template x-if="row.city_name">
-                                        <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] leading-tight font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="row.city_name"></span>
-                                    </template>
-                                    <template x-if="row.district_name">
-                                        <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-[10px] leading-tight font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300" x-text="row.district_name"></span>
-                                    </template>
-                                    <template x-if="row.village_name">
-                                        <span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] leading-tight font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300" x-text="row.village_name"></span>
+
+                                    <template x-if="row.village_name && !row.unit_sub && row.village_name !== (row.unit_parent || row.perangkat_daerah_name || row.plot_name)">
+                                        <span class="inline-flex items-center rounded-md border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-300" x-text="row.village_name"></span>
                                     </template>
                                 </div>
                             </template>

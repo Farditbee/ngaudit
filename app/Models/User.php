@@ -19,6 +19,7 @@ use Illuminate\Notifications\Notifiable;
     'role',
     'password',
     'level',
+    'struktur_perangkat_daerah_id',
     'plotting_id',
     'kode_wilayah',
     'bidang',
@@ -37,8 +38,8 @@ class User extends Authenticatable
      */
     public const ROLES = [
         'Super Admin',
-        'Admin Nasional',
-        'Admin Wilayah',
+        'Admin Dinas',
+        'Admin Kecamatan',
         'Auditor',
         'Auditee',
         'Ketua Tim',
@@ -50,37 +51,30 @@ class User extends Authenticatable
      * @var list<string>
      */
     public const LEVELS = [
-        'Nasional',
-        'Wilayah',
-        'Provinsi',
-        'Kabupaten',
+        'Dinas',
         'Kecamatan',
-        'Desa',
     ];
 
     /**
      * @var list<string>
      */
     public const ADMIN_NASIONAL_LEVELS = [
-        'Nasional',
+        'Dinas',
     ];
 
     /**
      * @var list<string>
      */
     public const ADMIN_WILAYAH_LEVELS = [
-        'Provinsi',
-        'Kabupaten',
         'Kecamatan',
-        'Desa',
     ];
 
     /**
      * @var list<string>
      */
     public const AUDITOR_LEVELS = [
-        'Nasional',
-        'Wilayah',
+        'Dinas',
+        'Kecamatan',
     ];
 
     /**
@@ -102,9 +96,25 @@ class User extends Authenticatable
         });
     }
 
+    public function setPlottingIdAttribute(mixed $value): void
+    {
+        $this->attributes['struktur_perangkat_daerah_id'] = $value;
+        unset($this->attributes['plotting_id']);
+    }
+
+    public function getPlottingIdAttribute(): mixed
+    {
+        return $this->attributes['struktur_perangkat_daerah_id'] ?? null;
+    }
+
     public function plotting(): BelongsTo
     {
-        return $this->belongsTo(Plotting::class);
+        return $this->belongsTo(StrukturPerangkatDaerah::class, 'struktur_perangkat_daerah_id');
+    }
+
+    public function strukturPerangkatDaerah(): BelongsTo
+    {
+        return $this->belongsTo(StrukturPerangkatDaerah::class, 'struktur_perangkat_daerah_id');
     }
 
     public function creator(): BelongsTo

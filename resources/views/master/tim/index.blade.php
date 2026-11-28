@@ -58,16 +58,13 @@
                         <div class="flex flex-col items-start gap-1">
                             <span
                                 class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
-                                :class="row.lingkup === 'Nasional'
+                                :class="row.lingkup === 'Dinas' || row.lingkup === 'Nasional'
                                     ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
                                     : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'"
-                                x-text="row.lingkup"
+                                x-text="row.lingkup || '-'"
                             ></span>
-                            <template x-if="row.lingkup === 'Nasional' && row.plot_name">
+                            <template x-if="row.plot_name">
                                 <span class="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-medium text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" x-text="row.plot_name"></span>
-                            </template>
-                            <template x-if="row.lingkup === 'Wilayah' && row.province_name">
-                                <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" x-text="row.province_name"></span>
                             </template>
                         </div>
                     </td>

@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\DB;
 
 class TemplatePka extends Model
 {
@@ -17,8 +16,12 @@ class TemplatePka extends Model
      * @var list<string>
      */
     public const LINGKUPS = [
-        'Nasional',
-        'Wilayah',
+        'Dinas',
+        'Kecamatan',
+    ];
+
+    protected $appends = [
+        'plotting_id',
     ];
 
     /**
@@ -27,6 +30,7 @@ class TemplatePka extends Model
     protected $fillable = [
         'nama_template',
         'lingkup',
+        'struktur_perangkat_daerah_id',
         'plotting_id',
         'kode_wilayah',
         'pendahuluan',
@@ -59,14 +63,36 @@ class TemplatePka extends Model
             return;
         }
 
-        if ($user->role === 'Admin Nasional' && $user->plotting_id) {
-            $query->where('template_pkas.lingkup', 'Nasional')
-                ->where('template_pkas.plotting_id', $user->plotting_id);
-        } elseif ($user->role === 'Admin Wilayah' && $user->kode_wilayah) {
-            $provinceCode = substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2);
-            $query->where('template_pkas.lingkup', 'Wilayah')
-                ->where('template_pkas.kode_wilayah', $provinceCode);
+        $spdId = $user->struktur_perangkat_daerah_id ?? $user->plotting_id;
+
+        if (in_array($user->role, ['Admin Nasional', 'Admin Dinas'], true) || in_array($user->level, ['Nasional', 'Dinas'], true)) {
+            $query->whereIn('template_pkas.lingkup', ['Nasional', 'Dinas'])
+                ->where(function ($q) use ($spdId): void {
+                    $q->whereNull('template_pkas.struktur_perangkat_daerah_id');
+                    if ($spdId) {
+                        $q->orWhere('template_pkas.struktur_perangkat_daerah_id', $spdId);
+                    }
+                });
+        } elseif (in_array($user->role, ['Admin Wilayah', 'Admin Kecamatan'], true) || in_array($user->level, ['Wilayah', 'Kecamatan'], true)) {
+            $query->whereIn('template_pkas.lingkup', ['Wilayah', 'Kecamatan'])
+                ->where(function ($q) use ($spdId): void {
+                    $q->whereNull('template_pkas.struktur_perangkat_daerah_id');
+                    if ($spdId) {
+                        $q->orWhere('template_pkas.struktur_perangkat_daerah_id', $spdId);
+                    }
+                });
         }
+    }
+
+    public function setPlottingIdAttribute(mixed $value): void
+    {
+        $this->attributes['struktur_perangkat_daerah_id'] = $value;
+        unset($this->attributes['plotting_id']);
+    }
+
+    public function getPlottingIdAttribute(): mixed
+    {
+        return $this->attributes['struktur_perangkat_daerah_id'] ?? null;
     }
 
     public function creator(): BelongsTo
@@ -74,39 +100,18 @@ class TemplatePka extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function plotting(): BelongsTo
+    public function strukturPerangkatDaerah(): BelongsTo
     {
-        return $this->belongsTo(Plotting::class);
-    }
-
-    public function province(): BelongsTo
-    {
-        return $this->belongsTo(Wilayah::class, 'kode_wilayah', 'kode_wilayah')
-            ->whereNull('kabupaten_kota');
+        return $this->belongsTo(StrukturPerangkatDaerah::class, 'struktur_perangkat_daerah_id');
     }
 
     public function plotName(): ?string
     {
-        return $this->plotting?->plot;
+        return $this->strukturPerangkatDaerah?->nama_unit;
     }
 
     public function provinceName(): ?string
     {
-        if ($this->province?->provinsi) {
-            return $this->province->provinsi;
-        }
-
-        if ($this->kode_wilayah) {
-            $province = DB::table('wilayah')
-                ->where('kode_wilayah', $this->kode_wilayah)
-                ->whereNull('kabupaten_kota')
-                ->value('provinsi');
-
-            if ($province) {
-                return (string) $province;
-            }
-        }
-
-        return null;
+        return $this->strukturPerangkatDaerah?->nama_unit;
     }
 }

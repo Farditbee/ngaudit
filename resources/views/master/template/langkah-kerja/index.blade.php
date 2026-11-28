@@ -5,7 +5,7 @@
             <div class="flex flex-col gap-1">
                 <h1 class="text-2xl font-semibold tracking-tight">Template Langkah Kerja</h1>
                 <p class="text-sm text-neutral-500 dark:text-neutral-400">
-                    Kelola master template Langkah Kerja Audit berdasarkan level Nasional maupun Wilayah.
+                    Kelola master template Langkah Kerja Audit berdasarkan lingkup Dinas maupun Kecamatan.
                 </p>
             </div>
 
@@ -104,21 +104,21 @@
                         <div class="font-medium" x-text="row.nama_template"></div>
                     </td>
 
-                    {{-- 4. Level & Wilayah / WIL --}}
+                    {{-- 4. Lingkup & Dinas / OPD / Kecamatan --}}
                     <td class="whitespace-nowrap border-r border-neutral-200 px-4 py-3 text-center dark:border-neutral-800">
                         <div class="flex flex-col items-center gap-1">
                             <span
                                 class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
-                                :class="row.lingkup === 'Nasional'
-                                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
+                                :class="row.lingkup === 'Dinas'
+                                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
                                     : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'"
                                 x-text="row.lingkup"
                             ></span>
-                            <template x-if="row.lingkup === 'Nasional' && row.plot_name">
-                                <span class="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-medium text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" x-text="row.plot_name"></span>
+                            <template x-if="row.plot_name">
+                                <span class="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300" x-text="row.plot_name"></span>
                             </template>
-                            <template x-if="row.lingkup === 'Wilayah' && row.province_name">
-                                <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" x-text="row.province_name"></span>
+                            <template x-if="!row.plot_name">
+                                <span class="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">Umum / Semua</span>
                             </template>
                         </div>
                     </td>
@@ -230,60 +230,60 @@
                             </template>
                         </div>
 
-                        {{-- 3. Detail Wilayah (WIL / Provinsi tergantung Level) --}}
+                        {{-- 3. Detail OPD / Kecamatan --}}
                         <div>
-                            <template x-if="form.lingkup === 'Nasional'">
+                            <template x-if="form.lingkup === 'Dinas'">
                                 <div class="space-y-1.5">
-                                    <template x-if="isPlottingReadonly()">
+                                    <template x-if="isSpdReadonly()">
                                         <div>
                                             <div class="flex items-center justify-between">
                                                 <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300">
-                                                    Plotting (WIL) <span class="text-red-500">*</span>
+                                                    Dinas / OPD
                                                 </label>
                                                 <span class="text-[11px] italic text-neutral-400 dark:text-neutral-500">Terkunci</span>
                                             </div>
-                                            <div class="mt-1 flex h-9 items-center rounded-md border border-neutral-200 bg-neutral-100 px-3 text-xs font-medium text-neutral-800 dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-200" x-text="scopeName || 'WIL Terkunci'"></div>
+                                            <div class="mt-1 flex h-9 items-center rounded-md border border-neutral-200 bg-neutral-100 px-3 text-xs font-medium text-neutral-800 dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-200" x-text="scopeName || 'Dinas Terkunci'"></div>
                                         </div>
                                     </template>
-                                    <template x-if="!isPlottingReadonly()">
+                                    <template x-if="!isSpdReadonly()">
                                         <x-searchable-select
-                                            label="Plotting (WIL) *"
-                                            placeholder="Pilih Plotting WIL..."
-                                            itemsExpr="plottingOptions"
-                                            valueModel="form.plotting_id"
+                                            label="Dinas / OPD"
+                                            placeholder="Semua Dinas / OPD (Umum)"
+                                            itemsExpr="dinasOptions"
+                                            valueModel="form.struktur_perangkat_daerah_id"
                                             changeAction=""
                                         />
                                     </template>
-                                    <template x-if="errors.plotting_id">
-                                        <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.plotting_id[0]"></p>
+                                    <template x-if="errors.struktur_perangkat_daerah_id">
+                                        <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.struktur_perangkat_daerah_id[0]"></p>
                                     </template>
                                 </div>
                             </template>
 
-                            <template x-if="form.lingkup === 'Wilayah'">
+                            <template x-if="form.lingkup === 'Kecamatan'">
                                 <div class="space-y-1.5">
-                                    <template x-if="isProvinceReadonly()">
+                                    <template x-if="isSpdReadonly()">
                                         <div>
                                             <div class="flex items-center justify-between">
                                                 <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300">
-                                                    Provinsi <span class="text-red-500">*</span>
+                                                    Kecamatan
                                                 </label>
                                                 <span class="text-[11px] italic text-neutral-400 dark:text-neutral-500">Terkunci</span>
                                             </div>
-                                            <div class="mt-1 flex h-9 items-center rounded-md border border-neutral-200 bg-neutral-100 px-3 text-xs font-medium text-neutral-800 dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-200" x-text="scopeName || 'Provinsi Terkunci'"></div>
+                                            <div class="mt-1 flex h-9 items-center rounded-md border border-neutral-200 bg-neutral-100 px-3 text-xs font-medium text-neutral-800 dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-200" x-text="scopeName || 'Kecamatan Terkunci'"></div>
                                         </div>
                                     </template>
-                                    <template x-if="!isProvinceReadonly()">
+                                    <template x-if="!isSpdReadonly()">
                                         <x-searchable-select
-                                            label="Provinsi *"
-                                            placeholder="Pilih Provinsi..."
-                                            itemsExpr="provinceOptions"
-                                            valueModel="form.kode_wilayah"
+                                            label="Kecamatan"
+                                            placeholder="Semua Kecamatan (Umum)"
+                                            itemsExpr="kecamatanOptions"
+                                            valueModel="form.struktur_perangkat_daerah_id"
                                             changeAction=""
                                         />
                                     </template>
-                                    <template x-if="errors.kode_wilayah">
-                                        <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.kode_wilayah[0]"></p>
+                                    <template x-if="errors.struktur_perangkat_daerah_id">
+                                        <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.struktur_perangkat_daerah_id[0]"></p>
                                     </template>
                                 </div>
                             </template>

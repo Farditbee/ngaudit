@@ -2,8 +2,6 @@
 
 namespace App\DataTables\Audit;
 
-use App\Models\Kka;
-use App\Models\Pka;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -18,22 +16,10 @@ class TabulasiDataTable extends KkaDataTable
      */
     public function config(iterable $pkas, iterable $templates, iterable $plottings, iterable $provinces): array
     {
-        return [
-            'indexUrl' => route('audit.tabulasi.index'),
-            'storeUrl' => route('audit.kka.store'),
-            'baseUrl' => url('/audit/kka'),
-            'bidangs' => Pka::BIDANGS,
-            'jenisAudits' => Pka::JENIS_AUDITS,
-            'statuses' => Kka::STATUSES,
-            'levels' => Kka::AUDITEE_LEVELS,
-            'pkas' => $pkas,
-            'templates' => $templates,
-            'plottings' => $plottings,
-            'provinces' => $provinces,
-            'columns' => $this->columns(),
-            'defaultSortCol' => null,
-            'defaultSortDir' => 'desc',
-        ];
+        $config = parent::config($pkas, $templates, $plottings, $provinces);
+        $config['indexUrl'] = route('audit.tabulasi.index');
+
+        return $config;
     }
 
     public function toJson(Request $request): JsonResponse

@@ -110,17 +110,20 @@
                     {{-- 4. Auditee --}}
                     <td class="border-r border-neutral-200 px-4 py-3 text-xs dark:border-neutral-800">
                         <div class="flex flex-col items-start gap-1">
-                            <template x-for="(item, hIdx) in (row.auditee_hierarchy || [])" :key="hIdx">
+                            {{-- Badge Level (Kecamatan / Dinas) --}}
+                            <span
+                                class="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium leading-normal"
+                                :class="row.auditee_level === 'Dinas'
+                                    ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800/60 dark:bg-indigo-950/40 dark:text-indigo-300'
+                                    : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'"
+                                x-text="row.auditee_parent || row.auditee_name"
+                            ></span>
+
+                            {{-- Badge Sub (Satuan Kerja / Seksi / Bidang) --}}
+                            <template x-if="row.auditee_parent">
                                 <span
-                                    class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] leading-tight"
-                                    :class="{
-                                        'bg-amber-100 font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300': item.is_target,
-                                        'bg-purple-100 font-medium text-purple-700 dark:bg-purple-900/40 dark:text-purple-300': !item.is_target && item.level === 'province',
-                                        'bg-blue-100 font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300': !item.is_target && item.level === 'city',
-                                        'bg-emerald-100 font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300': !item.is_target && item.level === 'district',
-                                        'bg-rose-100 font-medium text-rose-700 dark:bg-rose-900/40 dark:text-rose-300': !item.is_target && item.level === 'village',
-                                    }"
-                                    x-text="item.label"
+                                    class="inline-flex items-center rounded-md border border-purple-200 bg-purple-50/80 px-2 py-0.5 text-[11px] font-medium text-purple-700 dark:border-purple-800/60 dark:bg-purple-950/40 dark:text-purple-300"
+                                    x-text="row.auditee_sub_unit || row.auditee_name"
                                 ></span>
                             </template>
                         </div>
@@ -439,15 +442,23 @@
                                 {{-- 7. Auditee --}}
                                 <div class="space-y-3">
                                     <div class="space-y-1.5">
-                                        <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300">
-                                            7. Auditee - Level <span class="text-red-500">*</span>
-                                        </label>
+                                        <div class="flex items-center justify-between">
+                                            <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                                                7. Auditee - Level <span class="text-red-500">*</span>
+                                            </label>
+                                            <template x-if="isLevelReadonly()">
+                                                <span class="text-[11px] italic text-neutral-400 dark:text-neutral-500">
+                                                    Readonly (Otomatis <span x-text="form.auditee_level"></span>)
+                                                </span>
+                                            </template>
+                                        </div>
                                         <div class="grid gap-1.5 sm:w-72" :class="levels.length === 1 ? 'grid-cols-1' : 'grid-cols-2'">
                                             <template x-for="lv in levels" :key="lv">
                                                 <button
                                                     type="button"
-                                                    x-on:click="form.auditee_level = lv; onLevelChange()"
-                                                    class="h-9 rounded-md border px-3 text-xs font-medium transition-colors"
+                                                    x-bind:disabled="isLevelReadonly()"
+                                                    x-on:click="if (!isLevelReadonly()) { form.auditee_level = lv; onLevelChange(); }"
+                                                    class="h-9 rounded-md border px-3 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-80"
                                                     :class="form.auditee_level === lv
                                                         ? 'border-neutral-900 bg-neutral-900 text-white dark:border-white dark:bg-white dark:text-neutral-900'
                                                         : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'"
@@ -460,76 +471,69 @@
                                         </template>
                                     </div>
 
-                                    <template x-if="form.auditee_level === 'Nasional'">
-                                        <div class="space-y-1.5 sm:w-72">
-                                            <x-searchable-select
-                                                label="WIL Auditee *"
-                                                placeholder="Pilih WIL..."
-                                                itemsExpr="plottingOptions"
-                                                valueModel="form.auditee_plotting_id"
-                                                changeAction=""
-                                            />
-                                            <template x-if="errors.auditee_plotting_id">
-                                                <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.auditee_plotting_id[0]"></p>
+                                    {{-- Level 1 & Level 2: Berdampingan 50:50 --}}
+                                    <div class="grid gap-4 sm:grid-cols-2">
+                                        {{-- Dropdown Level 1: Dinas / Badan / OPD atau Kecamatan --}}
+                                        <div class="space-y-1.5">
+                                            <div x-show="form.auditee_level === 'Dinas'">
+                                                <x-searchable-select
+                                                    label="Dinas / Badan / OPD *"
+                                                    placeholder="Pilih Dinas / Badan / OPD..."
+                                                    itemsExpr="modalLevel1Options"
+                                                    valueModel="form.unit_level_1"
+                                                    changeAction="onLevel1Change()"
+                                                />
+                                            </div>
+                                            <div x-show="form.auditee_level === 'Kecamatan'">
+                                                <x-searchable-select
+                                                    label="Kecamatan *"
+                                                    placeholder="Pilih Kecamatan..."
+                                                    itemsExpr="modalLevel1Options"
+                                                    valueModel="form.unit_level_1"
+                                                    changeAction="onLevel1Change()"
+                                                />
+                                            </div>
+                                            <template x-if="errors.struktur_perangkat_daerah_id">
+                                                <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.struktur_perangkat_daerah_id[0]"></p>
                                             </template>
                                         </div>
-                                    </template>
 
-                                    <template x-if="form.auditee_level === 'Wilayah'">
-                                        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                        {{-- Dropdown Level 2: Satker / Bidang / Bagian / Seksi Kecamatan --}}
+                                        <template x-if="modalLevel2Options.length > 0">
                                             <div class="space-y-1.5">
-                                                <x-searchable-select
-                                                    label="Provinsi *"
-                                                    placeholder="Pilih Provinsi..."
-                                                    itemsExpr="provinceOptions"
-                                                    valueModel="form.province_code"
-                                                    changeAction="onProvinceChange()"
-                                                />
-                                                <template x-if="errors.province_code">
-                                                    <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.province_code[0]"></p>
-                                                </template>
+                                                <div x-show="form.auditee_level === 'Dinas'">
+                                                    <x-searchable-select
+                                                        label="Satker / Bidang / Bagian"
+                                                        placeholder="Pilih Satker / Bidang / Bagian (Opsional)"
+                                                        itemsExpr="modalLevel2Options"
+                                                        valueModel="form.unit_level_2"
+                                                        changeAction="onLevel2Change()"
+                                                    />
+                                                </div>
+                                                <div x-show="form.auditee_level === 'Kecamatan'">
+                                                    <x-searchable-select
+                                                        label="Satker / Seksi Kecamatan"
+                                                        placeholder="Pilih Satker / Seksi Kecamatan (Opsional)"
+                                                        itemsExpr="modalLevel2Options"
+                                                        valueModel="form.unit_level_2"
+                                                        changeAction="onLevel2Change()"
+                                                    />
+                                                </div>
                                             </div>
-                                            <div class="space-y-1.5">
+                                        </template>
+                                    </div>
+
+                                    {{-- Dropdown Level 3: Sub Bagian / Seksi / Unit (jika ada) --}}
+                                    <template x-if="modalLevel3Options.length > 0">
+                                        <div class="grid gap-4 sm:grid-cols-2">
+                                            <div class="space-y-1.5 sm:col-start-2">
                                                 <x-searchable-select
-                                                    label="Kabupaten / Kota (opsional)"
-                                                    placeholder="Pilih Kabupaten / Kota..."
-                                                    itemsExpr="cityOptions"
-                                                    valueModel="form.city_code"
-                                                    changeAction="onCityChange()"
-                                                    disabledExpr="!form.province_code"
-                                                    disabledMessage="Pilih Provinsi terlebih dahulu"
+                                                    label="Sub Bagian / Seksi / Unit"
+                                                    placeholder="Pilih Sub Bagian / Seksi / Unit (Opsional)"
+                                                    itemsExpr="modalLevel3Options"
+                                                    valueModel="form.unit_level_3"
+                                                    changeAction="onLevel3Change()"
                                                 />
-                                                <template x-if="errors.city_code">
-                                                    <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.city_code[0]"></p>
-                                                </template>
-                                            </div>
-                                            <div class="space-y-1.5">
-                                                <x-searchable-select
-                                                    label="Kecamatan (opsional)"
-                                                    placeholder="Pilih Kecamatan..."
-                                                    itemsExpr="districtOptions"
-                                                    valueModel="form.district_code"
-                                                    changeAction="onDistrictChange()"
-                                                    disabledExpr="!form.city_code"
-                                                    disabledMessage="Pilih Kabupaten / Kota terlebih dahulu"
-                                                />
-                                                <template x-if="errors.district_code">
-                                                    <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.district_code[0]"></p>
-                                                </template>
-                                            </div>
-                                            <div class="space-y-1.5">
-                                                <x-searchable-select
-                                                    label="Desa / Kelurahan (opsional)"
-                                                    placeholder="Pilih Desa / Kelurahan..."
-                                                    itemsExpr="villageOptions"
-                                                    valueModel="form.village_code"
-                                                    changeAction=""
-                                                    disabledExpr="!form.district_code"
-                                                    disabledMessage="Pilih Kecamatan terlebih dahulu"
-                                                />
-                                                <template x-if="errors.village_code">
-                                                    <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.village_code[0]"></p>
-                                                </template>
                                             </div>
                                         </div>
                                     </template>

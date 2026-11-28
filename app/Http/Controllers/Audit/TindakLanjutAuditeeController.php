@@ -48,7 +48,7 @@ class TindakLanjutAuditeeController extends Controller
             'pka.sprin:id,no_sprin,tahap,sprin_tipe',
             'dibuatOleh:id,name,username',
             'creator:id,name,username',
-            'auditeePlotting:id,plot',
+            'auditeePlotting:id,nama_unit',
         ]);
 
         $items = KkaTabulasi::query()
@@ -477,17 +477,22 @@ class TindakLanjutAuditeeController extends Controller
 
     protected function resolveAuditeeName(Kka $kka): string
     {
-        if ($kka->auditee_level === 'Nasional') {
-            return (string) ($kka->auditeePlotting?->plot ?? '-');
+        if ($kka->auditee_perangkat_daerah_id) {
+            return (string) ($kka->auditeePerangkatDaerah?->nama_unit ?? '-');
+        }
+
+        if (in_array($kka->auditee_level, ['Nasional', 'Dinas'], true)) {
+            return (string) ($kka->auditeePerangkatDaerah?->nama_unit ?? '-');
         }
 
         if ($kka->auditee_kode_wilayah) {
-            $wilayah = DB::table('wilayah')
+            $wilayah = DB::table('struktur_perangkat_daerah')
                 ->where('kode_wilayah', $kka->auditee_kode_wilayah)
                 ->whereNull('deleted_at')
                 ->first();
             if ($wilayah) {
-                return (string) ($wilayah->desa_kelurahan
+                return (string) ($wilayah->nama_unit
+                    ?? $wilayah->desa_kelurahan
                     ?? $wilayah->kecamatan
                     ?? $wilayah->kabupaten_kota
                     ?? $wilayah->provinsi
@@ -504,7 +509,7 @@ class TindakLanjutAuditeeController extends Controller
             return false;
         }
 
-        return $user->role !== 'Auditee';
+        return ! in_array($user->role, ['Auditee', 'Admin Dinas', 'Admin Kecamatan'], true);
     }
 
     protected function canAccessKka(?User $user, Kka $kka): bool
@@ -513,14 +518,6 @@ class TindakLanjutAuditeeController extends Controller
             return false;
         }
 
-        if ($user->role === 'Super Admin') {
-            return true;
-        }
-
-        if ($kka->created_by && (int) $kka->created_by === (int) $user->id) {
-            return true;
-        }
-
-        return Kka::query()->whereKey($kka->id)->visibleTo($user)->exists();
+        return Kka::query()->whereKey($kka->id)->visibleForTindakLanjut($user)->exists();
     }
 }

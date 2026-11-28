@@ -5,7 +5,6 @@ namespace App\DataTables\Master;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\Facades\DataTables;
 
 class UserDataTable
@@ -35,12 +34,12 @@ class UserDataTable
     public function config(iterable $plottings, iterable $provinces): array
     {
         $authUser = auth()->user();
-        $isAdminNasional = $authUser?->role === 'Admin Nasional';
-        $isAdminWilayah = $authUser?->role === 'Admin Wilayah';
+        $isAdminNasional = in_array($authUser?->role, ['Admin Nasional', 'Admin Dinas'], true);
+        $isAdminWilayah = in_array($authUser?->role, ['Admin Wilayah', 'Admin Kecamatan'], true);
 
         $roles = match (true) {
-            $isAdminNasional => array_values(array_diff(User::ROLES, ['Super Admin', 'Admin Wilayah'])),
-            $isAdminWilayah => array_values(array_diff(User::ROLES, ['Super Admin', 'Admin Nasional'])),
+            $isAdminNasional => array_values(array_diff(User::ROLES, ['Super Admin', 'Admin Kecamatan'])),
+            $isAdminWilayah => array_values(array_diff(User::ROLES, ['Super Admin', 'Admin Dinas'])),
             default => User::ROLES,
         };
 
@@ -73,19 +72,23 @@ class UserDataTable
         $cleanCodeSql = "REPLACE(users.kode_wilayah, '.', '')";
 
         $query = User::query()
-            ->leftJoin('plottings', 'plottings.id', '=', 'users.plotting_id')
-            ->leftJoin('wilayah as w', 'w.kode_wilayah', '=', DB::raw($cleanCodeSql))
+            ->leftJoin('struktur_perangkat_daerah as spd', function ($join): void {
+                $join->on('spd.id', '=', 'users.struktur_perangkat_daerah_id')
+                    ->orOn('spd.kode_wilayah', '=', 'users.kode_wilayah');
+            })
+            ->leftJoin('struktur_perangkat_daerah as spd_parent', 'spd_parent.id', '=', 'spd.parent_id')
             ->select([
                 'users.*',
-                'plottings.plot as plot_name',
-                DB::raw("CASE WHEN CHAR_LENGTH({$cleanCodeSql}) >= 2 THEN SUBSTRING({$cleanCodeSql}, 1, 2) ELSE NULL END as province_code"),
-                'w.provinsi as province_name',
-                DB::raw("CASE WHEN CHAR_LENGTH({$cleanCodeSql}) >= 4 THEN SUBSTRING({$cleanCodeSql}, 1, 4) ELSE NULL END as city_code"),
-                'w.kabupaten_kota as city_name',
-                DB::raw("CASE WHEN CHAR_LENGTH({$cleanCodeSql}) >= 6 THEN SUBSTRING({$cleanCodeSql}, 1, 6) ELSE NULL END as district_code"),
-                'w.kecamatan as district_name',
-                DB::raw("CASE WHEN CHAR_LENGTH({$cleanCodeSql}) = 10 THEN {$cleanCodeSql} ELSE NULL END as village_code"),
-                'w.desa_kelurahan as village_name',
+                'spd.nama_unit as perangkat_daerah_name',
+                'spd.nama_unit as plot_name',
+                'spd.level as spd_level',
+                'spd.jenis_unit as spd_jenis_unit',
+                'spd_parent.nama_unit as spd_parent_name',
+                'spd.provinsi as province_name',
+                'spd.kabupaten_kota as city_name',
+                'spd.kecamatan as district_name',
+                'spd.desa_kelurahan as village_name',
+                'spd.pimpinan',
             ]);
 
         if ($filterRole !== '') {
@@ -93,9 +96,9 @@ class UserDataTable
         }
 
         $authUser = $request->user();
-        if ($authUser?->role === 'Admin Nasional' && $authUser->plotting_id) {
-            $query->where('users.plotting_id', $authUser->plotting_id);
-        } elseif ($authUser?->role === 'Admin Wilayah' && $authUser->kode_wilayah) {
+        if (in_array($authUser?->role, ['Admin Nasional', 'Admin Dinas'], true) && $authUser->plotting_id) {
+            $query->where('users.struktur_perangkat_daerah_id', $authUser->plotting_id);
+        } elseif (in_array($authUser?->role, ['Admin Wilayah', 'Admin Kecamatan'], true) && $authUser->kode_wilayah) {
             $cleanAuthWilayah = str_replace('.', '', (string) $authUser->kode_wilayah);
             $query->whereRaw("{$cleanCodeSql} LIKE ?", [$cleanAuthWilayah.'%']);
         }
@@ -106,7 +109,45 @@ class UserDataTable
 
         return DataTables::eloquent($query)
             ->addIndexColumn()
+            ->addColumn('unit_parent', fn (User $user): ?string => $this->unitParent($user))
+            ->addColumn('unit_sub', fn (User $user): ?string => $this->unitSub($user))
             ->addColumn('ttd_url', fn (User $user): ?string => $user->ttd_path ? asset('storage/'.$user->ttd_path) : null)
+            ->filterColumn('perangkat_daerah_name', function (Builder $query, string $keyword): void {
+                $query->where(function (Builder $q) use ($keyword): void {
+                    $q->where('spd.nama_unit', 'like', "%{$keyword}%")
+                        ->orWhere('spd_parent.nama_unit', 'like', "%{$keyword}%");
+                });
+            })
             ->toJson();
+    }
+
+    protected function unitParent(User $user): ?string
+    {
+        if (! empty($user->spd_parent_name)) {
+            $level = isset($user->spd_level) ? (int) $user->spd_level : null;
+            if ($level !== null && $level > 1) {
+                return (string) $user->spd_parent_name;
+            }
+
+            if (! in_array($user->spd_jenis_unit, ['Kecamatan', 'Dinas', 'Badan', 'Inspektorat', 'Sekretariat', 'Sekretariat Daerah', 'Sekretariat DPRD'], true)) {
+                return (string) $user->spd_parent_name;
+            }
+        }
+
+        return null;
+    }
+
+    protected function unitSub(User $user): ?string
+    {
+        if (! $this->unitParent($user)) {
+            return null;
+        }
+
+        $rawName = (string) ($user->perangkat_daerah_name ?? $user->plot_name ?? '');
+        if ($rawName === '') {
+            return null;
+        }
+
+        return preg_replace('/\s*-\s*Kec\.?\s+.*$/i', '', $rawName);
     }
 }

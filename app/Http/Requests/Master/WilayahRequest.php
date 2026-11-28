@@ -70,13 +70,13 @@ class WilayahRequest extends FormRequest
                 Rule::requiredIf(in_array($level, ['city', 'district', 'village'], true)),
                 'nullable',
                 'string',
-                Rule::exists('wilayah', 'kode_wilayah'),
+                Rule::exists('struktur_perangkat_daerah', 'kode_wilayah'),
             ],
             'city_code' => [
                 Rule::requiredIf(in_array($level, ['district', 'village'], true)),
                 'nullable',
                 'string',
-                Rule::exists('wilayah', 'kode_wilayah'),
+                Rule::exists('struktur_perangkat_daerah', 'kode_wilayah'),
                 function (string $attribute, mixed $value, Closure $fail) use ($level): void {
                     if (! in_array($level, ['district', 'village'], true)) {
                         return;
@@ -91,7 +91,7 @@ class WilayahRequest extends FormRequest
                 Rule::requiredIf($level === 'village'),
                 'nullable',
                 'string',
-                Rule::exists('wilayah', 'kode_wilayah'),
+                Rule::exists('struktur_perangkat_daerah', 'kode_wilayah'),
                 function (string $attribute, mixed $value, Closure $fail) use ($level): void {
                     if ($level !== 'village') {
                         return;
@@ -154,7 +154,7 @@ class WilayahRequest extends FormRequest
                         return;
                     }
 
-                    $existsQuery = DB::table('wilayah')->where('kode_wilayah', $code);
+                    $existsQuery = DB::table('struktur_perangkat_daerah')->where('kode_wilayah', $code);
                     if ($originalCode !== '') {
                         $existsQuery->where('kode_wilayah', '!=', $originalCode);
                     }

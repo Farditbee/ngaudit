@@ -27,11 +27,12 @@ class TimMasterTest extends TestCase
     public function test_can_create_update_and_delete_tim_with_role_validations(): void
     {
         $admin = User::factory()->create();
-        $prefix = config('laravolt.indonesia.table_prefix', 'indonesia_');
-
-        DB::table($prefix.'provinces')->insert([
-            'code' => '32',
-            'name' => 'JAWA BARAT',
+        DB::table('struktur_perangkat_daerah')->insert([
+            'kode_wilayah' => '32',
+            'nama_unit' => 'JAWA BARAT',
+            'level' => 1,
+            'jenis_unit' => 'Provinsi',
+            'provinsi' => 'JAWA BARAT',
         ]);
 
         $plotting = Plotting::query()->create(['plot' => 'WIL I']);
@@ -102,7 +103,54 @@ class TimMasterTest extends TestCase
         $deleteResponse = $this->actingAs($admin)->deleteJson(route('master.tim.destroy', $tim));
 
         $deleteResponse->assertOk();
-        $this->assertDatabaseMissing('tims', ['id' => $tim->id]);
-        $this->assertDatabaseMissing('tim_auditor', ['tim_id' => $tim->id]);
+        $this->assertSoftDeleted('tims', ['id' => $tim->id]);
+    }
+
+    public function test_can_create_tim_without_lingkup_or_plotting(): void
+    {
+        $admin = User::factory()->create();
+
+        $daltu = User::factory()->create(['role' => 'Koordinator dan Pengendali', 'name' => 'Irwan Daltu']);
+        $dalnis = User::factory()->create(['role' => 'Pengawas Tim', 'name' => 'Rahmat Dalnis']);
+        $ketua = User::factory()->create(['role' => 'Ketua Tim', 'name' => 'Dedi Ketua']);
+        $auditor = User::factory()->create(['role' => 'Auditor', 'name' => 'Budi Auditor']);
+
+        $response = $this->actingAs($admin)->postJson(route('master.tim.store'), [
+            'nama_tim' => 'Tim Pemeriksa Inspektorat 1',
+            'daltu_id' => $daltu->id,
+            'dalnis_id' => $dalnis->id,
+            'ketua_tim_id' => $ketua->id,
+            'auditor_ids' => [$auditor->id],
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.nama_tim', 'Tim Pemeriksa Inspektorat 1')
+            ->assertJsonPath('data.lingkup', 'Dinas')
+            ->assertJsonPath('data.plotting_id', null);
+    }
+
+    public function test_tim_config_locks_lingkup_for_admin_dinas_and_admin_kecamatan(): void
+    {
+        $adminDinas = User::factory()->create(['role' => 'Admin Dinas']);
+        $adminKecamatan = User::factory()->create(['role' => 'Admin Kecamatan']);
+        $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+
+        // 1. Admin Dinas -> locked to Dinas
+        $dinasResp = $this->actingAs($adminDinas)->get(route('master.tim.index'));
+        $dinasResp->assertOk();
+        $dinasConfig = $dinasResp->viewData('tableConfig');
+        $this->assertEquals(['Dinas'], $dinasConfig['lingkups']);
+
+        // 2. Admin Kecamatan -> locked to Kecamatan
+        $kecResp = $this->actingAs($adminKecamatan)->get(route('master.tim.index'));
+        $kecResp->assertOk();
+        $kecConfig = $kecResp->viewData('tableConfig');
+        $this->assertEquals(['Kecamatan'], $kecConfig['lingkups']);
+
+        // 3. Super Admin -> both Dinas & Kecamatan
+        $saResp = $this->actingAs($superAdmin)->get(route('master.tim.index'));
+        $saResp->assertOk();
+        $saConfig = $saResp->viewData('tableConfig');
+        $this->assertEquals(['Dinas', 'Kecamatan'], $saConfig['lingkups']);
     }
 }

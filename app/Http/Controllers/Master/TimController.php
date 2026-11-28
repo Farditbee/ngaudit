@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Master;
 use App\DataTables\Master\TimDataTable;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Master\TimRequest;
-use App\Models\Plotting;
 use App\Models\Tim;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -28,30 +27,8 @@ class TimController extends Controller
             ? substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2)
             : null;
 
-        $plottingsQuery = Plotting::query()->orderBy('id');
-        if ($isAdminNasional && $authUser?->plotting_id) {
-            $plottingsQuery->whereKey($authUser->plotting_id);
-        }
-
-        $plottings = $plottingsQuery
-            ->get(['id', 'plot'])
-            ->map(fn (Plotting $plotting): array => [
-                'id' => $plotting->id,
-                'code' => (string) $plotting->id,
-                'name' => $plotting->plot,
-            ])
-            ->values();
-
-        $provincesQuery = DB::table('wilayah')
-            ->whereRaw('CHAR_LENGTH(kode_wilayah) = 2')
-            ->whereNull('deleted_at')
-            ->orderBy('kode_wilayah');
-
-        if ($isAdminWilayah && $authProvinceCode) {
-            $provincesQuery->where('kode_wilayah', $authProvinceCode);
-        }
-
-        $provinces = $provincesQuery->get(['kode_wilayah as code', 'provinsi as name']);
+        $plottings = collect();
+        $provinces = collect();
 
         $formatUserLabel = fn (User $u): string => $u->username ? "{$u->username} | {$u->name}" : $u->name;
 
@@ -62,19 +39,20 @@ class TimController extends Controller
                 ->orderBy('name');
 
             if ($isAdminNasional && $authUser?->plotting_id) {
-                $query->where('plotting_id', $authUser->plotting_id);
+                $query->where('struktur_perangkat_daerah_id', $authUser->plotting_id);
             } elseif ($isAdminWilayah && $authProvinceCode) {
                 $query->whereRaw("SUBSTRING(REPLACE(kode_wilayah, '.', ''), 1, 2) = ?", [$authProvinceCode]);
             }
 
             return $query
-                ->get(['id', 'username', 'name', 'level', 'plotting_id', 'kode_wilayah'])
+                ->get(['id', 'username', 'name', 'level', 'struktur_perangkat_daerah_id', 'kode_wilayah'])
                 ->map(fn (User $u): array => [
                     'id' => $u->id,
                     'code' => (string) $u->id,
                     'name' => $formatUserLabel($u),
                     'level' => $u->level,
-                    'plotting_id' => $u->plotting_id ? (string) $u->plotting_id : null,
+                    'struktur_perangkat_daerah_id' => $u->struktur_perangkat_daerah_id ? (string) $u->struktur_perangkat_daerah_id : null,
+                    'plotting_id' => $u->struktur_perangkat_daerah_id ? (string) $u->struktur_perangkat_daerah_id : null,
                     'province_code' => $u->kode_wilayah
                         ? substr(str_replace('.', '', (string) $u->kode_wilayah), 0, 2)
                         : null,
@@ -178,37 +156,25 @@ class TimController extends Controller
     protected function buildTimPayload(array $validated): array
     {
         $authUser = auth()->user();
-        $isAdminNasional = $authUser?->role === 'Admin Nasional';
-        $isAdminWilayah = $authUser?->role === 'Admin Wilayah';
-        $authProvinceCode = ($isAdminWilayah && $authUser?->kode_wilayah)
-            ? substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2)
-            : null;
+        $isAdminDinas = in_array($authUser?->role, ['Admin Nasional', 'Admin Dinas'], true);
+        $isAdminKecamatan = in_array($authUser?->role, ['Admin Wilayah', 'Admin Kecamatan'], true);
 
         $lingkup = match (true) {
-            $isAdminNasional => 'Nasional',
-            $isAdminWilayah => 'Wilayah',
-            default => (string) $validated['lingkup'],
+            $isAdminDinas => 'Dinas',
+            $isAdminKecamatan => 'Kecamatan',
+            default => (string) ($validated['lingkup'] ?? 'Dinas'),
         };
 
-        $plottingId = null;
-        if ($lingkup === 'Nasional') {
-            $plottingId = ($isAdminNasional && $authUser?->plotting_id)
-                ? $authUser->plotting_id
-                : ($validated['plotting_id'] ?? null);
-        }
-
-        $provinceCode = null;
-        if ($lingkup === 'Wilayah') {
-            $provinceCode = ($isAdminWilayah && $authProvinceCode)
-                ? $authProvinceCode
-                : ($validated['province_code'] ?? null);
-        }
+        $spdId = ($authUser?->struktur_perangkat_daerah_id && ($isAdminDinas || $isAdminKecamatan))
+            ? $authUser->struktur_perangkat_daerah_id
+            : ($validated['struktur_perangkat_daerah_id'] ?? null);
 
         return [
             'nama_tim' => $validated['nama_tim'],
             'lingkup' => $lingkup,
-            'plotting_id' => $plottingId,
-            'province_code' => $provinceCode,
+            'struktur_perangkat_daerah_id' => $spdId,
+            'plotting_id' => $validated['plotting_id'] ?? null,
+            'province_code' => $validated['province_code'] ?? null,
             'daltu_id' => $validated['daltu_id'],
             'dalnis_id' => $validated['dalnis_id'],
             'ketua_tim_id' => $validated['ketua_tim_id'],

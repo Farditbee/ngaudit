@@ -2,11 +2,11 @@
 
 namespace App\DataTables\Master;
 
+use App\Models\StrukturPerangkatDaerah;
 use App\Models\TemplatePka;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\Facades\DataTables;
 
 class TemplatePkaDataTable
@@ -33,24 +33,33 @@ class TemplatePkaDataTable
     public function config(iterable $plottings, iterable $provinces): array
     {
         $authUser = auth()->user();
-        $isAdminNasional = $authUser?->role === 'Admin Nasional';
-        $isAdminWilayah = $authUser?->role === 'Admin Wilayah';
+        $isSuperAdmin = ! $authUser || $authUser->role === 'Super Admin';
+        $isAdminDinas = in_array($authUser?->role, ['Admin Nasional', 'Admin Dinas'], true) || ($authUser?->level === 'Dinas');
+        $isAdminKecamatan = in_array($authUser?->role, ['Admin Wilayah', 'Admin Kecamatan'], true) || ($authUser?->level === 'Kecamatan');
 
         $lingkups = match (true) {
-            $isAdminNasional => ['Nasional'],
-            $isAdminWilayah => ['Wilayah'],
+            $isAdminDinas => ['Dinas'],
+            $isAdminKecamatan => ['Kecamatan'],
             default => TemplatePka::LINGKUPS,
         };
 
-        $scopeLabel = null;
+        $dinasOptions = StrukturPerangkatDaerah::dinas()
+            ->orderBy('nama_unit')
+            ->get(['id', 'nama_unit'])
+            ->map(fn ($u): array => ['id' => $u->id, 'code' => (string) $u->id, 'name' => $u->nama_unit])
+            ->values()
+            ->all();
+
+        $kecamatanOptions = StrukturPerangkatDaerah::kecamatan()
+            ->orderBy('nama_unit')
+            ->get(['id', 'nama_unit'])
+            ->map(fn ($u): array => ['id' => $u->id, 'code' => (string) $u->id, 'name' => $u->nama_unit])
+            ->values()
+            ->all();
+
         $scopeName = null;
-        if ($isAdminNasional) {
-            $scopeLabel = 'WIL';
-            $scopeName = $authUser->plotting?->plot;
-        } elseif ($isAdminWilayah) {
-            $scopeLabel = 'Provinsi';
-            $provinceCode = substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2);
-            $scopeName = DB::table('wilayah')->where('kode_wilayah', $provinceCode)->value('provinsi');
+        if ($authUser?->struktur_perangkat_daerah_id) {
+            $scopeName = $authUser->strukturPerangkatDaerah?->nama_unit ?? $authUser->plotting?->nama_unit;
         }
 
         return [
@@ -58,15 +67,12 @@ class TemplatePkaDataTable
             'storeUrl' => route('master.template.pka.store'),
             'baseUrl' => url('/master/template/pka'),
             'authRole' => $authUser?->role,
-            'authPlottingId' => $isAdminNasional ? $authUser?->plotting_id : null,
-            'authProvinceCode' => $isAdminWilayah && $authUser?->kode_wilayah
-                ? substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2)
-                : null,
-            'scopeLabel' => $scopeLabel,
+            'authSpdId' => $authUser?->struktur_perangkat_daerah_id ? (string) $authUser->struktur_perangkat_daerah_id : null,
+            'isSpdReadonly' => ! $isSuperAdmin && (bool) $authUser?->struktur_perangkat_daerah_id,
             'scopeName' => $scopeName,
             'lingkups' => $lingkups,
-            'plottings' => $plottings,
-            'provinces' => $provinces,
+            'dinasOptions' => $dinasOptions,
+            'kecamatanOptions' => $kecamatanOptions,
             'columns' => $this->columns(),
         ];
     }
@@ -75,27 +81,33 @@ class TemplatePkaDataTable
     {
         $filterLingkup = (string) $request->query('lingkup', '');
         $authUser = $request->user();
+        $isAdminDinas = in_array($authUser?->role, ['Admin Nasional', 'Admin Dinas'], true) || ($authUser?->level === 'Dinas');
+        $isAdminKecamatan = in_array($authUser?->role, ['Admin Wilayah', 'Admin Kecamatan'], true) || ($authUser?->level === 'Kecamatan');
 
         $query = TemplatePka::query()
             ->visibleTo($authUser)
-            ->leftJoin('plottings', 'plottings.id', '=', 'template_pkas.plotting_id')
-            ->leftJoin('wilayah as p', function ($join): void {
-                $join->on('p.kode_wilayah', '=', 'template_pkas.kode_wilayah')
-                    ->whereNull('p.kabupaten_kota');
+            ->leftJoin('struktur_perangkat_daerah as spd', function ($join): void {
+                $join->on('spd.id', '=', 'template_pkas.struktur_perangkat_daerah_id')
+                    ->orOn('spd.kode_wilayah', '=', 'template_pkas.kode_wilayah');
             })
             ->select([
                 'template_pkas.*',
-                'plottings.plot as plot_name',
-                'p.provinsi as province_name',
+                'spd.nama_unit as plot_name',
+                'spd.nama_unit as province_name',
             ]);
 
-        if ($authUser?->role === 'Admin Nasional' && $authUser->plotting_id) {
-            $query->where('template_pkas.lingkup', 'Nasional')
-                ->where('template_pkas.plotting_id', $authUser->plotting_id);
-        } elseif ($authUser?->role === 'Admin Wilayah' && $authUser->kode_wilayah) {
-            $authProvinceCode = substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2);
-            $query->where('template_pkas.lingkup', 'Wilayah')
-                ->where('template_pkas.kode_wilayah', $authProvinceCode);
+        if ($isAdminDinas && $authUser?->struktur_perangkat_daerah_id) {
+            $query->where('template_pkas.lingkup', 'Dinas')
+                ->where(function ($q) use ($authUser): void {
+                    $q->whereNull('template_pkas.struktur_perangkat_daerah_id')
+                        ->orWhere('template_pkas.struktur_perangkat_daerah_id', $authUser->struktur_perangkat_daerah_id);
+                });
+        } elseif ($isAdminKecamatan && $authUser?->struktur_perangkat_daerah_id) {
+            $query->where('template_pkas.lingkup', 'Kecamatan')
+                ->where(function ($q) use ($authUser): void {
+                    $q->whereNull('template_pkas.struktur_perangkat_daerah_id')
+                        ->orWhere('template_pkas.struktur_perangkat_daerah_id', $authUser->struktur_perangkat_daerah_id);
+                });
         } elseif ($filterLingkup !== '') {
             $query->where('template_pkas.lingkup', $filterLingkup);
         }
@@ -113,8 +125,7 @@ class TemplatePkaDataTable
             ->filterColumn('lingkup', function (Builder $query, string $keyword): void {
                 $query->where(function (Builder $q) use ($keyword): void {
                     $q->where('template_pkas.lingkup', 'like', "%{$keyword}%")
-                        ->orWhere('plottings.plot', 'like', "%{$keyword}%")
-                        ->orWhere('p.provinsi', 'like', "%{$keyword}%");
+                        ->orWhere('spd.nama_unit', 'like', "%{$keyword}%");
                 });
             })
             ->toJson();

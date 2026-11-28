@@ -50,7 +50,7 @@
                 </template>
             </div>
 
-            {{-- 2. Lingkup & Pilihan Wilayah / WIL --}}
+            {{-- 2. Lingkup & Pilihan Perangkat Daerah (Dinas / Kecamatan) --}}
             <div class="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/50 p-4 dark:border-neutral-800 dark:bg-neutral-900/30">
                 <div class="space-y-1.5">
                     <div class="flex items-center justify-between">
@@ -82,44 +82,40 @@
                     </template>
                 </div>
 
-                {{-- Jika Nasional muncul opsi WIL 1 - 4 --}}
-                <template x-if="form.lingkup === 'Nasional'">
-                    <div class="space-y-1.5">
-                        <x-searchable-select
-                            label="Plot Wilayah (WIL) *"
-                            placeholder="Pilih WIL 1 - 4"
-                            itemsExpr="plottingOptions"
-                            valueModel="form.plotting_id"
-                            changeAction="onScopeValueChange()"
-                            disabledExpr="isPlottingReadonly()"
-                            disabledMessage="Plot wilayah otomatis mengikuti plot akun Admin Nasional Anda"
-                        />
-                        <template x-if="errors.plotting_id">
-                            <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.plotting_id[0]"></p>
-                        </template>
-                    </div>
-                </template>
+                {{-- Jika Dinas muncul dropdown Dinas / Badan / OPD --}}
+                <div class="space-y-1.5" x-show="form.lingkup === 'Dinas'">
+                    <x-searchable-select
+                        label="Dinas / Badan / OPD *"
+                        placeholder="Pilih Dinas / Badan / OPD"
+                        itemsExpr="dinasOptions"
+                        valueModel="form.struktur_perangkat_daerah_id"
+                        changeAction=""
+                        disabledExpr="isSpdReadonly()"
+                        disabledMessage="Perangkat daerah otomatis mengikuti akun Anda"
+                    />
+                    <template x-if="errors.struktur_perangkat_daerah_id">
+                        <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.struktur_perangkat_daerah_id[0]"></p>
+                    </template>
+                </div>
 
-                {{-- Jika Wilayah muncul semua provinsi --}}
-                <template x-if="form.lingkup === 'Wilayah'">
-                    <div class="space-y-1.5">
-                        <x-searchable-select
-                            label="Provinsi *"
-                            placeholder="Pilih Provinsi"
-                            itemsExpr="allProvinces"
-                            valueModel="form.province_code"
-                            changeAction="onScopeValueChange()"
-                            disabledExpr="isProvinceReadonly()"
-                            disabledMessage="Provinsi otomatis mengikuti wilayah akun Admin Wilayah Anda"
-                        />
-                        <template x-if="errors.province_code">
-                            <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.province_code[0]"></p>
-                        </template>
-                    </div>
-                </template>
+                {{-- Jika Kecamatan muncul list Kecamatan --}}
+                <div class="space-y-1.5" x-show="form.lingkup === 'Kecamatan'">
+                    <x-searchable-select
+                        label="Kecamatan *"
+                        placeholder="Pilih Kecamatan"
+                        itemsExpr="kecamatanOptions"
+                        valueModel="form.struktur_perangkat_daerah_id"
+                        changeAction=""
+                        disabledExpr="isSpdReadonly()"
+                        disabledMessage="Kecamatan otomatis mengikuti akun Anda"
+                    />
+                    <template x-if="errors.struktur_perangkat_daerah_id">
+                        <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.struktur_perangkat_daerah_id[0]"></p>
+                    </template>
+                </div>
             </div>
 
-            {{-- 3 - 6. Susunan Pejabat Tim --}}
+            {{-- Susunan Pejabat Tim --}}
             <div class="grid gap-4 sm:grid-cols-2">
                 {{-- 3. Pengendali Mutu (Daltu) --}}
                 <div class="space-y-1.5">

@@ -5,6 +5,7 @@ namespace App\DataTables\Audit;
 use App\Models\Kka;
 use App\Models\KkaReview;
 use App\Models\Pka;
+use App\Models\StrukturPerangkatDaerah;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -41,6 +42,24 @@ class KkaDataTable
      */
     public function config(iterable $pkas, iterable $templates, iterable $plottings, iterable $provinces): array
     {
+        $authUser = auth()->user();
+        $isSuperAdmin = $authUser?->role === 'Super Admin';
+        $levels = ['Dinas', 'Kecamatan'];
+
+        $dinasOptions = StrukturPerangkatDaerah::dinas()
+            ->orderBy('nama_unit')
+            ->get(['id', 'nama_unit'])
+            ->map(fn ($u): array => ['id' => $u->id, 'code' => (string) $u->id, 'name' => $u->nama_unit])
+            ->values()
+            ->all();
+
+        $kecamatanOptions = StrukturPerangkatDaerah::kecamatan()
+            ->orderBy('nama_unit')
+            ->get(['id', 'nama_unit'])
+            ->map(fn ($u): array => ['id' => $u->id, 'code' => (string) $u->id, 'name' => $u->nama_unit])
+            ->values()
+            ->all();
+
         return [
             'indexUrl' => route('audit.kka.index'),
             'storeUrl' => route('audit.kka.store'),
@@ -48,7 +67,12 @@ class KkaDataTable
             'bidangs' => Pka::BIDANGS,
             'jenisAudits' => Pka::JENIS_AUDITS,
             'statuses' => Kka::STATUSES,
-            'levels' => Kka::AUDITEE_LEVELS,
+            'levels' => $levels,
+            'dinasOptions' => $dinasOptions,
+            'kecamatanOptions' => $kecamatanOptions,
+            'authRole' => $authUser?->role,
+            'authSpdId' => $authUser?->struktur_perangkat_daerah_id ? (string) $authUser->struktur_perangkat_daerah_id : null,
+            'isSpdReadonly' => false,
             'pkas' => $pkas,
             'templates' => $templates,
             'plottings' => $plottings,
@@ -66,7 +90,7 @@ class KkaDataTable
         $filterJenisAudit = (string) $request->query('jenis_audit', '');
         $filterStatus = (string) $request->query('status', '');
 
-        $auditeeNameSql = 'COALESCE(auditee_plot.plot, aw.desa_kelurahan, aw.kecamatan, aw.kabupaten_kota, aw.provinsi)';
+        $auditeeNameSql = "COALESCE(spd.nama_unit, '')";
 
         $query = Kka::query()
             ->visibleTo($authUser)
@@ -75,14 +99,15 @@ class KkaDataTable
             ->join('sprins', 'sprins.id', '=', 'pkas.sprin_id')
             ->leftJoin('users as auditor', 'auditor.id', '=', 'kkas.dibuat_oleh_id')
             ->leftJoin('users as pembuat', 'pembuat.id', '=', 'kkas.created_by')
-            ->leftJoin('plottings as auditee_plot', 'auditee_plot.id', '=', 'kkas.auditee_plotting_id')
-            ->leftJoin('wilayah as aw', function ($join): void {
-                $join->on('aw.kode_wilayah', '=', 'kkas.auditee_kode_wilayah')
-                    ->whereNull('aw.deleted_at');
+            ->leftJoin('struktur_perangkat_daerah as spd', function ($join): void {
+                $join->on('spd.id', '=', 'kkas.struktur_perangkat_daerah_id')
+                    ->orOn('spd.kode_wilayah', '=', 'kkas.auditee_kode_wilayah')
+                    ->whereNull('spd.deleted_at');
             })
+            ->leftJoin('struktur_perangkat_daerah as spd_parent', 'spd_parent.id', '=', 'spd.parent_id')
             ->with([
-                'pka:id,sprin_id',
-                'pka.sprin:id,sprin_tipe,plotting_id,kode_wilayah,dalnis,daltu,katim,katim_2',
+                'pka:id,sprin_id,nomor_pka',
+                'pka.sprin:id,sprin_tipe,struktur_perangkat_daerah_id,kode_wilayah,dalnis,daltu,katim,katim_2',
                 'latestKatimReview:id,kka_id,role_type,status,created_at',
                 'latestDalnisReview:id,kka_id,role_type,status,created_at',
                 'latestDaltuReview:id,kka_id,role_type,status,created_at',
@@ -98,7 +123,7 @@ class KkaDataTable
                 'kkas.tanggal_kka',
                 'kkas.tempat',
                 'kkas.auditee_level',
-                'kkas.auditee_plotting_id',
+                'kkas.struktur_perangkat_daerah_id',
                 'kkas.auditee_kode_wilayah',
                 'kkas.template_kka_id',
                 'kkas.status',
@@ -114,11 +139,15 @@ class KkaDataTable
                 'sprins.tahap',
                 'sprins.sprin_tipe',
                 DB::raw('COALESCE(auditor.name, pembuat.name) as auditor_name'),
-                'auditee_plot.plot as auditee_plot_name',
-                'aw.provinsi as aw_provinsi',
-                'aw.kabupaten_kota as aw_kabupaten_kota',
-                'aw.kecamatan as aw_kecamatan',
-                'aw.desa_kelurahan as aw_desa_kelurahan',
+                'spd.nama_unit as auditee_plot_name',
+                'spd.nama_unit as spd_nama_unit',
+                'spd.level as spd_level',
+                'spd.jenis_unit as spd_jenis_unit',
+                'spd_parent.nama_unit as spd_parent_name',
+                DB::raw("COALESCE(spd.provinsi, '') as aw_provinsi"),
+                DB::raw("COALESCE(spd.kabupaten_kota, '') as aw_kabupaten_kota"),
+                DB::raw("COALESCE(spd.kecamatan, '') as aw_kecamatan"),
+                DB::raw("COALESCE(spd.desa_kelurahan, '') as aw_desa_kelurahan"),
             ])
             ->withCount([
                 'tabulasis as tabulasi_temuan_count' => fn (Builder $q) => $q->where('jenis_tabulasi', 'Temuan'),
@@ -159,8 +188,15 @@ class KkaDataTable
 
                 $builder->orderByDesc('kkas.created_at')->orderByDesc('kkas.id');
             })
+            ->addColumn('nomor_pka', fn (Kka $k): string => (string) ($k->nomor_pka ?? $k->pka?->nomor_pka ?? ''))
+            ->addColumn('no_sprin', fn (Kka $k): string => (string) ($k->no_sprin ?? $k->pka?->sprin?->no_sprin ?? ''))
+            ->addColumn('auditor_name', fn (Kka $k): string => (string) ($k->auditor_name ?? ''))
+            ->addColumn('bidang', fn (Kka $k): string => (string) ($k->bidang ?? ''))
+            ->addColumn('tahap', fn (Kka $k): string => (string) ($k->tahap ?? ''))
             ->addColumn('tanggal_kka_formatted', fn (Kka $k): string => $k->tanggal_kka?->format('d/m/Y') ?? '-')
             ->addColumn('auditee_name', fn (Kka $k): string => $this->auditeeName($k))
+            ->addColumn('auditee_parent', fn (Kka $k): ?string => $this->auditeeParent($k))
+            ->addColumn('auditee_sub_unit', fn (Kka $k): ?string => $this->auditeeSubUnit($k))
             ->addColumn('auditee_detail', fn (Kka $k): string => $this->auditeeDetail($k))
             ->addColumn('auditee_hierarchy', fn (Kka $k): array => $this->auditeeHierarchy($k))
             ->addColumn('tabulasi_count', fn (Kka $k): int => (int) ($k->tabulasi_temuan_count ?? 0))
@@ -204,11 +240,12 @@ class KkaDataTable
             })
             ->filterColumn('auditee_name', function (Builder $query, string $keyword): void {
                 $query->where(function (Builder $q) use ($keyword): void {
-                    $q->where('auditee_plot.plot', 'like', "%{$keyword}%")
-                        ->orWhere('aw.provinsi', 'like', "%{$keyword}%")
-                        ->orWhere('aw.kabupaten_kota', 'like', "%{$keyword}%")
-                        ->orWhere('aw.kecamatan', 'like', "%{$keyword}%")
-                        ->orWhere('aw.desa_kelurahan', 'like', "%{$keyword}%");
+                    $q->where('spd.nama_unit', 'like', "%{$keyword}%")
+                        ->orWhere('spd_parent.nama_unit', 'like', "%{$keyword}%")
+                        ->orWhere('spd.provinsi', 'like', "%{$keyword}%")
+                        ->orWhere('spd.kabupaten_kota', 'like', "%{$keyword}%")
+                        ->orWhere('spd.kecamatan', 'like', "%{$keyword}%")
+                        ->orWhere('spd.desa_kelurahan', 'like', "%{$keyword}%");
                 });
             })
             ->filterColumn('pkas.bidang', function (Builder $query, string $keyword): void {
@@ -233,7 +270,7 @@ class KkaDataTable
             return true;
         }
 
-        $kka->loadMissing('pka.sprin:id,sprin_tipe,plotting_id,kode_wilayah,dalnis,daltu,katim,katim_2');
+        $kka->loadMissing('pka.sprin:id,sprin_tipe,struktur_perangkat_daerah_id,kode_wilayah,dalnis,daltu,katim,katim_2');
         $pka = $kka->pka;
 
         if (! $pka) {
@@ -254,76 +291,54 @@ class KkaDataTable
 
     protected function auditeeName(Kka $kka): string
     {
-        if ($kka->auditee_level === 'Nasional') {
-            return (string) ($kka->auditee_plot_name ?? $kka->auditeePlotting?->plot ?? '-');
+        return (string) ($kka->spd_nama_unit ?? $kka->auditeePerangkatDaerah?->nama_unit ?? '-');
+    }
+
+    protected function auditeeParent(Kka $kka): ?string
+    {
+        if (! empty($kka->spd_parent_name)) {
+            $level = isset($kka->spd_level) ? (int) $kka->spd_level : null;
+            if ($level !== null && $level > 1) {
+                return (string) $kka->spd_parent_name;
+            }
+
+            if (! in_array($kka->spd_jenis_unit, ['Kecamatan', 'Dinas', 'Badan', 'Inspektorat', 'Sekretariat', 'Sekretariat Daerah', 'Sekretariat DPRD'], true)) {
+                return (string) $kka->spd_parent_name;
+            }
         }
 
-        $name = $kka->aw_desa_kelurahan ?? $kka->aw_kecamatan ?? $kka->aw_kabupaten_kota ?? $kka->aw_provinsi;
+        return null;
+    }
 
-        return $name ? Str::title(strtolower((string) $name)) : '-';
+    protected function auditeeSubUnit(Kka $kka): ?string
+    {
+        if (! $this->auditeeParent($kka)) {
+            return null;
+        }
+
+        $rawName = (string) ($kka->spd_nama_unit ?? $kka->auditeePerangkatDaerah?->nama_unit ?? '');
+        if ($rawName === '') {
+            return null;
+        }
+
+        return preg_replace('/\s*-\s*Kec\.?\s+.*$/i', '', $rawName);
     }
 
     protected function auditeeDetail(Kka $kka): string
     {
-        if ($kka->auditee_level === 'Nasional') {
-            return 'Nasional';
-        }
-
-        $parts = collect([
-            $kka->aw_kecamatan && $kka->aw_desa_kelurahan ? $kka->aw_kecamatan : null,
-            $kka->aw_kabupaten_kota && ($kka->aw_kecamatan || $kka->aw_desa_kelurahan) ? $kka->aw_kabupaten_kota : null,
-            $kka->aw_provinsi,
-        ])->filter()->map(fn ($part): string => Str::title(strtolower((string) $part)));
-
-        return $parts->isEmpty() ? 'Wilayah' : $parts->implode(', ');
+        return $this->auditeeParent($kka) ?? ($kka->auditee_level === 'Kecamatan' ? 'Kecamatan' : 'Dinas / OPD');
     }
 
     /**
-     * Susun hierarki wilayah auditee dari atas ke bawah (Provinsi -> Kabupaten/Kota -> Kecamatan -> Desa)
-     * atau langsung nama WIL jika Nasional. Item terakhir ditandai sebagai target auditee (badge warning).
-     *
      * @return list<array{label: string, level: string, is_target: bool}>
      */
     protected function auditeeHierarchy(Kka $kka): array
     {
-        if ($kka->auditee_level === 'Nasional') {
-            $plot = (string) ($kka->auditee_plot_name ?? $kka->auditeePlotting?->plot ?? '-');
+        $name = (string) ($kka->spd_nama_unit ?? $kka->auditeePerangkatDaerah?->nama_unit ?? '-');
+        $level = $kka->auditee_level ?? 'Dinas';
 
-            return [
-                ['label' => $plot, 'level' => 'plot', 'is_target' => true],
-            ];
-        }
-
-        $candidates = [
-            'province' => $kka->aw_provinsi ? Str::title(strtolower((string) $kka->aw_provinsi)) : null,
-            'city' => $kka->aw_kabupaten_kota ? Str::title(strtolower((string) $kka->aw_kabupaten_kota)) : null,
-            'district' => $kka->aw_kecamatan ? Str::title(strtolower((string) $kka->aw_kecamatan)) : null,
-            'village' => $kka->aw_desa_kelurahan ? Str::title(strtolower((string) $kka->aw_desa_kelurahan)) : null,
+        return [
+            ['label' => $name, 'level' => $level, 'is_target' => true],
         ];
-
-        $levels = [];
-        foreach ($candidates as $levelKey => $label) {
-            if ($label !== null) {
-                $levels[] = ['label' => $label, 'level' => $levelKey];
-            }
-        }
-
-        if (empty($levels)) {
-            return [
-                ['label' => '-', 'level' => 'unknown', 'is_target' => true],
-            ];
-        }
-
-        $lastIndex = count($levels) - 1;
-        $items = [];
-        foreach ($levels as $index => $entry) {
-            $items[] = [
-                'label' => $entry['label'],
-                'level' => $entry['level'],
-                'is_target' => $index === $lastIndex,
-            ];
-        }
-
-        return $items;
     }
 }

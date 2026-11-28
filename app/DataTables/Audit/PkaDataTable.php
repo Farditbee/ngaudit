@@ -72,7 +72,7 @@ class PkaDataTable
                 'sprins.no_sprin',
                 'sprins.sprin_tipe',
                 'sprins.tahap',
-                'sprins.plotting_id as sprin_plotting_id',
+                'sprins.struktur_perangkat_daerah_id as sprin_plotting_id',
                 'sprins.kode_wilayah as sprin_kode_wilayah',
                 'sprins.dalnis as sprin_dalnis',
                 'sprins.daltu as sprin_daltu',

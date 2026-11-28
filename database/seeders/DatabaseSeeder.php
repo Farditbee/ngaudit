@@ -16,9 +16,13 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             WilayahSeeder::class,
+            StrukturPerangkatDaerahSeeder::class,
             UserSeeder::class,
             KodeSeeder::class,
             KriteriaSeeder::class,
+            TimSeeder::class,
+            SprinSeeder::class,
+            PkaSeeder::class,
         ]);
     }
 }

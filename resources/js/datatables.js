@@ -1170,6 +1170,9 @@ export function registerDataTables(Alpine) {
         modalCities: [],
         modalDistricts: [],
         modalVillages: [],
+        modalLevel1Options: [],
+        modalLevel2Options: [],
+        modalLevel3Options: [],
         modalOpen: false,
         deleteModalOpen: false,
         resetPasswordModalOpen: false,
@@ -1204,12 +1207,14 @@ export function registerDataTables(Alpine) {
         errors: {},
 
         get roleOptions() {
-            const adminRoles = ['Super Admin', 'Admin Nasional', 'Admin Wilayah'];
-            return this.roles.map((r) => ({
-                code: r,
-                name: r,
-                group: adminRoles.includes(r) ? 'Administratif' : 'Audit',
-            }));
+            const adminRoles = ['Super Admin', 'Admin Dinas', 'Admin Kecamatan'];
+            return this.roles
+                .filter((r) => !['Admin Nasional', 'Admin Wilayah'].includes(r))
+                .map((r) => ({
+                    code: r,
+                    name: r,
+                    group: adminRoles.includes(r) ? 'Administratif' : 'Audit',
+                }));
         },
         isAuditTeamRole(role = this.form.role) {
             return [
@@ -1220,22 +1225,13 @@ export function registerDataTables(Alpine) {
             ].includes(role);
         },
         get availableLevels() {
-            if (this.authRole === 'Admin Nasional' || this.form.role === 'Admin Nasional') {
-                return ['Nasional'];
+            if (this.authRole === 'Admin Dinas' || this.form.role === 'Admin Dinas') {
+                return ['Dinas'];
             }
-            if (this.authRole === 'Admin Wilayah') {
-                if (this.isAuditTeamRole()) {
-                    return ['Wilayah'];
-                }
-                return this.levels.filter((l) => l !== 'Nasional' && l !== 'Wilayah');
+            if (this.authRole === 'Admin Kecamatan' || this.form.role === 'Admin Kecamatan') {
+                return ['Kecamatan'];
             }
-            if (this.form.role === 'Admin Wilayah') {
-                return this.levels.filter((l) => l !== 'Nasional' && l !== 'Wilayah');
-            }
-            if (this.isAuditTeamRole()) {
-                return ['Nasional', 'Wilayah'];
-            }
-            return this.levels.filter((l) => l !== 'Wilayah');
+            return ['Dinas', 'Kecamatan'];
         },
         get levelOptions() {
             return this.availableLevels.map((l) => ({ code: l, name: l }));
@@ -1255,8 +1251,8 @@ export function registerDataTables(Alpine) {
         },
         needsRegionalScope() {
             return [
-                'Admin Nasional',
-                'Admin Wilayah',
+                'Admin Dinas',
+                'Admin Kecamatan',
                 'Auditor',
                 'Auditee',
                 'Ketua Tim',
@@ -1268,21 +1264,21 @@ export function registerDataTables(Alpine) {
             return this.availableLevels.length === 1;
         },
         isPlottingReadonly() {
-            return this.authRole === 'Admin Nasional' && Boolean(this.authPlottingId);
+            return ['Admin Nasional', 'Admin Dinas'].includes(this.authRole) && Boolean(this.authPlottingId);
         },
         isProvinceReadonly() {
-            return this.authRole === 'Admin Wilayah' && Boolean(this.authProvinceCode);
+            return ['Admin Wilayah', 'Admin Kecamatan'].includes(this.authRole) && Boolean(this.authProvinceCode);
         },
         isAuditee() {
             return this.form.role === 'Auditee';
         },
         showPlottingField() {
-            return this.needsRegionalScope() && this.form.level === 'Nasional';
+            return this.needsRegionalScope() && ['Nasional', 'Dinas'].includes(this.form.level);
         },
         showProvinceField() {
             return (
                 this.needsRegionalScope() &&
-                ['Wilayah', 'Provinsi', 'Kabupaten', 'Kecamatan', 'Desa'].includes(this.form.level)
+                ['Wilayah', 'Kecamatan', 'Provinsi', 'Kabupaten', 'Desa'].includes(this.form.level)
             );
         },
         showCityField() {
@@ -1319,15 +1315,19 @@ export function registerDataTables(Alpine) {
             });
             return await response.json();
         },
-        openCreateModal() {
+        async openCreateModal() {
             this.editingId = null;
             this.errors = {};
             this.ttdFile = null;
             this.ttdPreviewUrl = null;
             this.existingTtdUrl = null;
-            this.modalCities = [];
-            this.modalDistricts = [];
-            this.modalVillages = [];
+            this.modalLevel1Options = [];
+            this.modalLevel2Options = [];
+            this.modalLevel3Options = [];
+            let defaultLevel = 'Dinas';
+            if (this.authRole === 'Admin Kecamatan') {
+                defaultLevel = 'Kecamatan';
+            }
             this.form = {
                 name: '',
                 username: '',
@@ -1336,15 +1336,16 @@ export function registerDataTables(Alpine) {
                 role: '',
                 password: '',
                 password_confirmation: '',
-                level: '',
-                plotting_id: '',
-                province_code: '',
-                city_code: '',
-                district_code: '',
-                village_code: '',
+                level: defaultLevel,
+                unit_level_1: '',
+                unit_level_2: '',
+                unit_level_3: '',
+                struktur_perangkat_daerah_id: '',
+                kode_wilayah: '',
                 bidang: '',
                 jabatan: '',
             };
+            await this.onLevelChange();
             this.modalOpen = true;
         },
         async openEditModal(row) {
@@ -1353,23 +1354,17 @@ export function registerDataTables(Alpine) {
             this.ttdFile = null;
             this.ttdPreviewUrl = null;
             this.existingTtdUrl = row.ttd_url || null;
+            this.modalLevel1Options = [];
+            this.modalLevel2Options = [];
+            this.modalLevel3Options = [];
             const role = row.role || 'Auditor';
             let level = row.level || '';
-            if (this.authRole === 'Admin Nasional' || role === 'Admin Nasional') {
-                level = 'Nasional';
-            } else if (this.authRole === 'Admin Wilayah' && this.isAuditTeamRole(role)) {
-                level = 'Wilayah';
-            } else if (
-                (this.authRole === 'Admin Wilayah' || role === 'Admin Wilayah') &&
-                !['Provinsi', 'Kabupaten', 'Kecamatan', 'Desa'].includes(level)
-            ) {
-                level = 'Provinsi';
-            } else if (this.isAuditTeamRole(role)) {
-                if (!['Nasional', 'Wilayah'].includes(level)) {
-                    level = row.province_code ? 'Wilayah' : 'Nasional';
-                }
-            } else if (!level) {
-                level = 'Provinsi';
+            if (this.authRole === 'Admin Dinas' || role === 'Admin Dinas') {
+                level = 'Dinas';
+            } else if (this.authRole === 'Admin Kecamatan' || role === 'Admin Kecamatan') {
+                level = 'Kecamatan';
+            } else if (!['Dinas', 'Kecamatan'].includes(level)) {
+                level = 'Dinas';
             }
 
             this.form = {
@@ -1381,132 +1376,91 @@ export function registerDataTables(Alpine) {
                 password: '',
                 password_confirmation: '',
                 level,
-                plotting_id: row.plotting_id ? String(row.plotting_id) : '',
-                province_code: row.province_code || '',
-                city_code: row.city_code || '',
-                district_code: row.district_code || '',
-                village_code: row.village_code || '',
+                unit_level_1: '',
+                unit_level_2: '',
+                unit_level_3: '',
+                struktur_perangkat_daerah_id: row.struktur_perangkat_daerah_id ? String(row.struktur_perangkat_daerah_id) : '',
+                kode_wilayah: row.kode_wilayah || '',
                 bidang: row.bidang || '',
                 jabatan: row.jabatan || '',
             };
 
-            this.modalCities =
-                this.form.province_code && this.showCityField()
-                    ? await this.fetchOptions('cities', this.form.province_code)
-                    : [];
-            this.modalDistricts =
-                this.form.city_code && this.showDistrictField()
-                    ? await this.fetchOptions('districts', this.form.city_code)
-                    : [];
-            this.modalVillages =
-                this.form.district_code && this.showVillageField()
-                    ? await this.fetchOptions('villages', this.form.district_code)
-                    : [];
-
+            await this.onLevelChange();
+            if (row.struktur_perangkat_daerah_id) {
+                const chain = await this.fetchOptions('unit_hierarchy', row.struktur_perangkat_daerah_id);
+                if (Array.isArray(chain) && chain.length > 0) {
+                    this.form.unit_level_1 = String(chain[0].id);
+                    await this.onLevel1Change();
+                    if (chain.length > 1) {
+                        this.form.unit_level_2 = String(chain[1].id);
+                        await this.onLevel2Change();
+                    }
+                    if (chain.length > 2) {
+                        this.form.unit_level_3 = String(chain[2].id);
+                        this.onLevel3Change();
+                    }
+                } else if (this.modalLevel1Options.some((o) => String(o.code) === String(row.struktur_perangkat_daerah_id))) {
+                    this.form.unit_level_1 = String(row.struktur_perangkat_daerah_id);
+                    await this.onLevel1Change();
+                }
+            }
             this.modalOpen = true;
         },
         closeModal() {
             if (this.saving) return;
             this.modalOpen = false;
         },
-        onRoleChange() {
+        async onRoleChange() {
             this.errors = {};
             if (this.needsRegionalScope()) {
                 if (!this.availableLevels.includes(this.form.level)) {
                     this.form.level = this.availableLevels[0];
                 }
-                this.onLevelChange();
+                await this.onLevelChange();
             } else {
                 this.form.level = '';
-                this.form.plotting_id = '';
-                this.form.province_code = '';
-                this.form.city_code = '';
-                this.form.district_code = '';
-                this.form.village_code = '';
+                this.form.unit_level_1 = '';
+                this.form.unit_level_2 = '';
+                this.form.unit_level_3 = '';
+                this.form.struktur_perangkat_daerah_id = '';
             }
         },
         async onLevelChange() {
-            if (this.form.level === 'Nasional') {
-                this.form.province_code = '';
-                this.form.city_code = '';
-                this.form.district_code = '';
-                this.form.village_code = '';
-                this.modalCities = [];
-                this.modalDistricts = [];
-                this.modalVillages = [];
-                if (this.authPlottingId) {
-                    this.form.plotting_id = this.authPlottingId;
-                }
-            } else {
-                this.form.plotting_id = '';
-                if (this.authProvinceCode) {
-                    this.form.province_code = this.authProvinceCode;
-                }
-                if (this.form.level === 'Wilayah' || this.form.level === 'Provinsi') {
-                    this.form.city_code = '';
-                    this.form.district_code = '';
-                    this.form.village_code = '';
-                    this.modalCities = [];
-                    this.modalDistricts = [];
-                    this.modalVillages = [];
-                } else if (this.form.level === 'Kabupaten') {
-                    this.form.district_code = '';
-                    this.form.village_code = '';
-                    this.modalDistricts = [];
-                    this.modalVillages = [];
-                    if (this.form.province_code && this.modalCities.length === 0) {
-                        this.modalCities = await this.fetchOptions('cities', this.form.province_code);
-                    }
-                } else if (this.form.level === 'Kecamatan') {
-                    this.form.village_code = '';
-                    this.modalVillages = [];
-                    if (this.form.province_code && this.modalCities.length === 0) {
-                        this.modalCities = await this.fetchOptions('cities', this.form.province_code);
-                    }
-                } else if (this.form.level === 'Desa') {
-                    if (this.form.province_code && this.modalCities.length === 0) {
-                        this.modalCities = await this.fetchOptions('cities', this.form.province_code);
-                    }
-                }
+            this.form.unit_level_1 = '';
+            this.form.unit_level_2 = '';
+            this.form.unit_level_3 = '';
+            this.form.struktur_perangkat_daerah_id = '';
+            this.modalLevel1Options = [];
+            this.modalLevel2Options = [];
+            this.modalLevel3Options = [];
+
+            if (this.form.level === 'Dinas') {
+                this.modalLevel1Options = await this.fetchOptions('dinas');
+            } else if (this.form.level === 'Kecamatan') {
+                this.modalLevel1Options = await this.fetchOptions('kecamatans');
             }
         },
-        onPlottingChange() {
-            this.form.province_code = '';
-            this.form.city_code = '';
-            this.form.district_code = '';
-            this.form.village_code = '';
-            this.modalCities = [];
-            this.modalDistricts = [];
-            this.modalVillages = [];
-        },
-        async onModalProvinceChange() {
-            this.form.city_code = '';
-            this.form.district_code = '';
-            this.form.village_code = '';
-            this.modalCities = [];
-            this.modalDistricts = [];
-            this.modalVillages = [];
-            if (this.form.province_code && this.showCityField()) {
-                this.modalCities = await this.fetchOptions('cities', this.form.province_code);
+        async onLevel1Change() {
+            this.form.unit_level_2 = '';
+            this.form.unit_level_3 = '';
+            this.modalLevel2Options = [];
+            this.modalLevel3Options = [];
+            this.form.struktur_perangkat_daerah_id = this.form.unit_level_1 || '';
+            if (this.form.unit_level_1) {
+                this.modalLevel2Options = await this.fetchOptions('sub_units', this.form.unit_level_1);
             }
         },
-        async onModalCityChange() {
-            this.form.district_code = '';
-            this.form.village_code = '';
-            this.modalDistricts = [];
-            this.modalVillages = [];
-            if (this.form.city_code) {
-                this.modalDistricts = await this.fetchOptions('districts', this.form.city_code);
+        async onLevel2Change() {
+            this.form.unit_level_3 = '';
+            this.modalLevel3Options = [];
+            this.form.struktur_perangkat_daerah_id = this.form.unit_level_2 || this.form.unit_level_1 || '';
+            if (this.form.unit_level_2) {
+                this.modalLevel3Options = await this.fetchOptions('sub_units', this.form.unit_level_2);
             }
         },
-        async onModalDistrictChange() {
-            this.form.village_code = '';
-            this.modalVillages = [];
-            if (this.form.district_code) {
-                this.modalVillages = await this.fetchOptions('villages', this.form.district_code);
-            }
+        onLevel3Change() {
+            this.form.struktur_perangkat_daerah_id = this.form.unit_level_3 || this.form.unit_level_2 || this.form.unit_level_1 || '';
         },
-        onModalVillageChange() { },
         onTtdChange(event) {
             const file = event.target.files?.[0] || null;
             this.ttdFile = file;
@@ -1723,11 +1677,10 @@ export function registerDataTables(Alpine) {
         ...getBaseDataTableMethods(),
         filterLingkup: '',
         authRole: config.authRole || '',
-        authPlottingId: config.authPlottingId ? String(config.authPlottingId) : '',
-        authProvinceCode: config.authProvinceCode ? String(config.authProvinceCode) : '',
-        lingkups: config.lingkups || ['Nasional', 'Wilayah'],
-        plottings: config.plottings || [],
-        allProvinces: config.provinces || [],
+        authSpdId: config.authSpdId ? String(config.authSpdId) : '',
+        lingkups: config.lingkups || ['Dinas', 'Kecamatan'],
+        dinasOptions: config.dinasOptions || [],
+        kecamatanOptions: config.kecamatanOptions || [],
         daltuOptions: config.daltuOptions || [],
         dalnisOptions: config.dalnisOptions || [],
         ketuaTimOptions: config.ketuaTimOptions || [],
@@ -1742,9 +1695,8 @@ export function registerDataTables(Alpine) {
         syncingId: null,
         form: {
             nama_tim: '',
-            lingkup: (config.lingkups && config.lingkups[0]) || 'Nasional',
-            plotting_id: config.authPlottingId ? String(config.authPlottingId) : '',
-            province_code: config.authProvinceCode ? String(config.authProvinceCode) : '',
+            lingkup: (config.lingkups && config.lingkups[0]) || 'Dinas',
+            struktur_perangkat_daerah_id: config.authSpdId ? String(config.authSpdId) : '',
             daltu_id: '',
             dalnis_id: '',
             ketua_tim_id: '',
@@ -1756,21 +1708,10 @@ export function registerDataTables(Alpine) {
         isLingkupReadonly() {
             return this.lingkups.length === 1;
         },
-        isPlottingReadonly() {
-            return this.authRole === 'Admin Nasional' && Boolean(this.authPlottingId);
-        },
-        isProvinceReadonly() {
-            return this.authRole === 'Admin Wilayah' && Boolean(this.authProvinceCode);
+        isSpdReadonly() {
+            return Boolean(this.authSpdId) && ['Admin Dinas', 'Admin Kecamatan'].includes(this.authRole);
         },
         matchesCurrentScope(user) {
-            if (this.form.lingkup === 'Nasional') {
-                if (!this.form.plotting_id) return true;
-                return String(user.plotting_id || '') === String(this.form.plotting_id);
-            }
-            if (this.form.lingkup === 'Wilayah') {
-                if (!this.form.province_code) return true;
-                return String(user.province_code || '') === String(this.form.province_code);
-            }
             return true;
         },
         get lingkupOptions() {
@@ -1831,12 +1772,11 @@ export function registerDataTables(Alpine) {
             this.editingId = null;
             this.errors = {};
             this.auditorQuery = '';
-            const defaultLingkup = this.lingkups[0] || 'Nasional';
+            const defaultLingkup = this.lingkups[0] || 'Dinas';
             this.form = {
                 nama_tim: '',
                 lingkup: defaultLingkup,
-                plotting_id: defaultLingkup === 'Nasional' && this.authPlottingId ? this.authPlottingId : '',
-                province_code: defaultLingkup === 'Wilayah' && this.authProvinceCode ? this.authProvinceCode : '',
+                struktur_perangkat_daerah_id: this.authSpdId || '',
                 daltu_id: '',
                 dalnis_id: '',
                 ketua_tim_id: '',
@@ -1849,18 +1789,16 @@ export function registerDataTables(Alpine) {
             this.editingId = row.id;
             this.errors = {};
             this.auditorQuery = '';
-            const lingkup = this.isLingkupReadonly() ? this.lingkups[0] : (row.lingkup || 'Nasional');
+            let lingkup = row.lingkup || (this.lingkups[0] || 'Dinas');
+            if (this.isLingkupReadonly()) {
+                lingkup = this.lingkups[0];
+            }
             this.form = {
                 nama_tim: row.nama_tim || '',
-                lingkup,
-                plotting_id:
-                    lingkup === 'Nasional'
-                        ? (this.authPlottingId || (row.plotting_id ? String(row.plotting_id) : ''))
-                        : '',
-                province_code:
-                    lingkup === 'Wilayah'
-                        ? (this.authProvinceCode || row.province_code || '')
-                        : '',
+                lingkup: lingkup,
+                struktur_perangkat_daerah_id: row.struktur_perangkat_daerah_id
+                    ? String(row.struktur_perangkat_daerah_id)
+                    : (this.authSpdId || ''),
                 daltu_id: row.daltu_id ? String(row.daltu_id) : '',
                 dalnis_id: row.dalnis_id ? String(row.dalnis_id) : '',
                 ketua_tim_id: row.ketua_tim_id ? String(row.ketua_tim_id) : '',
@@ -1875,18 +1813,9 @@ export function registerDataTables(Alpine) {
             this.modalOpen = false;
         },
         onLingkupChange() {
-            if (this.form.lingkup === 'Nasional') {
-                this.form.province_code = '';
-                if (this.authPlottingId) {
-                    this.form.plotting_id = this.authPlottingId;
-                }
-            } else {
-                this.form.plotting_id = '';
-                if (this.authProvinceCode) {
-                    this.form.province_code = this.authProvinceCode;
-                }
+            if (!this.isSpdReadonly()) {
+                this.form.struktur_perangkat_daerah_id = '';
             }
-            this.onScopeValueChange();
         },
         onScopeValueChange() {
             if (
@@ -2437,13 +2366,12 @@ export function registerDataTables(Alpine) {
         ...getBaseDataTableMethods(),
         filterLingkup: '',
         authRole: config.authRole || '',
-        authPlottingId: config.authPlottingId ? String(config.authPlottingId) : '',
-        authProvinceCode: config.authProvinceCode ? String(config.authProvinceCode) : '',
-        scopeLabel: config.scopeLabel || '',
+        authSpdId: config.authSpdId ? String(config.authSpdId) : '',
         scopeName: config.scopeName || '',
-        lingkups: config.lingkups || ['Nasional', 'Wilayah'],
-        plottings: config.plottings || [],
-        provinces: config.provinces || [],
+        isSpdReadonlyState: Boolean(config.isSpdReadonly),
+        lingkups: config.lingkups || ['Dinas', 'Kecamatan'],
+        dinasOptions: config.dinasOptions || [],
+        kecamatanOptions: config.kecamatanOptions || [],
         modalOpen: false,
         previewModalOpen: false,
         previewData: null,
@@ -2484,9 +2412,8 @@ export function registerDataTables(Alpine) {
         ],
         form: {
             nama_template: '',
-            lingkup: (config.lingkups && config.lingkups[0]) || 'Nasional',
-            plotting_id: config.authPlottingId ? String(config.authPlottingId) : '',
-            kode_wilayah: config.authProvinceCode ? String(config.authProvinceCode) : '',
+            lingkup: (config.lingkups && config.lingkups[0]) || 'Dinas',
+            struktur_perangkat_daerah_id: config.isSpdReadonly && config.authSpdId ? String(config.authSpdId) : '',
             pendahuluan: '',
             tujuan: '',
             ruang_lingkup: '',
@@ -2500,20 +2427,11 @@ export function registerDataTables(Alpine) {
         isLingkupReadonly() {
             return this.lingkups.length === 1;
         },
-        isPlottingReadonly() {
-            return this.authRole === 'Admin Nasional' && Boolean(this.authPlottingId);
-        },
-        isProvinceReadonly() {
-            return this.authRole === 'Admin Wilayah' && Boolean(this.authProvinceCode);
+        isSpdReadonly() {
+            return Boolean(this.isSpdReadonlyState);
         },
         get lingkupOptions() {
             return this.lingkups.map((l) => ({ code: l, name: l }));
-        },
-        get plottingOptions() {
-            return this.plottings.map((p) => ({ code: String(p.id), name: p.name }));
-        },
-        get provinceOptions() {
-            return this.provinces.map((p) => ({ code: String(p.code), name: p.name }));
         },
         extraFilterParams() {
             return {
@@ -2531,12 +2449,10 @@ export function registerDataTables(Alpine) {
             this.fetchData();
         },
         onLingkupChange() {
-            if (this.form.lingkup === 'Nasional') {
-                this.form.plotting_id = this.authPlottingId || '';
-                this.form.kode_wilayah = '';
-            } else if (this.form.lingkup === 'Wilayah') {
-                this.form.kode_wilayah = this.authProvinceCode || '';
-                this.form.plotting_id = '';
+            if (this.isSpdReadonly()) {
+                this.form.struktur_perangkat_daerah_id = this.authSpdId || '';
+            } else {
+                this.form.struktur_perangkat_daerah_id = '';
             }
         },
 
@@ -2675,12 +2591,11 @@ export function registerDataTables(Alpine) {
         },
 
         resetForm() {
-            const defaultLingkup = (this.lingkups && this.lingkups[0]) || 'Nasional';
+            const defaultLingkup = (this.lingkups && this.lingkups[0]) || 'Dinas';
             this.form = {
                 nama_template: '',
                 lingkup: defaultLingkup,
-                plotting_id: defaultLingkup === 'Nasional' && this.authPlottingId ? this.authPlottingId : '',
-                kode_wilayah: defaultLingkup === 'Wilayah' && this.authProvinceCode ? this.authProvinceCode : '',
+                struktur_perangkat_daerah_id: this.isSpdReadonly() && this.authSpdId ? this.authSpdId : '',
                 pendahuluan: '',
                 tujuan: '',
                 ruang_lingkup: '',
@@ -2758,18 +2673,14 @@ export function registerDataTables(Alpine) {
             this.errors = {};
             this.activeTab = 'pendahuluan';
 
-            const lingkup = this.isLingkupReadonly() ? this.lingkups[0] : (row.lingkup || 'Nasional');
+            const lingkup = this.isLingkupReadonly() ? this.lingkups[0] : (row.lingkup || 'Dinas');
+            const spdId = this.isSpdReadonly()
+                ? this.authSpdId
+                : (row.struktur_perangkat_daerah_id ? String(row.struktur_perangkat_daerah_id) : (row.plotting_id ? String(row.plotting_id) : ''));
             this.form = {
                 nama_template: row.nama_template || '',
                 lingkup,
-                plotting_id:
-                    lingkup === 'Nasional'
-                        ? (this.authPlottingId || (row.plotting_id ? String(row.plotting_id) : ''))
-                        : '',
-                kode_wilayah:
-                    lingkup === 'Wilayah'
-                        ? (this.authProvinceCode || (row.kode_wilayah ? String(row.kode_wilayah) : ''))
-                        : '',
+                struktur_perangkat_daerah_id: spdId,
                 pendahuluan: this.decodeHtml(row.pendahuluan || ''),
                 tujuan: this.decodeHtml(row.tujuan || ''),
                 ruang_lingkup: this.decodeHtml(row.ruang_lingkup || ''),
@@ -2797,6 +2708,11 @@ export function registerDataTables(Alpine) {
                     const data = await response.json();
                     if (this.editingId === row.id && this.modalOpen) {
                         this.form.nama_template = data.nama_template || '';
+                        if (!this.isSpdReadonly()) {
+                            this.form.struktur_perangkat_daerah_id = data.struktur_perangkat_daerah_id
+                                ? String(data.struktur_perangkat_daerah_id)
+                                : (data.plotting_id ? String(data.plotting_id) : '');
+                        }
                         this.form.pendahuluan = this.decodeHtml(data.pendahuluan || '');
                         this.form.tujuan = this.decodeHtml(data.tujuan || '');
                         this.form.ruang_lingkup = this.decodeHtml(data.ruang_lingkup || '');
@@ -3895,15 +3811,12 @@ export function registerDataTables(Alpine) {
         ...getBaseDataTableMethods(),
         filterLingkup: '',
         authRole: config.authRole || '',
-        authPlottingId: config.authPlottingId ? String(config.authPlottingId) : '',
-        authProvinceCode: config.authProvinceCode ? String(config.authProvinceCode) : '',
-        isPlottingLocked: Boolean(config.isPlottingLocked),
-        isProvinceLocked: Boolean(config.isProvinceLocked),
-        scopeLabel: config.scopeLabel || '',
+        authSpdId: config.authSpdId ? String(config.authSpdId) : '',
         scopeName: config.scopeName || '',
-        lingkups: config.lingkups || ['Nasional', 'Wilayah'],
-        plottings: config.plottings || [],
-        provinces: config.provinces || [],
+        isSpdReadonlyState: Boolean(config.isSpdReadonly),
+        lingkups: config.lingkups || ['Dinas', 'Kecamatan'],
+        dinasOptions: config.dinasOptions || [],
+        kecamatanOptions: config.kecamatanOptions || [],
         modalOpen: false,
         editingId: null,
         deletingItem: null,
@@ -3915,29 +3828,19 @@ export function registerDataTables(Alpine) {
         duplicating: false,
         form: {
             nama_template: '',
-            lingkup: (config.lingkups && config.lingkups[0]) || 'Nasional',
-            plotting_id: config.authPlottingId ? String(config.authPlottingId) : '',
-            kode_wilayah: config.authProvinceCode ? String(config.authProvinceCode) : '',
+            lingkup: (config.lingkups && config.lingkups[0]) || 'Dinas',
+            struktur_perangkat_daerah_id: config.isSpdReadonly && config.authSpdId ? String(config.authSpdId) : '',
         },
         errors: {},
 
         isLingkupReadonly() {
             return this.lingkups.length === 1;
         },
-        isPlottingReadonly() {
-            return this.isPlottingLocked || (this.authRole === 'Admin Nasional' && Boolean(this.authPlottingId));
-        },
-        isProvinceReadonly() {
-            return this.isProvinceLocked || (this.authRole === 'Admin Wilayah' && Boolean(this.authProvinceCode));
+        isSpdReadonly() {
+            return Boolean(this.isSpdReadonlyState);
         },
         get lingkupOptions() {
             return this.lingkups.map((l) => ({ code: l, name: l }));
-        },
-        get plottingOptions() {
-            return (this.plottings || []).map((p) => ({ code: String(p.id), name: p.name }));
-        },
-        get provinceOptions() {
-            return (this.provinces || []).map((p) => ({ code: String(p.code), name: p.name }));
         },
         extraFilterParams() {
             return {
@@ -3955,21 +3858,18 @@ export function registerDataTables(Alpine) {
             this.fetchData();
         },
         onLingkupChange() {
-            if (this.form.lingkup === 'Nasional') {
-                this.form.plotting_id = this.authPlottingId || '';
-                this.form.kode_wilayah = '';
-            } else if (this.form.lingkup === 'Wilayah') {
-                this.form.kode_wilayah = this.authProvinceCode || '';
-                this.form.plotting_id = '';
+            if (this.isSpdReadonly()) {
+                this.form.struktur_perangkat_daerah_id = this.authSpdId || '';
+            } else {
+                this.form.struktur_perangkat_daerah_id = '';
             }
         },
         resetForm() {
-            const defaultLingkup = (this.lingkups && this.lingkups[0]) || 'Nasional';
+            const defaultLingkup = (this.lingkups && this.lingkups[0]) || 'Dinas';
             this.form = {
                 nama_template: '',
                 lingkup: defaultLingkup,
-                plotting_id: defaultLingkup === 'Nasional' && this.authPlottingId ? this.authPlottingId : '',
-                kode_wilayah: defaultLingkup === 'Wilayah' && this.authProvinceCode ? this.authProvinceCode : '',
+                struktur_perangkat_daerah_id: this.isSpdReadonly() && this.authSpdId ? this.authSpdId : '',
             };
             this.errors = {};
         },
@@ -3981,18 +3881,14 @@ export function registerDataTables(Alpine) {
         openEditModal(row) {
             this.editingId = row.id;
             this.errors = {};
-            const lingkup = this.isLingkupReadonly() ? this.lingkups[0] : (row.lingkup || 'Nasional');
+            const lingkup = this.isLingkupReadonly() ? this.lingkups[0] : (row.lingkup || 'Dinas');
+            const spdId = this.isSpdReadonly()
+                ? this.authSpdId
+                : (row.struktur_perangkat_daerah_id ? String(row.struktur_perangkat_daerah_id) : (row.plotting_id ? String(row.plotting_id) : ''));
             this.form = {
                 nama_template: row.nama_template || '',
                 lingkup,
-                plotting_id:
-                    lingkup === 'Nasional'
-                        ? (this.authPlottingId || (row.plotting_id ? String(row.plotting_id) : ''))
-                        : '',
-                kode_wilayah:
-                    lingkup === 'Wilayah'
-                        ? (this.authProvinceCode || (row.kode_wilayah ? String(row.kode_wilayah) : ''))
-                        : '',
+                struktur_perangkat_daerah_id: spdId,
             };
             this.modalOpen = true;
         },
@@ -4790,15 +4686,12 @@ export function registerDataTables(Alpine) {
         ...getBaseDataTableMethods(),
         filterLingkup: '',
         authRole: config.authRole || '',
-        authPlottingId: config.authPlottingId ? String(config.authPlottingId) : '',
-        authProvinceCode: config.authProvinceCode ? String(config.authProvinceCode) : '',
-        isPlottingLocked: Boolean(config.isPlottingLocked),
-        isProvinceLocked: Boolean(config.isProvinceLocked),
-        scopeLabel: config.scopeLabel || '',
+        authSpdId: config.authSpdId ? String(config.authSpdId) : '',
         scopeName: config.scopeName || '',
-        lingkups: config.lingkups || ['Nasional', 'Wilayah'],
-        plottings: config.plottings || [],
-        provinces: config.provinces || [],
+        isSpdReadonlyState: Boolean(config.isSpdReadonly),
+        lingkups: config.lingkups || ['Dinas', 'Kecamatan'],
+        dinasOptions: config.dinasOptions || [],
+        kecamatanOptions: config.kecamatanOptions || [],
         modalOpen: false,
         previewModalOpen: false,
         previewData: null,
@@ -4821,9 +4714,8 @@ export function registerDataTables(Alpine) {
         ],
         form: {
             nama_template: '',
-            lingkup: (config.lingkups && config.lingkups[0]) || 'Nasional',
-            plotting_id: config.authPlottingId ? String(config.authPlottingId) : '',
-            kode_wilayah: config.authProvinceCode ? String(config.authProvinceCode) : '',
+            lingkup: (config.lingkups && config.lingkups[0]) || 'Dinas',
+            struktur_perangkat_daerah_id: config.isSpdReadonly && config.authSpdId ? String(config.authSpdId) : '',
             tujuan: '',
             langkah: '',
             hasil: '',
@@ -4833,20 +4725,11 @@ export function registerDataTables(Alpine) {
         isLingkupReadonly() {
             return this.lingkups.length === 1;
         },
-        isPlottingReadonly() {
-            return this.isPlottingLocked || (this.authRole === 'Admin Nasional' && Boolean(this.authPlottingId));
-        },
-        isProvinceReadonly() {
-            return this.isProvinceLocked || (this.authRole === 'Admin Wilayah' && Boolean(this.authProvinceCode));
+        isSpdReadonly() {
+            return Boolean(this.isSpdReadonlyState);
         },
         get lingkupOptions() {
             return this.lingkups.map((l) => ({ code: l, name: l }));
-        },
-        get plottingOptions() {
-            return (this.plottings || []).map((p) => ({ code: String(p.id), name: p.name }));
-        },
-        get provinceOptions() {
-            return (this.provinces || []).map((p) => ({ code: String(p.code), name: p.name }));
         },
         extraFilterParams() {
             return {
@@ -4864,12 +4747,10 @@ export function registerDataTables(Alpine) {
             this.fetchData();
         },
         onLingkupChange() {
-            if (this.form.lingkup === 'Nasional') {
-                this.form.plotting_id = this.authPlottingId || '';
-                this.form.kode_wilayah = '';
-            } else if (this.form.lingkup === 'Wilayah') {
-                this.form.kode_wilayah = this.authProvinceCode || '';
-                this.form.plotting_id = '';
+            if (this.isSpdReadonly()) {
+                this.form.struktur_perangkat_daerah_id = this.authSpdId || '';
+            } else {
+                this.form.struktur_perangkat_daerah_id = '';
             }
         },
 
@@ -5008,12 +4889,11 @@ export function registerDataTables(Alpine) {
         },
 
         resetForm() {
-            const defaultLingkup = (this.lingkups && this.lingkups[0]) || 'Nasional';
+            const defaultLingkup = (this.lingkups && this.lingkups[0]) || 'Dinas';
             this.form = {
                 nama_template: '',
                 lingkup: defaultLingkup,
-                plotting_id: defaultLingkup === 'Nasional' && this.authPlottingId ? this.authPlottingId : '',
-                kode_wilayah: defaultLingkup === 'Wilayah' && this.authProvinceCode ? this.authProvinceCode : '',
+                struktur_perangkat_daerah_id: this.isSpdReadonly() && this.authSpdId ? this.authSpdId : '',
                 tujuan: '',
                 langkah: '',
                 hasil: '',
@@ -5086,18 +4966,14 @@ export function registerDataTables(Alpine) {
             this.errors = {};
             this.activeTab = 'tujuan';
 
-            const lingkup = this.isLingkupReadonly() ? this.lingkups[0] : (row.lingkup || 'Nasional');
+            const lingkup = this.isLingkupReadonly() ? this.lingkups[0] : (row.lingkup || 'Dinas');
+            const spdId = this.isSpdReadonly()
+                ? this.authSpdId
+                : (row.struktur_perangkat_daerah_id ? String(row.struktur_perangkat_daerah_id) : (row.plotting_id ? String(row.plotting_id) : ''));
             this.form = {
                 nama_template: row.nama_template || '',
                 lingkup,
-                plotting_id:
-                    lingkup === 'Nasional'
-                        ? (this.authPlottingId || (row.plotting_id ? String(row.plotting_id) : ''))
-                        : '',
-                kode_wilayah:
-                    lingkup === 'Wilayah'
-                        ? (this.authProvinceCode || (row.kode_wilayah ? String(row.kode_wilayah) : ''))
-                        : '',
+                struktur_perangkat_daerah_id: spdId,
                 tujuan: this.decodeHtml(row.tujuan || ''),
                 langkah: this.decodeHtml(row.langkah || ''),
                 hasil: this.decodeHtml(row.hasil || ''),
@@ -5120,6 +4996,11 @@ export function registerDataTables(Alpine) {
                     const data = await response.json();
                     if (this.editingId === row.id && this.modalOpen) {
                         this.form.nama_template = data.nama_template || '';
+                        if (!this.isSpdReadonly()) {
+                            this.form.struktur_perangkat_daerah_id = data.struktur_perangkat_daerah_id
+                                ? String(data.struktur_perangkat_daerah_id)
+                                : (data.plotting_id ? String(data.plotting_id) : '');
+                        }
                         this.form.tujuan = this.decodeHtml(data.tujuan || '');
                         this.form.langkah = this.decodeHtml(data.langkah || '');
                         this.form.hasil = this.decodeHtml(data.hasil || '');
@@ -5353,7 +5234,14 @@ export function registerDataTables(Alpine) {
         bidangs: config.bidangs || [],
         jenisAudits: config.jenisAudits || [],
         statuses: config.statuses || ['Draft', 'Final'],
-        levels: config.levels || ['Nasional', 'Wilayah'],
+        levels: config.levels || ['Dinas', 'Kecamatan'],
+        dinasOptions: config.dinasOptions || [],
+        kecamatanOptions: config.kecamatanOptions || [],
+        authSpdId: config.authSpdId || '',
+        isSpdReadonlyState: Boolean(config.isSpdReadonly),
+        modalLevel1Options: [],
+        modalLevel2Options: [],
+        modalLevel3Options: [],
         cities: [],
         districts: [],
         villages: [],
@@ -5391,8 +5279,12 @@ export function registerDataTables(Alpine) {
             tanggal_direviu: getTodayLocalDate(),
             tanggal_kka: getTodayLocalDate(),
             tempat: '',
-            auditee_level: 'Nasional',
-            auditee_plotting_id: '',
+            auditee_level: (config.levels && config.levels[0]) || 'Dinas',
+            unit_level_1: '',
+            unit_level_2: '',
+            unit_level_3: '',
+            struktur_perangkat_daerah_id: config.isSpdReadonly && config.authSpdId ? String(config.authSpdId) : '',
+            auditee_plotting_id: config.isSpdReadonly && config.authSpdId ? String(config.authSpdId) : '',
             province_code: '',
             city_code: '',
             district_code: '',
@@ -5410,7 +5302,23 @@ export function registerDataTables(Alpine) {
             return this.pkas.find((p) => String(p.id) === String(this.form.pka_id)) || null;
         },
         get pkaOptions() {
-            return this.pkas.map((p) => ({
+            const bidangOrder = [
+                'Operasional',
+                'Manajemen Anggaran dan Keuangan',
+                'Logistik',
+                'Sumber Daya Manusia',
+                'Investigasi',
+            ];
+            const sorted = [...this.pkas].sort((a, b) => {
+                const idxA = bidangOrder.indexOf(a.bidang);
+                const idxB = bidangOrder.indexOf(b.bidang);
+                const posA = idxA === -1 ? 999 : idxA;
+                const posB = idxB === -1 ? 999 : idxB;
+                if (posA !== posB) return posA - posB;
+                return (b.id || 0) - (a.id || 0);
+            });
+
+            return sorted.map((p) => ({
                 code: String(p.id),
                 name: p.name,
                 group: p.bidang ? 'Bidang: ' + p.bidang : null,
@@ -5482,13 +5390,55 @@ export function registerDataTables(Alpine) {
             this.districts = [];
             this.villages = [];
         },
-        onLevelChange() {
+        isLevelReadonly() {
+            return this.levels.length === 1;
+        },
+        isSpdReadonly() {
+            return Boolean(this.isSpdReadonlyState);
+        },
+        async onLevelChange() {
+            this.form.unit_level_1 = '';
+            this.form.unit_level_2 = '';
+            this.form.unit_level_3 = '';
+            this.form.struktur_perangkat_daerah_id = '';
             this.form.auditee_plotting_id = '';
-            this.form.province_code = '';
-            this.form.city_code = '';
-            this.form.district_code = '';
-            this.form.village_code = '';
-            this.resetRegionOptions();
+            this.modalLevel1Options = [];
+            this.modalLevel2Options = [];
+            this.modalLevel3Options = [];
+
+            if (this.form.auditee_level === 'Dinas') {
+                this.modalLevel1Options = (this.dinasOptions && this.dinasOptions.length > 0)
+                    ? this.dinasOptions
+                    : await this.fetchOptions('dinas');
+            } else if (this.form.auditee_level === 'Kecamatan') {
+                this.modalLevel1Options = (this.kecamatanOptions && this.kecamatanOptions.length > 0)
+                    ? this.kecamatanOptions
+                    : await this.fetchOptions('kecamatans');
+            }
+        },
+        async onLevel1Change() {
+            this.form.unit_level_2 = '';
+            this.form.unit_level_3 = '';
+            this.modalLevel2Options = [];
+            this.modalLevel3Options = [];
+            this.form.struktur_perangkat_daerah_id = this.form.unit_level_1 || '';
+            this.form.auditee_plotting_id = this.form.struktur_perangkat_daerah_id;
+            if (this.form.unit_level_1) {
+                this.modalLevel2Options = await this.fetchOptions('sub_units', this.form.unit_level_1);
+            }
+        },
+        async onLevel2Change() {
+            this.form.unit_level_3 = '';
+            this.modalLevel3Options = [];
+            this.form.struktur_perangkat_daerah_id = this.form.unit_level_2 || this.form.unit_level_1 || '';
+            this.form.auditee_plotting_id = this.form.struktur_perangkat_daerah_id;
+            if (this.form.unit_level_2) {
+                this.modalLevel3Options = await this.fetchOptions('sub_units', this.form.unit_level_2);
+            }
+        },
+        onLevel3Change() {
+            this.form.struktur_perangkat_daerah_id = this.form.unit_level_3 || this.form.unit_level_2 || this.form.unit_level_1 || '';
+            this.form.auditee_plotting_id = this.form.struktur_perangkat_daerah_id;
         },
         async onProvinceChange() {
             this.form.city_code = '';
@@ -5589,6 +5539,7 @@ export function registerDataTables(Alpine) {
 
         resetForm() {
             const today = getTodayLocalDate();
+            const defaultLevel = (this.levels && this.levels[0]) || 'Dinas';
             this.form = {
                 nomor_kka: '',
                 pka_id: '',
@@ -5596,7 +5547,11 @@ export function registerDataTables(Alpine) {
                 tanggal_direviu: today,
                 tanggal_kka: today,
                 tempat: '',
-                auditee_level: 'Nasional',
+                auditee_level: defaultLevel,
+                unit_level_1: '',
+                unit_level_2: '',
+                unit_level_3: '',
+                struktur_perangkat_daerah_id: '',
                 auditee_plotting_id: '',
                 province_code: '',
                 city_code: '',
@@ -5608,14 +5563,36 @@ export function registerDataTables(Alpine) {
                 hasil: '',
                 status: 'Draft',
             };
+            this.modalLevel1Options = [];
+            this.modalLevel2Options = [];
+            this.modalLevel3Options = [];
             this.resetRegionOptions();
             this.errors = {};
         },
-        openCreateModal() {
+        async openCreateModal() {
             this.destroyEditors();
             this.editingId = null;
             this.resetForm();
             this.activeTab = 'tujuan';
+            await this.onLevelChange();
+            if (this.isSpdReadonly() && this.authSpdId) {
+                const chain = await this.fetchOptions('unit_hierarchy', this.authSpdId);
+                if (Array.isArray(chain) && chain.length > 0) {
+                    this.form.unit_level_1 = String(chain[0].id);
+                    await this.onLevel1Change();
+                    if (chain.length > 1) {
+                        this.form.unit_level_2 = String(chain[1].id);
+                        await this.onLevel2Change();
+                    }
+                    if (chain.length > 2) {
+                        this.form.unit_level_3 = String(chain[2].id);
+                        this.onLevel3Change();
+                    }
+                } else if (this.modalLevel1Options.some((o) => String(o.code) === String(this.authSpdId))) {
+                    this.form.unit_level_1 = String(this.authSpdId);
+                    await this.onLevel1Change();
+                }
+            }
             this.modalOpen = true;
             this.$nextTick(() => {
                 this.initTabEditor('tujuan');
@@ -5638,6 +5615,10 @@ export function registerDataTables(Alpine) {
                 }
                 const data = await response.json();
 
+                let lvl = data.auditee_level || 'Dinas';
+                if (lvl === 'Nasional') lvl = 'Dinas';
+                if (lvl === 'Wilayah') lvl = 'Kecamatan';
+
                 this.form = {
                     nomor_kka: data.nomor_kka || '',
                     pka_id: data.pka_id || '',
@@ -5645,8 +5626,12 @@ export function registerDataTables(Alpine) {
                     tanggal_direviu: data.tanggal_direviu || '',
                     tanggal_kka: data.tanggal_kka || '',
                     tempat: data.tempat || '',
-                    auditee_level: data.auditee_level || 'Nasional',
-                    auditee_plotting_id: data.auditee_plotting_id || '',
+                    auditee_level: lvl,
+                    unit_level_1: '',
+                    unit_level_2: '',
+                    unit_level_3: '',
+                    struktur_perangkat_daerah_id: '',
+                    auditee_plotting_id: '',
                     province_code: data.province_code || '',
                     city_code: data.city_code || '',
                     district_code: data.district_code || '',
@@ -5658,14 +5643,29 @@ export function registerDataTables(Alpine) {
                     status: data.status || 'Draft',
                 };
 
-                const [cities, districts, villages] = await Promise.all([
-                    this.form.province_code ? this.fetchOptions('cities', this.form.province_code) : [],
-                    this.form.city_code ? this.fetchOptions('districts', this.form.city_code) : [],
-                    this.form.district_code ? this.fetchOptions('villages', this.form.district_code) : [],
-                ]);
-                this.cities = cities;
-                this.districts = districts;
-                this.villages = villages;
+                await this.onLevelChange();
+
+                const spdId = data.struktur_perangkat_daerah_id || data.auditee_plotting_id || (this.isSpdReadonly() && this.authSpdId ? String(this.authSpdId) : '');
+                if (spdId) {
+                    const chain = await this.fetchOptions('unit_hierarchy', spdId);
+                    if (Array.isArray(chain) && chain.length > 0) {
+                        this.form.unit_level_1 = String(chain[0].id);
+                        await this.onLevel1Change();
+                        if (chain.length > 1) {
+                            this.form.unit_level_2 = String(chain[1].id);
+                            await this.onLevel2Change();
+                        }
+                        if (chain.length > 2) {
+                            this.form.unit_level_3 = String(chain[2].id);
+                            this.onLevel3Change();
+                        }
+                    } else if (this.modalLevel1Options.some((o) => String(o.code) === String(spdId))) {
+                        this.form.unit_level_1 = String(spdId);
+                        await this.onLevel1Change();
+                    }
+                    this.form.struktur_perangkat_daerah_id = String(spdId);
+                    this.form.auditee_plotting_id = String(spdId);
+                }
 
                 this.$nextTick(() => {
                     this.initTabEditor('tujuan');
@@ -5699,6 +5699,10 @@ export function registerDataTables(Alpine) {
                     this.form[key] = this.editors[key].getHTML();
                 }
             });
+
+            const targetSpdId = this.form.unit_level_3 || this.form.unit_level_2 || this.form.unit_level_1 || this.form.struktur_perangkat_daerah_id || '';
+            this.form.struktur_perangkat_daerah_id = targetSpdId ? String(targetSpdId) : '';
+            this.form.auditee_plotting_id = this.form.struktur_perangkat_daerah_id;
 
             const url = this.editingId ? `${this.baseUrl}/${this.editingId}` : this.storeUrl;
             const method = this.editingId ? 'PUT' : 'POST';

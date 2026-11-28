@@ -5,12 +5,10 @@ namespace App\Http\Controllers\Master;
 use App\DataTables\Master\TemplatePkaDataTable;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Master\TemplatePkaRequest;
-use App\Models\Plotting;
 use App\Models\TemplatePka;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class TemplatePkaController extends Controller
@@ -21,39 +19,7 @@ class TemplatePkaController extends Controller
             return $dataTable->toJson($request);
         }
 
-        $authUser = $request->user();
-        $isAdminNasional = $authUser?->role === 'Admin Nasional';
-        $isAdminWilayah = $authUser?->role === 'Admin Wilayah';
-        $authProvinceCode = ($isAdminWilayah && $authUser?->kode_wilayah)
-            ? substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2)
-            : null;
-
-        $plottingsQuery = Plotting::query()->orderBy('id');
-        if ($isAdminNasional && $authUser?->plotting_id) {
-            $plottingsQuery->whereKey($authUser->plotting_id);
-        }
-
-        $plottings = $plottingsQuery
-            ->get(['id', 'plot'])
-            ->map(fn (Plotting $plotting): array => [
-                'id' => $plotting->id,
-                'code' => (string) $plotting->id,
-                'name' => $plotting->plot,
-            ])
-            ->values();
-
-        $provincesQuery = DB::table('wilayah')
-            ->whereRaw('LENGTH(kode_wilayah) = 2')
-            ->whereNull('deleted_at')
-            ->orderBy('kode_wilayah');
-
-        if ($isAdminWilayah && $authProvinceCode) {
-            $provincesQuery->where('kode_wilayah', $authProvinceCode);
-        }
-
-        $provinces = $provincesQuery->get(['kode_wilayah as code', 'provinsi as name']);
-
-        $tableConfig = $dataTable->config($plottings, $provinces);
+        $tableConfig = $dataTable->config([], []);
 
         return view('master.template.pka.index', compact('tableConfig'));
     }
@@ -83,10 +49,11 @@ class TemplatePkaController extends Controller
             'id' => $pka->id,
             'nama_template' => $pka->nama_template,
             'lingkup' => $pka->lingkup,
-            'plotting_id' => $pka->plotting_id ? (string) $pka->plotting_id : '',
+            'struktur_perangkat_daerah_id' => $pka->struktur_perangkat_daerah_id ? (string) $pka->struktur_perangkat_daerah_id : '',
+            'plotting_id' => $pka->struktur_perangkat_daerah_id ? (string) $pka->struktur_perangkat_daerah_id : '',
             'plot_name' => $pka->plotName(),
-            'kode_wilayah' => $pka->kode_wilayah ? (string) $pka->kode_wilayah : '',
-            'province_name' => $pka->provinceName(),
+            'kode_wilayah' => '',
+            'province_name' => '',
             'pendahuluan' => $pka->pendahuluan ?? '',
             'tujuan' => $pka->tujuan ?? '',
             'ruang_lingkup' => $pka->ruang_lingkup ?? '',
@@ -172,12 +139,13 @@ class TemplatePkaController extends Controller
     protected function buildPayload(array $validated): array
     {
         $lingkup = $validated['lingkup'];
+        $spdId = $validated['struktur_perangkat_daerah_id'] ?? $validated['plotting_id'] ?? null;
 
         return [
             'nama_template' => $validated['nama_template'],
             'lingkup' => $lingkup,
-            'plotting_id' => $lingkup === 'Nasional' ? (int) $validated['plotting_id'] : null,
-            'kode_wilayah' => $lingkup === 'Wilayah' ? (string) $validated['kode_wilayah'] : null,
+            'struktur_perangkat_daerah_id' => $spdId ? (int) $spdId : null,
+            'kode_wilayah' => null,
             'pendahuluan' => $validated['pendahuluan'] ?? null,
             'tujuan' => $validated['tujuan'] ?? null,
             'ruang_lingkup' => $validated['ruang_lingkup'] ?? null,
@@ -198,14 +166,29 @@ class TemplatePkaController extends Controller
             return true;
         }
 
-        if ($user->role === 'Admin Nasional') {
-            return $user->plotting_id && (int) $pka->plotting_id === (int) $user->plotting_id;
+        $isAdminDinas = in_array($user->role, ['Admin Nasional', 'Admin Dinas'], true) || ($user->level === 'Dinas');
+        $isAdminKecamatan = in_array($user->role, ['Admin Wilayah', 'Admin Kecamatan'], true) || ($user->level === 'Kecamatan');
+
+        if ($isAdminDinas) {
+            if ($pka->lingkup !== 'Dinas') {
+                return false;
+            }
+            if ($user->struktur_perangkat_daerah_id && $pka->struktur_perangkat_daerah_id) {
+                return (int) $pka->struktur_perangkat_daerah_id === (int) $user->struktur_perangkat_daerah_id;
+            }
+
+            return true;
         }
 
-        if ($user->role === 'Admin Wilayah') {
-            $provinceCode = substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2);
+        if ($isAdminKecamatan) {
+            if ($pka->lingkup !== 'Kecamatan') {
+                return false;
+            }
+            if ($user->struktur_perangkat_daerah_id && $pka->struktur_perangkat_daerah_id) {
+                return (int) $pka->struktur_perangkat_daerah_id === (int) $user->struktur_perangkat_daerah_id;
+            }
 
-            return $pka->lingkup === 'Wilayah' && $pka->kode_wilayah === $provinceCode;
+            return true;
         }
 
         return true;

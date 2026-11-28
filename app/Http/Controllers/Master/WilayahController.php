@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Master;
 use App\DataTables\Master\WilayahDataTable;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Master\WilayahRequest;
+use App\Models\StrukturPerangkatDaerah;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,11 +23,11 @@ class WilayahController extends Controller
             return $dataTable->toJson($request);
         }
 
-        $provinces = DB::table('wilayah')
-            ->whereRaw('CHAR_LENGTH(kode_wilayah) = 2')
+        $provinces = DB::table('struktur_perangkat_daerah')
+            ->whereNotNull('kode_wilayah')
             ->whereNull('deleted_at')
-            ->orderBy('kode_wilayah')
-            ->get(['kode_wilayah as code', 'provinsi as name']);
+            ->orderBy('id')
+            ->get(['kode_wilayah as code', 'nama_unit as name']);
 
         $tableConfig = $dataTable->config($provinces);
 
@@ -41,8 +42,11 @@ class WilayahController extends Controller
         $createdBy = auth()->id();
 
         match ($level) {
-            'province' => DB::table('wilayah')->insert([
+            'province' => DB::table('struktur_perangkat_daerah')->insert([
                 'kode_wilayah' => $validated['code'],
+                'nama_unit' => strtoupper(trim((string) $validated['province_name'])),
+                'jenis_unit' => 'Provinsi',
+                'level' => 1,
                 'provinsi' => strtoupper(trim((string) $validated['province_name'])),
                 'kabupaten_kota' => null,
                 'kecamatan' => null,
@@ -52,11 +56,16 @@ class WilayahController extends Controller
                 'updated_at' => $now,
             ]),
             'city' => (function () use ($validated, $createdBy, $now): void {
-                $parent = DB::table('wilayah')->where('kode_wilayah', $validated['province_code'])->first();
-                DB::table('wilayah')->insert([
+                $parent = DB::table('struktur_perangkat_daerah')->where('kode_wilayah', $validated['province_code'])->first();
+                $cityName = strtoupper(trim((string) $validated['city_name']));
+                DB::table('struktur_perangkat_daerah')->insert([
                     'kode_wilayah' => $validated['code'],
+                    'parent_id' => $parent->id ?? null,
+                    'nama_unit' => $cityName,
+                    'jenis_unit' => 'Kabupaten/Kota',
+                    'level' => 2,
                     'provinsi' => $parent->provinsi ?? '',
-                    'kabupaten_kota' => strtoupper(trim((string) $validated['city_name'])),
+                    'kabupaten_kota' => $cityName,
                     'kecamatan' => null,
                     'desa_kelurahan' => null,
                     'created_by' => $createdBy,
@@ -65,12 +74,17 @@ class WilayahController extends Controller
                 ]);
             })(),
             'district' => (function () use ($validated, $createdBy, $now): void {
-                $parent = DB::table('wilayah')->where('kode_wilayah', $validated['city_code'])->first();
-                DB::table('wilayah')->insert([
+                $parent = DB::table('struktur_perangkat_daerah')->where('kode_wilayah', $validated['city_code'])->first();
+                $distName = strtoupper(trim((string) $validated['district_name']));
+                DB::table('struktur_perangkat_daerah')->insert([
                     'kode_wilayah' => $validated['code'],
+                    'parent_id' => $parent->id ?? null,
+                    'nama_unit' => $distName,
+                    'jenis_unit' => 'Kecamatan',
+                    'level' => 3,
                     'provinsi' => $parent->provinsi ?? '',
                     'kabupaten_kota' => $parent->kabupaten_kota ?? '',
-                    'kecamatan' => strtoupper(trim((string) $validated['district_name'])),
+                    'kecamatan' => $distName,
                     'desa_kelurahan' => null,
                     'created_by' => $createdBy,
                     'created_at' => $now,
@@ -78,13 +92,18 @@ class WilayahController extends Controller
                 ]);
             })(),
             'village' => (function () use ($validated, $createdBy, $now): void {
-                $parent = DB::table('wilayah')->where('kode_wilayah', $validated['district_code'])->first();
-                DB::table('wilayah')->insert([
+                $parent = DB::table('struktur_perangkat_daerah')->where('kode_wilayah', $validated['district_code'])->first();
+                $vilName = strtoupper(trim((string) $validated['village_name']));
+                DB::table('struktur_perangkat_daerah')->insert([
                     'kode_wilayah' => $validated['code'],
+                    'parent_id' => $parent->id ?? null,
+                    'nama_unit' => $vilName,
+                    'jenis_unit' => 'Desa/Kelurahan',
+                    'level' => 4,
                     'provinsi' => $parent->provinsi ?? '',
                     'kabupaten_kota' => $parent->kabupaten_kota ?? '',
                     'kecamatan' => $parent->kecamatan ?? '',
-                    'desa_kelurahan' => strtoupper(trim((string) $validated['village_name'])),
+                    'desa_kelurahan' => $vilName,
                     'created_by' => $createdBy,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -105,7 +124,7 @@ class WilayahController extends Controller
     {
         $validated = $request->validated();
         $now = now();
-        $existing = DB::table('wilayah')->where('kode_wilayah', $code)->first();
+        $existing = DB::table('struktur_perangkat_daerah')->where('kode_wilayah', $code)->first();
 
         if (! $existing) {
             return response()->json(['message' => 'Data wilayah tidak ditemukan.'], 404);
@@ -116,12 +135,13 @@ class WilayahController extends Controller
         match ($level) {
             'province' => (function () use ($code, $newCode, $validated, $now): void {
                 $provName = strtoupper(trim((string) $validated['province_name']));
-                DB::table('wilayah')->where('kode_wilayah', $code)->update([
+                DB::table('struktur_perangkat_daerah')->where('kode_wilayah', $code)->update([
                     'kode_wilayah' => $newCode,
+                    'nama_unit' => $provName,
                     'provinsi' => $provName,
                     'updated_at' => $now,
                 ]);
-                DB::table('wilayah')
+                DB::table('struktur_perangkat_daerah')
                     ->where('kode_wilayah', 'like', $code.'%')
                     ->where('kode_wilayah', '!=', $newCode)
                     ->update([
@@ -130,15 +150,16 @@ class WilayahController extends Controller
                     ]);
             })(),
             'city' => (function () use ($code, $newCode, $validated, $now): void {
-                $parent = DB::table('wilayah')->where('kode_wilayah', $validated['province_code'])->first();
+                $parent = DB::table('struktur_perangkat_daerah')->where('kode_wilayah', $validated['province_code'])->first();
                 $cityName = strtoupper(trim((string) $validated['city_name']));
-                DB::table('wilayah')->where('kode_wilayah', $code)->update([
+                DB::table('struktur_perangkat_daerah')->where('kode_wilayah', $code)->update([
                     'kode_wilayah' => $newCode,
+                    'nama_unit' => $cityName,
                     'provinsi' => $parent->provinsi ?? '',
                     'kabupaten_kota' => $cityName,
                     'updated_at' => $now,
                 ]);
-                DB::table('wilayah')
+                DB::table('struktur_perangkat_daerah')
                     ->where('kode_wilayah', 'like', $code.'%')
                     ->where('kode_wilayah', '!=', $newCode)
                     ->update([
@@ -148,16 +169,17 @@ class WilayahController extends Controller
                     ]);
             })(),
             'district' => (function () use ($code, $newCode, $validated, $now): void {
-                $parent = DB::table('wilayah')->where('kode_wilayah', $validated['city_code'])->first();
+                $parent = DB::table('struktur_perangkat_daerah')->where('kode_wilayah', $validated['city_code'])->first();
                 $distName = strtoupper(trim((string) $validated['district_name']));
-                DB::table('wilayah')->where('kode_wilayah', $code)->update([
+                DB::table('struktur_perangkat_daerah')->where('kode_wilayah', $code)->update([
                     'kode_wilayah' => $newCode,
+                    'nama_unit' => $distName,
                     'provinsi' => $parent->provinsi ?? '',
                     'kabupaten_kota' => $parent->kabupaten_kota ?? '',
                     'kecamatan' => $distName,
                     'updated_at' => $now,
                 ]);
-                DB::table('wilayah')
+                DB::table('struktur_perangkat_daerah')
                     ->where('kode_wilayah', 'like', $code.'%')
                     ->where('kode_wilayah', '!=', $newCode)
                     ->update([
@@ -168,13 +190,15 @@ class WilayahController extends Controller
                     ]);
             })(),
             'village' => (function () use ($code, $newCode, $validated, $now): void {
-                $parent = DB::table('wilayah')->where('kode_wilayah', $validated['district_code'])->first();
-                DB::table('wilayah')->where('kode_wilayah', $code)->update([
+                $parent = DB::table('struktur_perangkat_daerah')->where('kode_wilayah', $validated['district_code'])->first();
+                $vilName = strtoupper(trim((string) $validated['village_name']));
+                DB::table('struktur_perangkat_daerah')->where('kode_wilayah', $code)->update([
                     'kode_wilayah' => $newCode,
+                    'nama_unit' => $vilName,
                     'provinsi' => $parent->provinsi ?? '',
                     'kabupaten_kota' => $parent->kabupaten_kota ?? '',
                     'kecamatan' => $parent->kecamatan ?? '',
-                    'desa_kelurahan' => strtoupper(trim((string) $validated['village_name'])),
+                    'desa_kelurahan' => $vilName,
                     'updated_at' => $now,
                 ]);
             })(),
@@ -192,7 +216,7 @@ class WilayahController extends Controller
 
     public function destroy(string $level, string $code): JsonResponse
     {
-        $hasChildren = DB::table('wilayah')
+        $hasChildren = DB::table('struktur_perangkat_daerah')
             ->where('kode_wilayah', 'like', $code.'%')
             ->where('kode_wilayah', '!=', $code)
             ->whereNull('deleted_at')
@@ -208,7 +232,7 @@ class WilayahController extends Controller
             return response()->json(['message' => 'Tingkat wilayah tidak valid.'], 422);
         }
 
-        DB::table('wilayah')->where('kode_wilayah', $code)->delete();
+        DB::table('struktur_perangkat_daerah')->where('kode_wilayah', $code)->delete();
 
         return response()->json([
             'message' => 'Data wilayah berhasil dihapus.',
@@ -221,23 +245,48 @@ class WilayahController extends Controller
         $parent = (string) $request->query('parent');
 
         $items = match ($type) {
-            'provinces' => DB::table('wilayah')
-                ->whereRaw('CHAR_LENGTH(kode_wilayah) = 2')
-                ->whereNull('deleted_at')
-                ->orderBy('kode_wilayah')
-                ->get(['kode_wilayah as code', 'provinsi as name']),
-            'cities' => DB::table('wilayah')
-                ->whereRaw('CHAR_LENGTH(kode_wilayah) = 4')
+            'cities' => DB::table('struktur_perangkat_daerah')
                 ->where('kode_wilayah', 'like', $parent.'%')
+                ->whereRaw('LENGTH(kode_wilayah) = 4')
                 ->whereNull('deleted_at')
                 ->orderBy('kode_wilayah')
                 ->get(['kode_wilayah as code', 'kabupaten_kota as name']),
-            'districts' => DB::table('wilayah')
-                ->whereRaw('CHAR_LENGTH(kode_wilayah) = 6')
+            'districts' => DB::table('struktur_perangkat_daerah')
                 ->where('kode_wilayah', 'like', $parent.'%')
+                ->whereRaw('LENGTH(kode_wilayah) = 6')
                 ->whereNull('deleted_at')
                 ->orderBy('kode_wilayah')
                 ->get(['kode_wilayah as code', 'kecamatan as name']),
+            'dinas' => StrukturPerangkatDaerah::dinas()
+                ->orderBy('nama_unit')
+                ->get()
+                ->map(fn ($u): array => [
+                    'id' => $u->id,
+                    'code' => (string) $u->id,
+                    'name' => $u->nama_unit,
+                    'pimpinan' => $u->pimpinan,
+                    'jenis_unit' => $u->jenis_unit,
+                ]),
+            'kecamatans' => StrukturPerangkatDaerah::kecamatan()
+                ->orderBy('nama_unit')
+                ->get()
+                ->map(fn ($u): array => [
+                    'id' => $u->id,
+                    'code' => (string) $u->id,
+                    'name' => $u->nama_unit,
+                    'pimpinan' => $u->pimpinan,
+                    'jenis_unit' => $u->jenis_unit,
+                ]),
+            'sub_units' => StrukturPerangkatDaerah::where('parent_id', $parent)
+                ->orderBy('nama_unit')
+                ->get()
+                ->map(fn ($u): array => [
+                    'id' => $u->id,
+                    'code' => (string) $u->id,
+                    'name' => $u->nama_unit,
+                    'pimpinan' => $u->pimpinan,
+                    'jenis_unit' => $u->jenis_unit,
+                ]),
             default => collect(),
         };
 

@@ -108,6 +108,7 @@
                         itemsExpr="roleOptions"
                         valueModel="form.role"
                         changeAction="onRoleChange()"
+                        :allow-empty="false"
                     />
                     <template x-if="errors.role">
                         <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.role[0]"></p>
@@ -170,9 +171,7 @@
                             class="grid gap-2"
                             :class="{
                                 'grid-cols-1': availableLevels.length === 1,
-                                'grid-cols-2 sm:grid-cols-2': availableLevels.length === 2,
-                                'grid-cols-2 sm:grid-cols-4': availableLevels.length === 4,
-                                'grid-cols-2 sm:grid-cols-5': availableLevels.length >= 5
+                                'grid-cols-2': availableLevels.length >= 2
                             }"
                         >
                             <template x-for="lvl in availableLevels" :key="lvl">
@@ -193,95 +192,67 @@
                         </template>
                     </div>
 
-                    {{-- Pilihan Wilayah Berjenjang Sesuai Level --}}
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        {{-- Plot Wilayah (WIL dari tabel plotting) - Hanya muncul jika Level = Nasional --}}
-                        <template x-if="showPlottingField()">
-                            <div class="space-y-1.5 sm:col-span-2">
-                                <x-searchable-select
-                                    label="Plot Wilayah (WIL) *"
-                                    placeholder="Pilih WIL (Plotting)"
-                                    itemsExpr="plottingOptions"
-                                    valueModel="form.plotting_id"
-                                    changeAction=""
-                                    disabledExpr="isPlottingReadonly()"
-                                    disabledMessage="Plot wilayah otomatis mengikuti plot akun Admin Nasional Anda"
-                                />
-                                <template x-if="errors.plotting_id">
-                                    <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.plotting_id[0]"></p>
-                                </template>
+                    {{-- Pilihan Satuan Kerja / Perangkat Daerah Berjenjang Sesuai Level --}}
+                    <div class="space-y-3">
+                        {{-- Dropdown Level 1: Dinas / Badan / OPD atau Kecamatan --}}
+                        <div class="space-y-1.5" x-show="form.level === 'Dinas'">
+                            <x-searchable-select
+                                label="Dinas / Badan / OPD *"
+                                placeholder="Pilih Dinas / Badan / OPD"
+                                itemsExpr="modalLevel1Options"
+                                valueModel="form.unit_level_1"
+                                changeAction="onLevel1Change()"
+                                :allow-empty="false"
+                            />
+                        </div>
+                        <div class="space-y-1.5" x-show="form.level === 'Kecamatan'">
+                            <x-searchable-select
+                                label="Kecamatan *"
+                                placeholder="Pilih Kecamatan"
+                                itemsExpr="modalLevel1Options"
+                                valueModel="form.unit_level_1"
+                                changeAction="onLevel1Change()"
+                                :allow-empty="false"
+                            />
+                        </div>
+                        <template x-if="errors.struktur_perangkat_daerah_id">
+                            <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.struktur_perangkat_daerah_id[0]"></p>
+                        </template>
+
+                        {{-- Dropdown Level 2: Satker / Bidang / Bagian / Seksi Kecamatan --}}
+                        <template x-if="modalLevel2Options.length > 0">
+                            <div class="space-y-1.5">
+                                <div x-show="form.level === 'Dinas'">
+                                    <x-searchable-select
+                                        label="Satker / Bidang / Bagian"
+                                        placeholder="Pilih Satker / Bidang / Bagian (Opsional)"
+                                        itemsExpr="modalLevel2Options"
+                                        valueModel="form.unit_level_2"
+                                        changeAction="onLevel2Change()"
+                                    />
+                                </div>
+                                <div x-show="form.level === 'Kecamatan'">
+                                    <x-searchable-select
+                                        label="Satker / Seksi Kecamatan"
+                                        placeholder="Pilih Satker / Seksi Kecamatan (Opsional)"
+                                        itemsExpr="modalLevel2Options"
+                                        valueModel="form.unit_level_2"
+                                        changeAction="onLevel2Change()"
+                                    />
+                                </div>
                             </div>
                         </template>
 
-                        {{-- Provinsi (Muncul untuk Level Wilayah, Provinsi, Kabupaten, Kecamatan, Desa) --}}
-                        <template x-if="showProvinceField()">
-                            <div class="space-y-1.5" :class="!showCityField() ? 'sm:col-span-2' : ''">
-                                <x-searchable-select
-                                    label="Provinsi *"
-                                    placeholder="Pilih Provinsi"
-                                    itemsExpr="modalProvinces"
-                                    valueModel="form.province_code"
-                                    changeAction="onModalProvinceChange()"
-                                    disabledExpr="isProvinceReadonly()"
-                                    disabledMessage="Provinsi otomatis mengikuti wilayah akun Admin Wilayah Anda"
-                                />
-                                <template x-if="errors.province_code">
-                                    <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.province_code[0]"></p>
-                                </template>
-                            </div>
-                        </template>
-
-                        {{-- Kabupaten / Kota (Muncul untuk Level Kabupaten, Kecamatan, Desa) --}}
-                        <template x-if="showCityField()">
+                        {{-- Dropdown Level 3: Sub Bagian / Seksi / Unit --}}
+                        <template x-if="modalLevel3Options.length > 0">
                             <div class="space-y-1.5">
                                 <x-searchable-select
-                                    label="Kabupaten / Kota *"
-                                    placeholder="Pilih Kabupaten/Kota"
-                                    itemsExpr="modalCities"
-                                    valueModel="form.city_code"
-                                    changeAction="onModalCityChange()"
-                                    disabledExpr="!form.province_code"
-                                    disabledMessage="Silahkan pilih provinsi terlebih dahulu"
+                                    label="Sub Bagian / Seksi / Unit"
+                                    placeholder="Pilih Sub Bagian / Seksi / Unit (Opsional)"
+                                    itemsExpr="modalLevel3Options"
+                                    valueModel="form.unit_level_3"
+                                    changeAction="onLevel3Change()"
                                 />
-                                <template x-if="errors.city_code">
-                                    <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.city_code[0]"></p>
-                                </template>
-                            </div>
-                        </template>
-
-                        {{-- Kecamatan (Muncul untuk Level Kecamatan, Desa) --}}
-                        <template x-if="showDistrictField()">
-                            <div class="space-y-1.5">
-                                <x-searchable-select
-                                    label="Kecamatan *"
-                                    placeholder="Pilih Kecamatan"
-                                    itemsExpr="modalDistricts"
-                                    valueModel="form.district_code"
-                                    changeAction="onModalDistrictChange()"
-                                    disabledExpr="!form.city_code"
-                                    disabledMessage="Silahkan pilih kabupaten/kota terlebih dahulu"
-                                />
-                                <template x-if="errors.district_code">
-                                    <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.district_code[0]"></p>
-                                </template>
-                            </div>
-                        </template>
-
-                        {{-- Desa / Kelurahan (Muncul hanya untuk Level Desa) --}}
-                        <template x-if="showVillageField()">
-                            <div class="space-y-1.5">
-                                <x-searchable-select
-                                    label="Desa / Kelurahan *"
-                                    placeholder="Pilih Desa/Kelurahan"
-                                    itemsExpr="modalVillages"
-                                    valueModel="form.village_code"
-                                    changeAction="onModalVillageChange()"
-                                    disabledExpr="!form.district_code"
-                                    disabledMessage="Silahkan pilih kecamatan terlebih dahulu"
-                                />
-                                <template x-if="errors.village_code">
-                                    <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.village_code[0]"></p>
-                                </template>
                             </div>
                         </template>
                     </div>

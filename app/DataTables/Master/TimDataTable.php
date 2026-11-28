@@ -2,6 +2,7 @@
 
 namespace App\DataTables\Master;
 
+use App\Models\StrukturPerangkatDaerah;
 use App\Models\Tim;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -36,27 +37,38 @@ class TimDataTable
     public function config(iterable $plottings, iterable $provinces, array $usersByRole): array
     {
         $authUser = auth()->user();
-        $isAdminNasional = $authUser?->role === 'Admin Nasional';
-        $isAdminWilayah = $authUser?->role === 'Admin Wilayah';
+        $isAdminDinas = in_array($authUser?->role, ['Admin Nasional', 'Admin Dinas'], true);
+        $isAdminKecamatan = in_array($authUser?->role, ['Admin Wilayah', 'Admin Kecamatan'], true);
 
         $lingkups = match (true) {
-            $isAdminNasional => ['Nasional'],
-            $isAdminWilayah => ['Wilayah'],
-            default => Tim::LINGKUPS,
+            $isAdminDinas => ['Dinas'],
+            $isAdminKecamatan => ['Kecamatan'],
+            default => ['Dinas', 'Kecamatan'],
         };
 
-        $authProvinceCode = ($isAdminWilayah && $authUser?->kode_wilayah)
-            ? substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2)
-            : null;
+        $dinasOptions = StrukturPerangkatDaerah::dinas()
+            ->orderBy('nama_unit')
+            ->get(['id', 'nama_unit'])
+            ->map(fn ($u): array => ['id' => $u->id, 'code' => (string) $u->id, 'name' => $u->nama_unit])
+            ->values()
+            ->all();
+
+        $kecamatanOptions = StrukturPerangkatDaerah::kecamatan()
+            ->orderBy('nama_unit')
+            ->get(['id', 'nama_unit'])
+            ->map(fn ($u): array => ['id' => $u->id, 'code' => (string) $u->id, 'name' => $u->nama_unit])
+            ->values()
+            ->all();
 
         return [
             'indexUrl' => route('master.tim.index'),
             'storeUrl' => route('master.tim.store'),
             'baseUrl' => url('/master/tim'),
             'authRole' => $authUser?->role,
-            'authPlottingId' => $isAdminNasional ? $authUser?->plotting_id : null,
-            'authProvinceCode' => $authProvinceCode,
+            'authSpdId' => $authUser?->struktur_perangkat_daerah_id ? (string) $authUser->struktur_perangkat_daerah_id : null,
             'lingkups' => $lingkups,
+            'dinasOptions' => $dinasOptions,
+            'kecamatanOptions' => $kecamatanOptions,
             'plottings' => $plottings,
             'provinces' => $provinces,
             'daltuOptions' => $usersByRole['daltu'] ?? [],
@@ -74,29 +86,25 @@ class TimDataTable
 
         $query = Tim::query()
             ->with(['auditors:id,name,role'])
-            ->leftJoin('plottings', 'plottings.id', '=', 'tims.plotting_id')
-            ->leftJoin('wilayah as p', 'p.kode_wilayah', '=', 'tims.province_code')
+            ->leftJoin('struktur_perangkat_daerah as spd', 'spd.id', '=', 'tims.struktur_perangkat_daerah_id')
             ->leftJoin('users as daltu', 'daltu.id', '=', 'tims.daltu_id')
             ->leftJoin('users as dalnis', 'dalnis.id', '=', 'tims.dalnis_id')
             ->leftJoin('users as ketua_tim', 'ketua_tim.id', '=', 'tims.ketua_tim_id')
             ->leftJoin('users as ketua_tim_2', 'ketua_tim_2.id', '=', 'tims.ketua_tim_2_id')
             ->select([
                 'tims.*',
-                'plottings.plot as plot_name',
-                'p.provinsi as province_name',
+                'spd.nama_unit as plot_name',
+                'spd.nama_unit as province_name',
                 'daltu.name as daltu_name',
                 'dalnis.name as dalnis_name',
                 'ketua_tim.name as ketua_tim_name',
                 'ketua_tim_2.name as ketua_tim_2_name',
             ]);
 
-        if ($authUser?->role === 'Admin Nasional' && $authUser->plotting_id) {
-            $query->where('tims.lingkup', 'Nasional')
-                ->where('tims.plotting_id', $authUser->plotting_id);
-        } elseif ($authUser?->role === 'Admin Wilayah' && $authUser->kode_wilayah) {
-            $authProvinceCode = substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2);
-            $query->where('tims.lingkup', 'Wilayah')
-                ->where('tims.province_code', $authProvinceCode);
+        if (in_array($authUser?->role, ['Admin Nasional', 'Admin Dinas'], true) && $authUser->struktur_perangkat_daerah_id) {
+            $query->where('tims.struktur_perangkat_daerah_id', $authUser->struktur_perangkat_daerah_id);
+        } elseif (in_array($authUser?->role, ['Admin Wilayah', 'Admin Kecamatan'], true) && $authUser->struktur_perangkat_daerah_id) {
+            $query->where('tims.struktur_perangkat_daerah_id', $authUser->struktur_perangkat_daerah_id);
         } elseif ($filterLingkup !== '') {
             $query->where('tims.lingkup', $filterLingkup);
         }

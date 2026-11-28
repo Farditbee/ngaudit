@@ -20,7 +20,7 @@ class PlottingController extends Controller
         }
 
         $provinces = DB::table('wilayah')
-            ->whereRaw('CHAR_LENGTH(kode_wilayah) = 2')
+            ->whereRaw('LENGTH(kode_wilayah) = 2')
             ->whereNull('deleted_at')
             ->orderBy('kode_wilayah')
             ->get(['id', 'kode_wilayah as code', 'provinsi as name']);

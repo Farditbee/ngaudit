@@ -21,16 +21,21 @@ class KkaRequest extends FormRequest
             'tanggal_dibuat',
             'tanggal_direviu',
             'auditee_plotting_id',
-            'province_code',
-            'city_code',
-            'district_code',
-            'village_code',
+            'struktur_perangkat_daerah_id',
         ];
 
         foreach ($nullableKeys as $key) {
             if ($this->has($key) && ($this->input($key) === '' || $this->input($key) === 'null')) {
                 $this->merge([$key => null]);
             }
+        }
+
+        if (empty($this->input('struktur_perangkat_daerah_id')) && $this->filled('auditee_plotting_id')) {
+            $this->merge(['struktur_perangkat_daerah_id' => (int) $this->input('auditee_plotting_id')]);
+        }
+
+        if (empty($this->input('auditee_plotting_id')) && $this->filled('struktur_perangkat_daerah_id')) {
+            $this->merge(['auditee_plotting_id' => (int) $this->input('struktur_perangkat_daerah_id')]);
         }
     }
 
@@ -50,9 +55,6 @@ class KkaRequest extends FormRequest
             $pkaRules[] = Rule::exists('pkas', 'id')->whereNull('deleted_at');
         }
 
-        $level = (string) $this->input('auditee_level', '');
-        $regionExists = Rule::exists('wilayah', 'kode_wilayah')->whereNull('deleted_at');
-
         return [
             'nomor_kka' => ['required', 'string', 'max:255'],
             'pka_id' => $pkaRules,
@@ -61,16 +63,8 @@ class KkaRequest extends FormRequest
             'tanggal_kka' => ['required', 'date'],
             'tempat' => ['required', 'string', 'max:255'],
             'auditee_level' => ['required', 'string', Rule::in(Kka::AUDITEE_LEVELS)],
-            'auditee_plotting_id' => [
-                Rule::requiredIf($level === 'Nasional'),
-                'nullable',
-                'integer',
-                Rule::exists('plottings', 'id'),
-            ],
-            'province_code' => [Rule::requiredIf($level === 'Wilayah'), 'nullable', 'string', 'size:2', $regionExists],
-            'city_code' => ['nullable', 'string', 'size:4', 'required_with:district_code', $regionExists],
-            'district_code' => ['nullable', 'string', 'size:6', 'required_with:village_code', $regionExists],
-            'village_code' => ['nullable', 'string', 'size:10', $regionExists],
+            'struktur_perangkat_daerah_id' => ['required', 'integer', Rule::exists('struktur_perangkat_daerah', 'id')],
+            'auditee_plotting_id' => ['nullable', 'integer'],
             'template_kka_id' => ['nullable', 'integer', Rule::exists('template_kkas', 'id')->whereNull('deleted_at')],
             'tujuan' => ['nullable', 'string'],
             'langkah' => ['nullable', 'string'],
@@ -79,29 +73,7 @@ class KkaRequest extends FormRequest
         ];
     }
 
-    public function withValidator(Validator $validator): void
-    {
-        $validator->after(function (Validator $validator): void {
-            if ($this->input('auditee_level') !== 'Wilayah') {
-                return;
-            }
-
-            $hierarchy = [
-                'city_code' => 'province_code',
-                'district_code' => 'city_code',
-                'village_code' => 'district_code',
-            ];
-
-            foreach ($hierarchy as $child => $parent) {
-                $childCode = (string) $this->input($child);
-                $parentCode = (string) $this->input($parent);
-
-                if ($childCode !== '' && ! str_starts_with($childCode, $parentCode)) {
-                    $validator->errors()->add($child, 'Wilayah yang dipilih tidak sesuai dengan tingkat di atasnya.');
-                }
-            }
-        });
-    }
+    public function withValidator(Validator $validator): void {}
 
     /**
      * @return array<string, string>
@@ -116,10 +88,7 @@ class KkaRequest extends FormRequest
             'tanggal_kka.date' => 'Format tanggal pembuatan KKA tidak valid.',
             'tempat.required' => 'Tempat wajib diisi.',
             'auditee_level.required' => 'Level auditee wajib dipilih.',
-            'auditee_plotting_id.required' => 'WIL auditee wajib dipilih untuk level Nasional.',
-            'province_code.required' => 'Provinsi auditee wajib dipilih untuk level Wilayah.',
-            'city_code.required_with' => 'Kabupaten/Kota wajib dipilih sebelum memilih Kecamatan.',
-            'district_code.required_with' => 'Kecamatan wajib dipilih sebelum memilih Desa/Kelurahan.',
+            'struktur_perangkat_daerah_id.required' => 'Perangkat daerah / Kecamatan wajib dipilih.',
             'status.required' => 'Status KKA (Draft / Final) wajib dipilih.',
             'status.in' => 'Status KKA harus berupa Draft atau Final.',
         ];

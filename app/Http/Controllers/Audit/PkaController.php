@@ -41,7 +41,7 @@ class PkaController extends Controller
                 'pengawasTim:id,name,username,role',
                 'ketuaTim:id,name,username,role',
                 'ketuaTim2:id,name,username,role',
-                'plotting:id,plot',
+                'plotting:id,nama_unit',
                 'province:kode_wilayah,provinsi',
             ])
             ->orderByDesc('id')
@@ -109,7 +109,7 @@ class PkaController extends Controller
                     'tgl_akhir' => $s->tgl_akhir?->format('Y-m-d'),
                     'tim_name' => $s->tim?->nama_tim ?? '-',
                     'tipe' => $s->sprin_tipe,
-                    'scope_name' => $s->sprin_tipe === 'Nasional' ? $s->plotting?->plot : $s->province?->provinsi,
+                    'scope_name' => $s->sprin_tipe === 'Nasional' ? ($s->plotting?->nama_unit ?? $s->plotting?->plot) : $s->province?->provinsi,
                     'daltu_name' => $s->pengendaliMutu?->name ?? '-',
                     'dalnis_name' => $s->pengawasTim?->name ?? '-',
                     'katim_names' => $katimNames,
@@ -403,7 +403,7 @@ class PkaController extends Controller
         $pka->load([
             'sprin:id,no_sprin,sprin_tipe,tahap,tim_id,plotting_id,kode_wilayah,dalnis,daltu',
             'sprin.tim:id,nama_tim',
-            'sprin.plotting:id,plot',
+            'sprin.plotting:id,nama_unit',
             'sprin.province:id,kode_wilayah,provinsi',
         ]);
 
@@ -518,7 +518,7 @@ class PkaController extends Controller
 
     protected function canReviewPka(?User $user, Pka $pka, string $type): bool
     {
-        $pka->loadMissing('sprin:id,sprin_tipe,plotting_id,kode_wilayah,dalnis,daltu');
+        $pka->loadMissing('sprin:id,sprin_tipe,struktur_perangkat_daerah_id,kode_wilayah,dalnis,daltu');
 
         return PkaDataTable::canUserReview($user, $pka, $type);
     }

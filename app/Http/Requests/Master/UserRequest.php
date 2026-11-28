@@ -25,8 +25,8 @@ class UserRequest extends FormRequest
         $isUpdate = $user !== null;
 
         $authUser = $this->user();
-        $isAdminNasional = $authUser?->role === 'Admin Nasional';
-        $isAdminWilayah = $authUser?->role === 'Admin Wilayah';
+        $isAdminNasional = in_array($authUser?->role, ['Admin Nasional', 'Admin Dinas'], true);
+        $isAdminWilayah = in_array($authUser?->role, ['Admin Wilayah', 'Admin Kecamatan'], true);
         $authProvinceCode = ($isAdminWilayah && $authUser?->kode_wilayah)
             ? substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2)
             : null;
@@ -40,6 +40,8 @@ class UserRequest extends FormRequest
             'Pengawas Tim',
         ], true);
         $needsScope = in_array($role, [
+            'Admin Dinas',
+            'Admin Kecamatan',
             'Admin Nasional',
             'Admin Wilayah',
             'Auditor',
@@ -51,40 +53,33 @@ class UserRequest extends FormRequest
         $isAuditee = $role === 'Auditee';
 
         $allowedRoles = match (true) {
-            $isAdminNasional => array_values(array_diff(User::ROLES, ['Super Admin', 'Admin Wilayah'])),
-            $isAdminWilayah => array_values(array_diff(User::ROLES, ['Super Admin', 'Admin Nasional'])),
+            $isAdminNasional => array_values(array_diff(User::ROLES, ['Super Admin', 'Admin Kecamatan'])),
+            $isAdminWilayah => array_values(array_diff(User::ROLES, ['Super Admin', 'Admin Dinas'])),
             default => User::ROLES,
         };
 
         $allowedLevels = match (true) {
-            $isAdminNasional || $role === 'Admin Nasional' => User::ADMIN_NASIONAL_LEVELS,
-            $isAdminWilayah && $isAuditTeamRole => ['Wilayah'],
-            $isAdminWilayah || $role === 'Admin Wilayah' => User::ADMIN_WILAYAH_LEVELS,
+            $isAdminNasional || $role === 'Admin Dinas' => User::ADMIN_NASIONAL_LEVELS,
+            $isAdminWilayah || $role === 'Admin Kecamatan' => User::ADMIN_WILAYAH_LEVELS,
             $isAuditTeamRole => User::AUDITOR_LEVELS,
-            default => array_values(array_diff(User::LEVELS, ['Wilayah'])),
+            default => User::LEVELS,
         };
 
         $plottingRules = [
-            Rule::requiredIf($needsScope && $level === 'Nasional'),
             'nullable',
             'integer',
-            Rule::exists('plottings', 'id'),
         ];
 
-        if ($isAdminNasional && $authUser?->plotting_id && $needsScope && $level === 'Nasional') {
-            $plottingRules[] = Rule::in([(int) $authUser->plotting_id]);
-        }
+        $spdRules = [
+            'nullable',
+            'integer',
+            Rule::exists('struktur_perangkat_daerah', 'id'),
+        ];
 
         $provinceRules = [
-            Rule::requiredIf($needsScope && in_array($level, ['Wilayah', 'Provinsi', 'Kabupaten', 'Kecamatan', 'Desa'], true)),
             'nullable',
             'string',
-            Rule::exists('wilayah', 'kode_wilayah'),
         ];
-
-        if ($isAdminWilayah && $authProvinceCode && $needsScope && in_array($level, ['Wilayah', 'Provinsi', 'Kabupaten', 'Kecamatan', 'Desa'], true)) {
-            $provinceRules[] = Rule::in([$authProvinceCode]);
-        }
 
         return [
             'name' => ['required', 'string', 'max:255'],
@@ -145,25 +140,23 @@ class UserRequest extends FormRequest
                 'string',
                 Rule::in($allowedLevels),
             ],
+            'unit_level_1' => ['nullable', 'integer'],
+            'unit_level_2' => ['nullable', 'integer'],
+            'unit_level_3' => ['nullable', 'integer'],
+            'struktur_perangkat_daerah_id' => $spdRules,
             'plotting_id' => $plottingRules,
             'province_code' => $provinceRules,
             'city_code' => [
-                Rule::requiredIf($needsScope && in_array($level, ['Kabupaten', 'Kecamatan', 'Desa'], true)),
                 'nullable',
                 'string',
-                Rule::exists('wilayah', 'kode_wilayah'),
             ],
             'district_code' => [
-                Rule::requiredIf($needsScope && in_array($level, ['Kecamatan', 'Desa'], true)),
                 'nullable',
                 'string',
-                Rule::exists('wilayah', 'kode_wilayah'),
             ],
             'village_code' => [
-                Rule::requiredIf($needsScope && $level === 'Desa'),
                 'nullable',
                 'string',
-                Rule::exists('wilayah', 'kode_wilayah'),
             ],
             'bidang' => [
                 Rule::requiredIf($isAuditee),

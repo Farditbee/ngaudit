@@ -134,14 +134,29 @@ class TemplateLangkahKerjaDetailController extends Controller
             return true;
         }
 
-        if ($user->plotting_id && ($user->role === 'Admin Nasional' || $user->level === 'Nasional')) {
-            return $langkahKerja->lingkup === 'Nasional' && (int) $langkahKerja->plotting_id === (int) $user->plotting_id;
+        $isAdminDinas = in_array($user->role, ['Admin Nasional', 'Admin Dinas'], true) || ($user->level === 'Dinas');
+        $isAdminKecamatan = in_array($user->role, ['Admin Wilayah', 'Admin Kecamatan'], true) || ($user->level === 'Kecamatan');
+
+        if ($isAdminDinas) {
+            if ($langkahKerja->lingkup !== 'Dinas') {
+                return false;
+            }
+            if ($user->struktur_perangkat_daerah_id && $langkahKerja->struktur_perangkat_daerah_id) {
+                return (int) $langkahKerja->struktur_perangkat_daerah_id === (int) $user->struktur_perangkat_daerah_id;
+            }
+
+            return true;
         }
 
-        if ($user->kode_wilayah && ($user->role === 'Admin Wilayah' || $user->level !== 'Nasional')) {
-            $provinceCode = substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2);
+        if ($isAdminKecamatan) {
+            if ($langkahKerja->lingkup !== 'Kecamatan') {
+                return false;
+            }
+            if ($user->struktur_perangkat_daerah_id && $langkahKerja->struktur_perangkat_daerah_id) {
+                return (int) $langkahKerja->struktur_perangkat_daerah_id === (int) $user->struktur_perangkat_daerah_id;
+            }
 
-            return $langkahKerja->lingkup === 'Wilayah' && $langkahKerja->kode_wilayah === $provinceCode;
+            return true;
         }
 
         return true;

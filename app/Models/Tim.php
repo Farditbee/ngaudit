@@ -19,8 +19,14 @@ class Tim extends Model
      * @var list<string>
      */
     public const LINGKUPS = [
+        'Dinas',
+        'Kecamatan',
         'Nasional',
         'Wilayah',
+    ];
+
+    protected $appends = [
+        'plotting_id',
     ];
 
     /**
@@ -29,6 +35,7 @@ class Tim extends Model
     protected $fillable = [
         'nama_tim',
         'lingkup',
+        'struktur_perangkat_daerah_id',
         'plotting_id',
         'province_code',
         'daltu_id',
@@ -59,21 +66,32 @@ class Tim extends Model
             return;
         }
 
-        if ($user->role === 'Admin Nasional' && $user->plotting_id) {
-            $query->where('tims.lingkup', 'Nasional')
-                ->where('tims.plotting_id', $user->plotting_id);
-        } elseif ($user->role === 'Admin Wilayah' && $user->kode_wilayah) {
-            $query->where('tims.lingkup', 'Wilayah')
+        if (in_array($user->role, ['Admin Nasional', 'Admin Dinas'], true) && $user->plotting_id) {
+            $query->whereIn('tims.lingkup', ['Nasional', 'Dinas'])
+                ->where('tims.struktur_perangkat_daerah_id', $user->plotting_id);
+        } elseif (in_array($user->role, ['Admin Wilayah', 'Admin Kecamatan'], true) && $user->kode_wilayah) {
+            $query->whereIn('tims.lingkup', ['Wilayah', 'Kecamatan'])
                 ->where('tims.province_code', substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2));
         } elseif ($user->role === 'Koordinator dan Pengendali') {
             if ($user->plotting_id) {
-                $query->where('tims.plotting_id', $user->plotting_id);
+                $query->where('tims.struktur_perangkat_daerah_id', $user->plotting_id);
             } elseif ($user->kode_wilayah) {
                 $query->where('tims.province_code', substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2));
             } else {
                 $query->where('tims.daltu_id', $user->id);
             }
         }
+    }
+
+    public function setPlottingIdAttribute(mixed $value): void
+    {
+        $this->attributes['struktur_perangkat_daerah_id'] = $value;
+        unset($this->attributes['plotting_id']);
+    }
+
+    public function getPlottingIdAttribute(): mixed
+    {
+        return $this->attributes['struktur_perangkat_daerah_id'] ?? null;
     }
 
     public function creator(): BelongsTo
@@ -83,12 +101,17 @@ class Tim extends Model
 
     public function plotting(): BelongsTo
     {
-        return $this->belongsTo(Plotting::class);
+        return $this->belongsTo(StrukturPerangkatDaerah::class, 'struktur_perangkat_daerah_id');
     }
 
     public function province(): BelongsTo
     {
         return $this->belongsTo(Wilayah::class, 'province_code', 'kode_wilayah');
+    }
+
+    public function strukturPerangkatDaerah(): BelongsTo
+    {
+        return $this->belongsTo(StrukturPerangkatDaerah::class, 'struktur_perangkat_daerah_id');
     }
 
     public function daltu(): BelongsTo

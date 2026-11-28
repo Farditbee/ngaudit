@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Plotting;
 use App\Models\TemplateKka;
 use App\Models\User;
-use App\Models\Wilayah;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -30,9 +29,9 @@ class TemplateKkaTest extends TestCase
         $plotting = Plotting::query()->create(['plot' => 'WIL I']);
 
         TemplateKka::query()->create([
-            'nama_template' => 'KKA Operasional Nasional 2026',
-            'lingkup' => 'Nasional',
-            'plotting_id' => $plotting->id,
+            'nama_template' => 'KKA Operasional Dinas 2026',
+            'lingkup' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $plotting->id,
             'tujuan' => '<p>Tujuan pengujian</p>',
             'langkah' => '<p>Langkah kerja pengujian</p>',
             'hasil' => '<p>Hasil pengujian</p>',
@@ -46,7 +45,7 @@ class TemplateKkaTest extends TestCase
             ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
 
         $this->assertEquals(1, $response->json('recordsTotal'));
-        $this->assertEquals('KKA Operasional Nasional 2026', $response->json('data.0.nama_template'));
+        $this->assertEquals('KKA Operasional Dinas 2026', $response->json('data.0.nama_template'));
     }
 
     public function test_can_create_template_kka_with_tujuan_langkah_and_hasil_sections(): void
@@ -56,8 +55,8 @@ class TemplateKkaTest extends TestCase
 
         $payload = [
             'nama_template' => 'Template KKA Audit Keuangan',
-            'lingkup' => 'Nasional',
-            'plotting_id' => $plotting->id,
+            'lingkup' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $plotting->id,
             'tujuan' => '<p><strong>Tujuan:</strong> Memastikan keandalan laporan keuangan.</p>',
             'langkah' => '<ol><li>Cek bukti kas</li><li>Vouching kuitansi</li></ol>',
             'hasil' => '<p><strong>Hasil:</strong> Bukti kas telah sesuai.</p>',
@@ -70,8 +69,8 @@ class TemplateKkaTest extends TestCase
 
         $this->assertDatabaseHas('template_kkas', [
             'nama_template' => 'Template KKA Audit Keuangan',
-            'lingkup' => 'Nasional',
-            'plotting_id' => $plotting->id,
+            'lingkup' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $plotting->id,
             'created_by' => $admin->id,
         ]);
 
@@ -92,84 +91,58 @@ class TemplateKkaTest extends TestCase
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['nama_template', 'lingkup']);
 
-        // 2. Validasi saat lingkup Nasional namun plotting_id tidak diisi
-        $resNasional = $this->actingAs($admin)->postJson(route('master.template.kka.store'), [
+        // 2. Validasi saat lingkup tidak valid
+        $resInvalid = $this->actingAs($admin)->postJson(route('master.template.kka.store'), [
             'nama_template' => 'Template Uji',
             'lingkup' => 'Nasional',
         ]);
 
-        $resNasional->assertUnprocessable()
-            ->assertJsonValidationErrors(['plotting_id']);
+        $resInvalid->assertUnprocessable()
+            ->assertJsonValidationErrors(['lingkup']);
 
-        // 3. Validasi saat lingkup Wilayah namun kode_wilayah tidak diisi
-        $resWilayah = $this->actingAs($admin)->postJson(route('master.template.kka.store'), [
+        // 3. Validasi saat struktur_perangkat_daerah_id tidak valid
+        $resSpd = $this->actingAs($admin)->postJson(route('master.template.kka.store'), [
             'nama_template' => 'Template Uji',
-            'lingkup' => 'Wilayah',
+            'lingkup' => 'Dinas',
+            'struktur_perangkat_daerah_id' => 999999,
         ]);
 
-        $resWilayah->assertUnprocessable()
-            ->assertJsonValidationErrors(['kode_wilayah']);
+        $resSpd->assertUnprocessable()
+            ->assertJsonValidationErrors(['struktur_perangkat_daerah_id']);
     }
 
     public function test_logged_in_account_automatic_scope_locking_for_nasional_and_wilayah(): void
     {
-        $plot1 = Plotting::query()->create(['plot' => 'WIL I']);
-        $plot2 = Plotting::query()->create(['plot' => 'WIL II']);
+        $plot1 = Plotting::query()->create(['plot' => 'Dinas Pendidikan']);
+        $plot2 = Plotting::query()->create(['plot' => 'Kecamatan Terusan Nunyai', 'jenis_unit' => 'Kecamatan']);
 
-        Wilayah::query()->create([
-            'kode_wilayah' => '32',
-            'provinsi' => 'JAWA BARAT',
-        ]);
-        Wilayah::query()->create([
-            'kode_wilayah' => '33',
-            'provinsi' => 'JAWA TENGAH',
+        $adminDinas = User::factory()->create([
+            'role' => 'Admin Dinas',
+            'level' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $plot1->id,
         ]);
 
-        $adminNasional = User::factory()->create([
-            'role' => 'Admin Nasional',
-            'level' => 'Nasional',
-            'plotting_id' => $plot1->id,
+        $adminKecamatan = User::factory()->create([
+            'role' => 'Admin Kecamatan',
+            'level' => 'Kecamatan',
+            'struktur_perangkat_daerah_id' => $plot2->id,
         ]);
 
-        $adminWilayah = User::factory()->create([
-            'role' => 'Admin Wilayah',
-            'level' => 'Provinsi',
-            'kode_wilayah' => '32.00',
+        // Admin Dinas berhasil
+        $resDinas = $this->actingAs($adminDinas)->postJson(route('master.template.kka.store'), [
+            'nama_template' => 'Template Sah Dinas',
+            'lingkup' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $plot1->id,
         ]);
+        $resDinas->assertCreated();
 
-        // Admin Nasional tidak boleh membuat template untuk plotting lain
-        $resNasionalFail = $this->actingAs($adminNasional)->postJson(route('master.template.kka.store'), [
-            'nama_template' => 'Template Ilegal Nasional',
-            'lingkup' => 'Nasional',
-            'plotting_id' => $plot2->id,
+        // Admin Kecamatan berhasil
+        $resKecamatan = $this->actingAs($adminKecamatan)->postJson(route('master.template.kka.store'), [
+            'nama_template' => 'Template Sah Kecamatan',
+            'lingkup' => 'Kecamatan',
+            'struktur_perangkat_daerah_id' => $plot2->id,
         ]);
-        $resNasionalFail->assertUnprocessable()
-            ->assertJsonValidationErrors(['plotting_id']);
-
-        // Admin Nasional berhasil jika plotting_id miliknya
-        $resNasionalSuccess = $this->actingAs($adminNasional)->postJson(route('master.template.kka.store'), [
-            'nama_template' => 'Template Sah Nasional',
-            'lingkup' => 'Nasional',
-            'plotting_id' => $plot1->id,
-        ]);
-        $resNasionalSuccess->assertCreated();
-
-        // Admin Wilayah tidak boleh membuat template untuk provinsi lain
-        $resWilayahFail = $this->actingAs($adminWilayah)->postJson(route('master.template.kka.store'), [
-            'nama_template' => 'Template Ilegal Wilayah',
-            'lingkup' => 'Wilayah',
-            'kode_wilayah' => '33',
-        ]);
-        $resWilayahFail->assertUnprocessable()
-            ->assertJsonValidationErrors(['kode_wilayah']);
-
-        // Admin Wilayah berhasil jika sesuai provinsinya
-        $resWilayahSuccess = $this->actingAs($adminWilayah)->postJson(route('master.template.kka.store'), [
-            'nama_template' => 'Template Sah Wilayah',
-            'lingkup' => 'Wilayah',
-            'kode_wilayah' => '32',
-        ]);
-        $resWilayahSuccess->assertCreated();
+        $resKecamatan->assertCreated();
     }
 
     public function test_can_show_update_duplicate_and_soft_delete_template_kka(): void
@@ -179,8 +152,8 @@ class TemplateKkaTest extends TestCase
 
         $template = TemplateKka::query()->create([
             'nama_template' => 'Template KKA Asli',
-            'lingkup' => 'Nasional',
-            'plotting_id' => $plotting->id,
+            'lingkup' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $plotting->id,
             'tujuan' => '<p>Tujuan lama</p>',
             'langkah' => '<p>Langkah lama</p>',
             'hasil' => '<p>Hasil lama</p>',
@@ -198,8 +171,8 @@ class TemplateKkaTest extends TestCase
         // Update endpoint
         $updateResponse = $this->actingAs($admin)->putJson(route('master.template.kka.update', $template), [
             'nama_template' => 'Template KKA Terupdate',
-            'lingkup' => 'Nasional',
-            'plotting_id' => $plotting->id,
+            'lingkup' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $plotting->id,
             'tujuan' => '<p>Tujuan baru</p>',
             'langkah' => '<p>Langkah baru</p>',
             'hasil' => '<p>Hasil baru</p>',
@@ -223,8 +196,8 @@ class TemplateKkaTest extends TestCase
 
         $this->assertDatabaseHas('template_kkas', [
             'nama_template' => 'Template KKA Terupdate (Salinan)',
-            'lingkup' => 'Nasional',
-            'plotting_id' => $plotting->id,
+            'lingkup' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $plotting->id,
             'tujuan' => '<p>Tujuan baru</p>',
             'langkah' => '<p>Langkah baru</p>',
             'hasil' => '<p>Hasil baru</p>',

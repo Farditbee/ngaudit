@@ -1,12 +1,13 @@
 @props([
-    'label',
+    'label' => null,
     'placeholder' => 'Semua',
     'itemsExpr',
     'valueModel',
-    'changeAction',
+    'changeAction' => '',
     'disabledExpr' => 'false',
     'disabledMessage' => '',
     'wrap' => false,
+    'allowEmpty' => true,
 ])
 
 <div
@@ -25,11 +26,29 @@
         },
         get filteredItems() {
             const q = this.query.trim().toLowerCase();
-            if (!q) return this.items;
-            return this.items.filter(item =>
-                item.name.toLowerCase().includes(q) ||
-                (item.group && item.group.toLowerCase().includes(q))
-            );
+            let list = this.items;
+            if (q) {
+                list = list.filter(item =>
+                    item.name.toLowerCase().includes(q) ||
+                    (item.group && item.group.toLowerCase().includes(q))
+                );
+            }
+            if (list.some(item => item.group)) {
+                const groups = new Map();
+                for (const item of list) {
+                    const key = item.group || '';
+                    if (!groups.has(key)) {
+                        groups.set(key, []);
+                    }
+                    groups.get(key).push(item);
+                }
+                const groupedList = [];
+                for (const itemsOfGroup of groups.values()) {
+                    groupedList.push(...itemsOfGroup);
+                }
+                return groupedList;
+            }
+            return list;
         },
         get selectedLabel() {
             const val = {{ $valueModel }};
@@ -124,7 +143,9 @@
     x-on:click.outside="open = false; parentHint = false"
     x-on:keydown.escape.window="open = false; parentHint = false"
 >
-    <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400">{{ $label }}</label>
+    @if ($label)
+        <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400">{{ $label }}</label>
+    @endif
 
     <button
         x-ref="triggerButton"
@@ -161,6 +182,7 @@
         </div>
 
         <ul x-ref="optionsList" class="max-h-56 space-y-0.5 overflow-y-auto p-1 text-sm">
+            @if ($allowEmpty)
             <li>
                 <button
                     type="button"
@@ -180,6 +202,7 @@
                     <x-lucide-check x-show="{{ $valueModel }} === ''" class="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                 </button>
             </li>
+            @endif
 
             <template x-for="(item, idx) in filteredItems" :key="item.code">
                 <li>

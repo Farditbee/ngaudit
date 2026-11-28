@@ -2,12 +2,10 @@
 
 namespace Database\Seeders;
 
-use App\Models\Plotting;
+use App\Models\StrukturPerangkatDaerah;
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class UserSeeder extends Seeder
 {
@@ -18,77 +16,21 @@ class UserSeeder extends Seeder
     {
         $defaultPassword = Hash::make('Password123');
 
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        User::query()->truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        // 1. Pastikan Super Admin tetap ada (ID 1)
+        $existingSuperAdmin = User::query()->where('role', 'Super Admin')->first();
+        $superAdminPassword = $existingSuperAdmin?->password ?? $defaultPassword;
 
-        // Pastikan data Plotting WIL I - WIL IV tersedia
-        $plottings = Plotting::query()->orderBy('id')->get();
-        if ($plottings->isEmpty()) {
-            $provinceIds = DB::table('wilayah')
-                ->whereRaw('CHAR_LENGTH(kode_wilayah) = 2')
-                ->orderBy('kode_wilayah')
-                ->pluck('id')
-                ->all();
-            $chunks = ! empty($provinceIds) ? array_chunk($provinceIds, max(1, (int) ceil(count($provinceIds) / 4))) : [];
-
-            foreach (['WIL I', 'WIL II', 'WIL III', 'WIL IV'] as $idx => $plotName) {
-                $plotting = Plotting::query()->firstOrCreate(['plot' => $plotName]);
-                if (! empty($chunks[$idx])) {
-                    $plotting->provinces()->syncWithoutDetaching($chunks[$idx]);
-                }
-            }
-
-            $plottings = Plotting::query()->orderBy('id')->get();
-        }
-
-        // Ambil 1 desa lengkap dengan hirarki kecamatan, kabupaten, dan provinsi beserta namanya
-        $sharedVillage = DB::table('wilayah')
-            ->whereRaw('CHAR_LENGTH(kode_wilayah) = 10')
-            ->select([
-                DB::raw('SUBSTRING(kode_wilayah, 1, 2) as province_code'),
-                'provinsi as province_name',
-                DB::raw('SUBSTRING(kode_wilayah, 1, 4) as city_code'),
-                'kabupaten_kota as city_name',
-                DB::raw('SUBSTRING(kode_wilayah, 1, 6) as district_code'),
-                'kecamatan as district_name',
-                'kode_wilayah as village_code',
-                'desa_kelurahan as village_name',
-            ])
-            ->orderBy('kode_wilayah')
-            ->first();
-
-        // Fallback jika tabel wilayah belum di-seed
-        if (! $sharedVillage) {
-            DB::table('wilayah')->updateOrInsert(['kode_wilayah' => '32'], ['provinsi' => 'JAWA BARAT']);
-            DB::table('wilayah')->updateOrInsert(['kode_wilayah' => '3209'], ['provinsi' => 'JAWA BARAT', 'kabupaten_kota' => 'KABUPATEN CIREBON']);
-            DB::table('wilayah')->updateOrInsert(['kode_wilayah' => '320919'], ['provinsi' => 'JAWA BARAT', 'kabupaten_kota' => 'KABUPATEN CIREBON', 'kecamatan' => 'WERU']);
-            DB::table('wilayah')->updateOrInsert(['kode_wilayah' => '3209192004'], ['provinsi' => 'JAWA BARAT', 'kabupaten_kota' => 'KABUPATEN CIREBON', 'kecamatan' => 'WERU', 'desa_kelurahan' => 'SETU WETAN']);
-
-            $sharedVillage = (object) [
-                'province_code' => '32',
-                'province_name' => 'JAWA BARAT',
-                'city_code' => '3209',
-                'city_name' => 'KABUPATEN CIREBON',
-                'district_code' => '320919',
-                'district_name' => 'WERU',
-                'village_code' => '3209192004',
-                'village_name' => 'SETU WETAN',
-            ];
-        }
-
-        // 1. 1 Super Admin (ID 1)
         User::query()->updateOrCreate(
             ['id' => 1],
             [
-                'name' => 'Super Administrator',
-                'username' => 'superadmin',
-                'email' => 'superadmin@eaudit.test',
-                'phone' => '081100000001',
+                'name' => $existingSuperAdmin?->name ?? 'Super Admin',
+                'username' => $existingSuperAdmin?->username ?? 'superadmin',
+                'email' => $existingSuperAdmin?->email ?? 'admin@test.com',
+                'phone' => $existingSuperAdmin?->phone ?? '081100000001',
                 'role' => 'Super Admin',
-                'password' => $defaultPassword,
+                'password' => $superAdminPassword,
                 'level' => null,
-                'plotting_id' => null,
+                'struktur_perangkat_daerah_id' => null,
                 'kode_wilayah' => null,
                 'bidang' => null,
                 'jabatan' => 'Super Administrator',
@@ -96,7 +38,9 @@ class UserSeeder extends Seeder
             ]
         );
 
-        // 2. 10 Auditor dengan nama orang & WIL bebas (Level Nasional)
+        // 2. 30 Auditor dengan Level Dinas, acak di Dinas/Badan/OPD
+        $dinasList = StrukturPerangkatDaerah::dinas()->get();
+
         $auditorNames = [
             'Budi Santoso',
             'Andi Pratama',
@@ -108,22 +52,44 @@ class UserSeeder extends Seeder
             'Bayu Setiawan',
             'Reza Pahlevi',
             'Bagus Kurniawan',
+            'Ahmad Fauzi',
+            'Eko Prasetyo',
+            'Dedi Irawan',
+            'Wahyu Hidayat',
+            'Agus Triyono',
+            'Surya Saputra',
+            'Taufik Ismail',
+            'Yudi Hermawan',
+            'Rian Firmansyah',
+            'Ilham Maulana',
+            'Aditya Nugraha',
+            'Bambang Susanto',
+            'Guntur Wibowo',
+            'Irfan Hakim',
+            'Lukman Hakim',
+            'Muhammad Ridwan',
+            'Nanang Kosim',
+            'Rahmat Hidayat',
+            'Sigit Purnomo',
+            'Yusuf Maulana',
         ];
 
-        foreach ($auditorNames as $idx => $personName) {
-            $i = $idx + 1;
-            $randomPlot = $plottings->random();
+        foreach ($auditorNames as $idx => $name) {
+            $num = $idx + 1;
+            $randomDinas = $dinasList->isNotEmpty()
+                ? $dinasList[$idx % $dinasList->count()]
+                : null;
 
             User::query()->updateOrCreate(
-                ['username' => "auditor{$i}"],
+                ['username' => "auditor{$num}"],
                 [
-                    'name' => $personName,
-                    'email' => "auditor{$i}@eaudit.test",
-                    'phone' => sprintf('0812000000%02d', $i),
+                    'name' => $name,
+                    'email' => "auditor{$num}@eaudit.test",
+                    'phone' => sprintf('08120000%04d', $num),
                     'role' => 'Auditor',
                     'password' => $defaultPassword,
-                    'level' => 'Nasional',
-                    'plotting_id' => $randomPlot->id,
+                    'level' => 'Dinas',
+                    'struktur_perangkat_daerah_id' => $randomDinas?->id,
                     'kode_wilayah' => null,
                     'bidang' => null,
                     'jabatan' => 'Auditor',
@@ -132,90 +98,104 @@ class UserSeeder extends Seeder
             );
         }
 
-        // 3. 5 Auditee dengan Level Desa yang sama untuk masing-masing Bidang
-        // Nama menggunakan nama wilayah level yang digunakan + bidang (misal: Keude Bakongan Operasional)
-        $bidangs = User::BIDANGS;
-        $regionTitle = Str::title(strtolower((string) $sharedVillage->village_name));
-
-        for ($i = 1; $i <= 5; $i++) {
-            $bidang = $bidangs[($i - 1) % count($bidangs)];
-            $auditeeName = "{$regionTitle} {$bidang}";
-
-            User::query()->updateOrCreate(
-                ['username' => "auditee{$i}"],
-                [
-                    'name' => $auditeeName,
-                    'email' => "auditee{$i}@eaudit.test",
-                    'phone' => sprintf('0813000000%02d', $i),
-                    'role' => 'Auditee',
-                    'password' => $defaultPassword,
-                    'level' => 'Desa',
-                    'plotting_id' => null,
-                    'kode_wilayah' => $sharedVillage->village_code,
-                    'bidang' => $bidang,
-                    'jabatan' => "Kepala Bidang {$bidang}",
-                    'created_by' => 1,
-                ]
-            );
-        }
-
-        // 4. 3 Koordinator dan Pengendali dengan nama orang
-        $koordinatorNames = [
-            'Irwan Gunawan',
-            'Bambang Suryono',
-            'Agus Hermawan',
+        // 3. Koordinator dan Pengendali (Daltu) - Level Dinas (6 user)
+        $daltuNames = [
+            'Dr. H. Slamet Riyadi, M.M.',
+            'Drs. Bambang Sutrisno, M.Si.',
+            'Dra. Sri Wahyuni, M.Ak.',
+            'Ir. Joko Susilo, M.T.',
+            'Hendra Gunawan, S.E., M.Si., Ak.',
+            'Ratna Sari, S.E., M.M., CA.',
         ];
 
-        foreach ($koordinatorNames as $idx => $personName) {
-            $i = $idx + 1;
-            $plot = $plottings[$idx % $plottings->count()];
+        foreach ($daltuNames as $idx => $name) {
+            $num = $idx + 1;
+            $randomDinas = $dinasList->isNotEmpty()
+                ? $dinasList->random()
+                : null;
 
             User::query()->updateOrCreate(
-                ['username' => "koordinator{$i}"],
+                ['username' => "daltu{$num}"],
                 [
-                    'name' => $personName,
-                    'email' => "koordinator{$i}@eaudit.test",
-                    'phone' => sprintf('0814000000%02d', $i),
+                    'name' => $name,
+                    'email' => "daltu{$num}@eaudit.test",
+                    'phone' => sprintf('08130000%04d', $num),
                     'role' => 'Koordinator dan Pengendali',
                     'password' => $defaultPassword,
-                    'level' => 'Nasional',
-                    'plotting_id' => $plot->id,
+                    'level' => 'Dinas',
+                    'struktur_perangkat_daerah_id' => $randomDinas?->id,
                     'kode_wilayah' => null,
                     'bidang' => null,
-                    'jabatan' => 'Koordinator dan Pengendali',
+                    'jabatan' => 'Koordinator dan Pengendali (Daltu)',
                     'created_by' => 1,
                 ]
             );
         }
 
-        // 5. 10 Ketua Tim dengan nama orang
-        $ketuaTimNames = [
-            'Dedi Kurnia',
-            'Eko Prasetyo',
-            'Lukman Hakim',
-            'Surya Darma',
-            'Taufik Hidayat',
-            'Wahyu Wibowo',
-            'Yudianto',
-            'Zulfikar Rahman',
-            'Rangga Mahendra',
-            'Aditya Permana',
+        // 4. Pengawas Tim (Dalnis / Pengendali Teknis) - Level Dinas (8 user)
+        $dalnisNames = [
+            'Agus Kurniawan, S.E., M.Ak.',
+            'Dewi Anggraeni, S.Sos., M.Si.',
+            'Tri Handoko, S.T., M.M.',
+            'Nur Hidayati, S.E., Ak., CA.',
+            'Danang Prasetyo, S.H., M.H.',
+            'Maya Indah Puspita, S.E., M.Si.',
+            'Ahmad Syahrir, S.E., M.M.',
+            'Indah Permatasari, S.E., Ak.',
         ];
 
-        foreach ($ketuaTimNames as $idx => $personName) {
-            $i = $idx + 1;
-            $randomPlot = $plottings->random();
+        foreach ($dalnisNames as $idx => $name) {
+            $num = $idx + 1;
+            $randomDinas = $dinasList->isNotEmpty()
+                ? $dinasList->random()
+                : null;
 
             User::query()->updateOrCreate(
-                ['username' => "ketuatim{$i}"],
+                ['username' => "dalnis{$num}"],
                 [
-                    'name' => $personName,
-                    'email' => "ketuatim{$i}@eaudit.test",
-                    'phone' => sprintf('0815000000%02d', $i),
+                    'name' => $name,
+                    'email' => "dalnis{$num}@eaudit.test",
+                    'phone' => sprintf('08140000%04d', $num),
+                    'role' => 'Pengawas Tim',
+                    'password' => $defaultPassword,
+                    'level' => 'Dinas',
+                    'struktur_perangkat_daerah_id' => $randomDinas?->id,
+                    'kode_wilayah' => null,
+                    'bidang' => null,
+                    'jabatan' => 'Pengendali Teknis (Dalnis)',
+                    'created_by' => 1,
+                ]
+            );
+        }
+
+        // 5. Ketua Tim - Level Dinas (8 user)
+        $ketuaTimNames = [
+            'Fajar Surya Pratama, S.E.',
+            'Rina Novitasari, S.E.',
+            'Dedi Supriyadi, S.Kom.',
+            'Anisa Rahmawati, S.Ak.',
+            'Wawan Setiawan, S.E.',
+            'Fitri Handayani, S.Ak.',
+            'Gunawan Wibisono, S.E.',
+            'Citra Lestari, S.Ak.',
+        ];
+
+        foreach ($ketuaTimNames as $idx => $name) {
+            $num = $idx + 1;
+            $randomDinas = $dinasList->isNotEmpty()
+                ? $dinasList->random()
+                : null;
+
+            User::query()->updateOrCreate(
+                ['username' => "ketuatim{$num}"],
+                [
+                    'name' => $name,
+                    'email' => "ketuatim{$num}@eaudit.test",
+                    'phone' => sprintf('08150000%04d', $num),
                     'role' => 'Ketua Tim',
                     'password' => $defaultPassword,
-                    'level' => 'Nasional',
-                    'plotting_id' => $randomPlot->id,
+                    'level' => 'Dinas',
+                    'struktur_perangkat_daerah_id' => $randomDinas?->id,
                     'kode_wilayah' => null,
                     'bidang' => null,
                     'jabatan' => 'Ketua Tim Audit',
@@ -224,32 +204,91 @@ class UserSeeder extends Seeder
             );
         }
 
-        // 6. 5 Pengawas Tim dengan nama orang
-        $pengawasNames = [
-            'Rahmat Hidayatullah',
-            'Gunawan Setiadi',
-            'Teguh Santosa',
-            'Heru Purnomo',
-            'Firman Syahputra',
+        // 6. Akun Auditee Representatif (Level Dinas & Kecamatan)
+        $dishub = StrukturPerangkatDaerah::query()->where('nama_unit', 'like', '%Perhubungan%')->first();
+        $uptDishub = $dishub ? StrukturPerangkatDaerah::query()->where('parent_id', $dishub->id)->where('nama_unit', 'like', '%UPT%')->first() : null;
+        $dinkes = StrukturPerangkatDaerah::query()->where('nama_unit', 'like', '%Kesehatan%')->first();
+        $kecBs = StrukturPerangkatDaerah::query()->where('nama_unit', 'like', '%Bandar Surabaya%')->where('level', 1)->first();
+        $seksiBs = $kecBs ? StrukturPerangkatDaerah::query()->where('parent_id', $kecBs->id)->where('nama_unit', 'like', '%Ketentraman%')->first() : null;
+        $kecBm = StrukturPerangkatDaerah::query()->where('nama_unit', 'like', '%Bandar Mataram%')->where('level', 1)->first();
+
+        $auditeeAccounts = [
+            [
+                'username' => 'auditee_dishub',
+                'name' => 'Auditee Dinas Perhubungan',
+                'email' => 'auditee.dishub@eaudit.test',
+                'phone' => '081600000001',
+                'level' => 'Dinas',
+                'unit_id' => $dishub?->id,
+                'bidang' => 'Operasional',
+                'jabatan' => 'Pengelola Tindak Lanjut Dinas',
+            ],
+            [
+                'username' => 'auditee_upt_dishub',
+                'name' => 'Auditee UPT Perhubungan',
+                'email' => 'auditee.uptdishub@eaudit.test',
+                'phone' => '081600000002',
+                'level' => 'Dinas',
+                'unit_id' => $uptDishub?->id,
+                'bidang' => 'Operasional',
+                'jabatan' => 'Staf UPT Perhubungan',
+            ],
+            [
+                'username' => 'auditee_dinkes',
+                'name' => 'Auditee Dinas Kesehatan',
+                'email' => 'auditee.dinkes@eaudit.test',
+                'phone' => '081600000003',
+                'level' => 'Dinas',
+                'unit_id' => $dinkes?->id,
+                'bidang' => 'Manajemen Anggaran dan Keuangan',
+                'jabatan' => 'Pengelola Tindak Lanjut Dinas',
+            ],
+            [
+                'username' => 'auditee_kec_bs',
+                'name' => 'Auditee Kec. Bandar Surabaya',
+                'email' => 'auditee.kecbs@eaudit.test',
+                'phone' => '081600000004',
+                'level' => 'Kecamatan',
+                'unit_id' => $kecBs?->id,
+                'bidang' => 'Operasional',
+                'jabatan' => 'Pengelola Tindak Lanjut Kecamatan',
+            ],
+            [
+                'username' => 'auditee_seksi_bs',
+                'name' => 'Auditee Seksi Trantib Kec. Bandar Surabaya',
+                'email' => 'auditee.seksibs@eaudit.test',
+                'phone' => '081600000005',
+                'level' => 'Kecamatan',
+                'unit_id' => $seksiBs?->id,
+                'bidang' => 'Operasional',
+                'jabatan' => 'Kasi Trantib Kec. Bandar Surabaya',
+            ],
+            [
+                'username' => 'auditee_kec_bm',
+                'name' => 'Auditee Kec. Bandar Mataram',
+                'email' => 'auditee.kecbm@eaudit.test',
+                'phone' => '081600000006',
+                'level' => 'Kecamatan',
+                'unit_id' => $kecBm?->id,
+                'bidang' => 'Operasional',
+                'jabatan' => 'Pengelola Tindak Lanjut Kecamatan',
+            ],
         ];
 
-        foreach ($pengawasNames as $idx => $personName) {
-            $i = $idx + 1;
-            $randomPlot = $plottings->random();
-
+        foreach ($auditeeAccounts as $acc) {
             User::query()->updateOrCreate(
-                ['username' => "pengawastim{$i}"],
+                ['username' => $acc['username']],
                 [
-                    'name' => $personName,
-                    'email' => "pengawastim{$i}@eaudit.test",
-                    'phone' => sprintf('0816000000%02d', $i),
-                    'role' => 'Pengawas Tim',
+                    'name' => $acc['name'],
+                    'email' => $acc['email'],
+                    'phone' => $acc['phone'],
+                    'role' => 'Auditee',
                     'password' => $defaultPassword,
-                    'level' => 'Nasional',
-                    'plotting_id' => $randomPlot->id,
+                    'level' => $acc['level'],
+                    'struktur_perangkat_daerah_id' => $acc['unit_id'],
                     'kode_wilayah' => null,
-                    'bidang' => null,
-                    'jabatan' => 'Pengawas Tim Audit',
+                    'bidang' => $acc['bidang'],
+                    'jabatan' => $acc['jabatan'],
                     'created_by' => 1,
                 ]
             );

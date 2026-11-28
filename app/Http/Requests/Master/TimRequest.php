@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Master;
 
-use App\Models\Tim;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -19,58 +18,35 @@ class TimRequest extends FormRequest
     public function rules(): array
     {
         $authUser = $this->user();
-        $isAdminNasional = $authUser?->role === 'Admin Nasional';
-        $isAdminWilayah = $authUser?->role === 'Admin Wilayah';
-        $authProvinceCode = ($isAdminWilayah && $authUser?->kode_wilayah)
-            ? substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2)
-            : null;
-
-        $lingkup = match (true) {
-            $isAdminNasional => 'Nasional',
-            $isAdminWilayah => 'Wilayah',
-            default => (string) $this->input('lingkup', ''),
-        };
+        $isAdminDinas = in_array($authUser?->role, ['Admin Nasional', 'Admin Dinas'], true);
+        $isAdminKecamatan = in_array($authUser?->role, ['Admin Wilayah', 'Admin Kecamatan'], true);
 
         $allowedLingkups = match (true) {
-            $isAdminNasional => ['Nasional'],
-            $isAdminWilayah => ['Wilayah'],
-            default => Tim::LINGKUPS,
+            $isAdminDinas => ['Dinas', 'Nasional'],
+            $isAdminKecamatan => ['Kecamatan', 'Wilayah'],
+            default => ['Dinas', 'Kecamatan', 'Nasional', 'Wilayah'],
         };
 
-        $userExistsRule = function (string $role) use ($isAdminNasional, $isAdminWilayah, $authUser, $authProvinceCode) {
-            return Rule::exists('users', 'id')->where(function ($query) use ($role, $isAdminNasional, $isAdminWilayah, $authUser, $authProvinceCode): void {
+        $userExistsRule = function (string $role) {
+            return Rule::exists('users', 'id')->where(function ($query) use ($role): void {
                 $query->where('role', $role)->whereNull('deleted_at');
-                if ($isAdminNasional && $authUser?->plotting_id) {
-                    $query->where('plotting_id', $authUser->plotting_id);
-                } elseif ($isAdminWilayah && $authProvinceCode) {
-                    $query->whereRaw("SUBSTRING(REPLACE(kode_wilayah, '.', ''), 1, 2) = ?", [$authProvinceCode]);
-                }
             });
         };
 
         $plottingRules = [
-            Rule::requiredIf($lingkup === 'Nasional'),
             'nullable',
             'integer',
-            Rule::exists('plottings', 'id'),
         ];
-        if ($isAdminNasional && $authUser?->plotting_id && $lingkup === 'Nasional') {
-            $plottingRules[] = Rule::in([(int) $authUser->plotting_id]);
-        }
 
         $provinceRules = [
-            Rule::requiredIf($lingkup === 'Wilayah'),
             'nullable',
             'string',
-            Rule::exists('wilayah', 'kode_wilayah'),
         ];
-        if ($isAdminWilayah && $authProvinceCode && $lingkup === 'Wilayah') {
-            $provinceRules[] = Rule::in([$authProvinceCode]);
-        }
 
         return [
             'nama_tim' => ['required', 'string', 'max:255'],
-            'lingkup' => ['required', 'string', Rule::in($allowedLingkups)],
+            'lingkup' => ['nullable', 'string', Rule::in($allowedLingkups)],
+            'struktur_perangkat_daerah_id' => ['nullable', 'integer', Rule::exists('struktur_perangkat_daerah', 'id')],
             'plotting_id' => $plottingRules,
             'province_code' => $provinceRules,
             'daltu_id' => [

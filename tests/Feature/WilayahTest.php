@@ -26,29 +26,42 @@ class WilayahTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $prefix = config('laravolt.indonesia.table_prefix', 'indonesia_');
-
-        DB::table($prefix.'provinces')->insert([
-            'code' => '11',
-            'name' => 'ACEH',
+        DB::table('struktur_perangkat_daerah')->insert([
+            'kode_wilayah' => '11',
+            'nama_unit' => 'ACEH',
+            'level' => 1,
+            'jenis_unit' => 'Provinsi',
+            'provinsi' => 'ACEH',
         ]);
 
-        DB::table($prefix.'cities')->insert([
-            'code' => '1101',
-            'province_code' => '11',
-            'name' => 'KABUPATEN ACEH SELATAN',
+        DB::table('struktur_perangkat_daerah')->insert([
+            'kode_wilayah' => '1101',
+            'nama_unit' => 'KABUPATEN ACEH SELATAN',
+            'level' => 2,
+            'jenis_unit' => 'Kabupaten/Kota',
+            'provinsi' => 'ACEH',
+            'kabupaten_kota' => 'KABUPATEN ACEH SELATAN',
         ]);
 
-        DB::table($prefix.'districts')->insert([
-            'code' => '110101',
-            'city_code' => '1101',
-            'name' => 'BAKONGAN',
+        DB::table('struktur_perangkat_daerah')->insert([
+            'kode_wilayah' => '110101',
+            'nama_unit' => 'BAKONGAN',
+            'level' => 3,
+            'jenis_unit' => 'Kecamatan',
+            'provinsi' => 'ACEH',
+            'kabupaten_kota' => 'KABUPATEN ACEH SELATAN',
+            'kecamatan' => 'BAKONGAN',
         ]);
 
-        DB::table($prefix.'villages')->insert([
-            'code' => '1101012001',
-            'district_code' => '110101',
-            'name' => 'KEUDE BAKONGAN',
+        DB::table('struktur_perangkat_daerah')->insert([
+            'kode_wilayah' => '1101012001',
+            'nama_unit' => 'KEUDE BAKONGAN',
+            'level' => 4,
+            'jenis_unit' => 'Desa/Kelurahan',
+            'provinsi' => 'ACEH',
+            'kabupaten_kota' => 'KABUPATEN ACEH SELATAN',
+            'kecamatan' => 'BAKONGAN',
+            'desa_kelurahan' => 'KEUDE BAKONGAN',
         ]);
 
         $response = $this->actingAs($user)->getJson(route('master.wilayah.index', [
@@ -120,23 +133,32 @@ class WilayahTest extends TestCase
     public function test_wilayah_can_be_created_updated_and_deleted_with_hierarchical_code_validation(): void
     {
         $user = User::factory()->create();
-        $prefix = config('laravolt.indonesia.table_prefix', 'indonesia_');
 
-        DB::table($prefix.'provinces')->insert([
-            'code' => '11',
-            'name' => 'ACEH',
+        DB::table('struktur_perangkat_daerah')->insert([
+            'kode_wilayah' => '11',
+            'nama_unit' => 'ACEH',
+            'level' => 1,
+            'jenis_unit' => 'Provinsi',
+            'provinsi' => 'ACEH',
         ]);
 
-        DB::table($prefix.'cities')->insert([
-            'code' => '1101',
-            'province_code' => '11',
-            'name' => 'KABUPATEN ACEH SELATAN',
+        DB::table('struktur_perangkat_daerah')->insert([
+            'kode_wilayah' => '1101',
+            'nama_unit' => 'KABUPATEN ACEH SELATAN',
+            'level' => 2,
+            'jenis_unit' => 'Kabupaten/Kota',
+            'provinsi' => 'ACEH',
+            'kabupaten_kota' => 'KABUPATEN ACEH SELATAN',
         ]);
 
-        DB::table($prefix.'districts')->insert([
-            'code' => '110101',
-            'city_code' => '1101',
-            'name' => 'BAKONGAN',
+        DB::table('struktur_perangkat_daerah')->insert([
+            'kode_wilayah' => '110101',
+            'nama_unit' => 'BAKONGAN',
+            'level' => 3,
+            'jenis_unit' => 'Kecamatan',
+            'provinsi' => 'ACEH',
+            'kabupaten_kota' => 'KABUPATEN ACEH SELATAN',
+            'kecamatan' => 'BAKONGAN',
         ]);
 
         // Reject village code that does not start with parent district code (110101)
@@ -164,10 +186,10 @@ class WilayahTest extends TestCase
 
         $createResponse->assertCreated();
 
-        $this->assertDatabaseHas($prefix.'villages', [
-            'code' => '1101012099',
-            'district_code' => '110101',
-            'name' => 'DESA BARU BAKONGAN',
+        $this->assertDatabaseHas('struktur_perangkat_daerah', [
+            'kode_wilayah' => '1101012099',
+            'kecamatan' => 'BAKONGAN',
+            'desa_kelurahan' => 'DESA BARU BAKONGAN',
         ]);
 
         // Reject duplicate code
@@ -198,9 +220,9 @@ class WilayahTest extends TestCase
 
         $updateResponse->assertOk();
 
-        $this->assertDatabaseHas($prefix.'villages', [
-            'code' => '1101012099',
-            'name' => 'DESA BARU BAKONGAN RAYA',
+        $this->assertDatabaseHas('struktur_perangkat_daerah', [
+            'kode_wilayah' => '1101012099',
+            'desa_kelurahan' => 'DESA BARU BAKONGAN RAYA',
         ]);
 
         // Prevent deleting parent district while it still has child village
@@ -218,8 +240,8 @@ class WilayahTest extends TestCase
         ]));
 
         $deleteVillageResponse->assertOk();
-        $this->assertDatabaseMissing($prefix.'villages', [
-            'code' => '1101012099',
+        $this->assertDatabaseMissing('struktur_perangkat_daerah', [
+            'kode_wilayah' => '1101012099',
         ]);
     }
 }

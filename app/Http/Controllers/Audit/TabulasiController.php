@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Audit;
 use App\DataTables\Audit\TabulasiDataTable;
 use App\Http\Controllers\Controller;
 use App\Models\Pka;
-use App\Models\Plotting;
 use App\Models\TemplateKka;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -31,6 +30,14 @@ class TabulasiController extends Controller
             ? ($u->username ? "{$u->username} | {$u->name}" : (string) $u->name)
             : null;
 
+        $bidangCaseSql = "CASE pkas.bidang 
+            WHEN 'Operasional' THEN 1 
+            WHEN 'Manajemen Anggaran dan Keuangan' THEN 2 
+            WHEN 'Logistik' THEN 3 
+            WHEN 'Sumber Daya Manusia' THEN 4 
+            WHEN 'Investigasi' THEN 5 
+            ELSE 6 END";
+
         $pkas = Pka::query()
             ->visibleTo($authUser)
             ->where('pkas.status', 'Final')
@@ -39,7 +46,8 @@ class TabulasiController extends Controller
                 'dibuatOleh:id,name,username',
                 'direviuOleh:id,name,username',
             ])
-            ->orderByDesc('id')
+            ->orderByRaw($bidangCaseSql)
+            ->orderByDesc('pkas.id')
             ->get()
             ->map(fn (Pka $pka): array => [
                 'id' => $pka->id,
@@ -60,21 +68,15 @@ class TabulasiController extends Controller
             ->orderBy('nama_template')
             ->get(['id', 'nama_template', 'lingkup', 'tujuan', 'langkah', 'hasil']);
 
-        $plottings = Plotting::query()
-            ->orderBy('id')
-            ->get(['id', 'plot'])
-            ->map(fn (Plotting $plotting): array => [
-                'id' => $plotting->id,
-                'code' => (string) $plotting->id,
-                'name' => $plotting->plot,
-            ])
-            ->values();
+        $plottings = collect();
 
-        $provinces = DB::table('wilayah')
-            ->whereRaw('LENGTH(kode_wilayah) = 2')
+        $targetWilayahTable = 'struktur_perangkat_daerah';
+
+        $provinces = DB::table($targetWilayahTable)
+            ->whereNotNull('kode_wilayah')
             ->whereNull('deleted_at')
             ->orderBy('kode_wilayah')
-            ->get(['kode_wilayah as code', 'provinsi as name']);
+            ->get(['kode_wilayah as code', 'nama_unit as name']);
 
         return view('audit.tabulasi.index', [
             'dataTableConfig' => $dataTable->config($pkas, $templates, $plottings, $provinces),

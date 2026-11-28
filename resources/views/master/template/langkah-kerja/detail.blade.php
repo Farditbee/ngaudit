@@ -18,17 +18,14 @@
                     <span class="text-sm font-semibold text-neutral-800 dark:text-neutral-200" x-text="namaTemplate"></span>
                     <span
                         class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
-                        :class="lingkup === 'Nasional'
-                            ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
+                        :class="lingkup === 'Dinas'
+                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
                             : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'"
                         x-text="lingkup"
                     ></span>
                     <template x-if="scopeName">
                         <span
-                            class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
-                            :class="lingkup === 'Nasional'
-                                ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
-                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'"
+                            class="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
                             x-text="scopeName"
                         ></span>
                     </template>

@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Master;
 use App\DataTables\Master\UserDataTable;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Master\UserRequest;
-use App\Models\Plotting;
+use App\Models\StrukturPerangkatDaerah;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -31,40 +31,8 @@ class UserController extends Controller
 
         $authUser = $request->user();
 
-        $plottingsQuery = Plotting::query()
-            ->with('provinces:id,kode_wilayah,provinsi')
-            ->orderBy('plot');
-
-        if ($authUser?->role === 'Admin Nasional' && $authUser->plotting_id) {
-            $plottingsQuery->whereKey($authUser->plotting_id);
-        }
-
-        $plottings = $plottingsQuery
-            ->get()
-            ->map(fn (Plotting $plotting): array => [
-                'id' => $plotting->id,
-                'code' => (string) $plotting->id,
-                'name' => $plotting->plot,
-                'provinces' => $plotting->provinces->map(fn (object $p): array => [
-                    'code' => (string) $p->kode_wilayah,
-                    'name' => (string) $p->provinsi,
-                ])->values()->all(),
-            ])
-            ->values();
-
-        $provincesQuery = DB::table('wilayah')
-            ->whereRaw('CHAR_LENGTH(kode_wilayah) = 2')
-            ->whereNull('deleted_at')
-            ->orderBy('kode_wilayah');
-
-        if ($authUser?->role === 'Admin Wilayah' && $authUser->kode_wilayah) {
-            $authProvinceCode = substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2);
-            if ($authProvinceCode !== '') {
-                $provincesQuery->where('kode_wilayah', $authProvinceCode);
-            }
-        }
-
-        $provinces = $provincesQuery->get(['kode_wilayah as code', 'provinsi as name']);
+        $plottings = collect();
+        $provinces = collect();
 
         $tableConfig = $dataTable->config($plottings, $provinces);
 
@@ -202,8 +170,8 @@ class UserController extends Controller
     protected function buildUserPayload(UserRequest $request, array $validated, ?User $user = null): array
     {
         $authUser = $request->user();
-        $isAdminNasional = $authUser?->role === 'Admin Nasional';
-        $isAdminWilayah = $authUser?->role === 'Admin Wilayah';
+        $isAdminNasional = in_array($authUser?->role, ['Admin Nasional', 'Admin Dinas'], true);
+        $isAdminWilayah = in_array($authUser?->role, ['Admin Wilayah', 'Admin Kecamatan'], true);
         $authProvinceCode = ($isAdminWilayah && $authUser?->kode_wilayah)
             ? substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2)
             : null;
@@ -216,6 +184,8 @@ class UserController extends Controller
             'Pengawas Tim',
         ], true);
         $needsScope = in_array($role, [
+            'Admin Dinas',
+            'Admin Kecamatan',
             'Admin Nasional',
             'Admin Wilayah',
             'Auditor',
@@ -227,30 +197,26 @@ class UserController extends Controller
         $isAuditee = $role === 'Auditee';
         $level = $needsScope
             ? match (true) {
-                $isAdminNasional || $role === 'Admin Nasional' => 'Nasional',
-                $isAdminWilayah && $isAuditTeamRole => 'Wilayah',
+                $isAdminNasional || in_array($role, ['Admin Nasional', 'Admin Dinas'], true) => 'Dinas',
+                $isAdminWilayah && $isAuditTeamRole => 'Kecamatan',
                 default => (string) ($validated['level'] ?? ''),
             }
         : null;
 
-        $provinceCode = ($isAdminWilayah && $authProvinceCode)
-            ? $authProvinceCode
-            : ($validated['province_code'] ?? null);
+        $strukturPerangkatDaerahId = $validated['struktur_perangkat_daerah_id']
+            ?? $validated['unit_level_3']
+            ?? $validated['unit_level_2']
+            ?? $validated['unit_level_1']
+            ?? null;
 
-        $kodeWilayah = match (true) {
-            ! $needsScope || $level === 'Nasional' => null,
-            in_array($level, ['Wilayah', 'Provinsi'], true) => $provinceCode,
-            $level === 'Kabupaten' => $validated['city_code'] ?? null,
-            $level === 'Kecamatan' => $validated['district_code'] ?? null,
-            $level === 'Desa' => $validated['village_code'] ?? null,
-            default => null,
-        };
+        $kodeWilayah = $validated['kode_wilayah']
+            ?? $validated['city_code']
+            ?? $validated['province_code']
+            ?? null;
 
-        $plottingId = null;
-        if ($needsScope && $level === 'Nasional') {
-            $plottingId = ($isAdminNasional && $authUser?->plotting_id)
-                ? $authUser->plotting_id
-                : ($validated['plotting_id'] ?? null);
+        if ($strukturPerangkatDaerahId && ! $kodeWilayah) {
+            $unit = StrukturPerangkatDaerah::find($strukturPerangkatDaerahId);
+            $kodeWilayah = $unit?->kode_wilayah ?? $unit?->kode_unit;
         }
 
         $payload = [
@@ -260,7 +226,7 @@ class UserController extends Controller
             'phone' => $validated['phone'],
             'role' => $role,
             'level' => $level,
-            'plotting_id' => $plottingId,
+            'struktur_perangkat_daerah_id' => $strukturPerangkatDaerahId,
             'kode_wilayah' => $kodeWilayah,
             'bidang' => $isAuditee ? ($validated['bidang'] ?? null) : null,
             'jabatan' => $validated['jabatan'] ?? null,
@@ -285,28 +251,79 @@ class UserController extends Controller
         $type = (string) $request->query('options');
         $parent = (string) $request->query('parent');
 
+        $targetWilayahTable = DB::table('struktur_perangkat_daerah')->whereNotNull('kode_wilayah')->exists()
+            ? 'struktur_perangkat_daerah'
+            : 'wilayah';
+
         $items = match ($type) {
-            'cities' => DB::table('wilayah')
-                ->whereRaw('CHAR_LENGTH(kode_wilayah) = 4')
-                ->where('kode_wilayah', 'like', $parent.'%')
-                ->whereNull('deleted_at')
-                ->orderBy('kode_wilayah')
-                ->get(['kode_wilayah as code', 'kabupaten_kota as name']),
-            'districts' => DB::table('wilayah')
-                ->whereRaw('CHAR_LENGTH(kode_wilayah) = 6')
-                ->where('kode_wilayah', 'like', $parent.'%')
-                ->whereNull('deleted_at')
-                ->orderBy('kode_wilayah')
-                ->get(['kode_wilayah as code', 'kecamatan as name']),
-            'villages' => DB::table('wilayah')
-                ->whereRaw('CHAR_LENGTH(kode_wilayah) = 10')
-                ->where('kode_wilayah', 'like', $parent.'%')
-                ->whereNull('deleted_at')
-                ->orderBy('kode_wilayah')
-                ->get(['kode_wilayah as code', 'desa_kelurahan as name']),
+            'dinas' => StrukturPerangkatDaerah::dinas()
+                ->orderBy('nama_unit')
+                ->get()
+                ->map(fn ($u): array => [
+                    'id' => $u->id,
+                    'code' => (string) $u->id,
+                    'name' => $u->nama_unit,
+                    'pimpinan' => $u->pimpinan,
+                    'jenis_unit' => $u->jenis_unit,
+                ]),
+            'kecamatans' => StrukturPerangkatDaerah::kecamatan()
+                ->orderBy('nama_unit')
+                ->get()
+                ->map(fn ($u): array => [
+                    'id' => $u->id,
+                    'code' => (string) $u->id,
+                    'name' => $u->nama_unit,
+                    'pimpinan' => $u->pimpinan,
+                    'jenis_unit' => $u->jenis_unit,
+                ]),
+            'sub_units' => StrukturPerangkatDaerah::query()
+                ->where(function ($q) use ($parent): void {
+                    $q->where('parent_id', $parent)
+                        ->orWhere('parent_id', function ($sub) use ($parent): void {
+                            $sub->select('id')->from('struktur_perangkat_daerah')->where('kode_unit', $parent)->limit(1);
+                        });
+                })
+                ->orderBy('nama_unit')
+                ->get()
+                ->map(fn ($u): array => [
+                    'id' => $u->id,
+                    'code' => (string) $u->id,
+                    'name' => $u->nama_unit,
+                    'pimpinan' => $u->pimpinan,
+                    'jenis_unit' => $u->jenis_unit,
+                ]),
+            'unit_hierarchy' => $this->getUnitHierarchy($parent),
+            'cities', 'districts', 'villages' => collect(),
             default => collect(),
         };
 
         return response()->json($items);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    protected function getUnitHierarchy(string|int $unitId): array
+    {
+        $unit = StrukturPerangkatDaerah::find($unitId);
+        if (! $unit) {
+            return [];
+        }
+
+        $chain = [];
+        $curr = $unit;
+        while ($curr) {
+            array_unshift($chain, [
+                'id' => $curr->id,
+                'code' => (string) $curr->id,
+                'name' => $curr->nama_unit,
+                'parent_id' => $curr->parent_id,
+                'level' => $curr->level,
+                'jenis_unit' => $curr->jenis_unit,
+            ]);
+            $curr = $curr->parent;
+        }
+
+        return array_values(array_filter($chain, fn ($item): bool => ($item['level'] ?? 0) >= 1));
     }
 }

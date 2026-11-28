@@ -1,11 +1,11 @@
-<x-admin-layout :breadcrumbs="['Data Master', 'Wilayah']">
+<x-admin-layout :breadcrumbs="['Data Master', 'Perangkat Daerah']">
     <div class="space-y-6" x-data="wilayahDataTable(@js($tableConfig))">
         {{-- Header --}}
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div class="flex flex-col gap-1">
-                <h1 class="text-2xl font-semibold tracking-tight">Data Wilayah</h1>
+                <h1 class="text-2xl font-semibold tracking-tight">Data Wilayah & Perangkat Daerah</h1>
                 <p class="text-sm text-neutral-500 dark:text-neutral-400">
-                    Daftar kode dan nama Provinsi, Kabupaten/Kota, Kecamatan, serta Desa/Kelurahan di seluruh Indonesia.
+                    Hierarki struktur perangkat daerah Kabupaten Lampung Tengah (Kepala Daerah, Dinas, Badan, Kecamatan, Bidang, Seksi, dan Sub Bagian).
                 </p>
             </div>
 
@@ -15,7 +15,7 @@
                 class="inline-flex h-9 items-center gap-2 rounded-md bg-neutral-900 px-4 text-sm font-medium text-white shadow-xs transition-colors hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
             >
                 <x-lucide-plus class="h-4 w-4" />
-                <span>Tambah Wilayah</span>
+                <span>Tambah Wilayah / Perangkat Daerah</span>
             </button>
         </div>
 

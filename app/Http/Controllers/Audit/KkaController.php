@@ -8,7 +8,7 @@ use App\Http\Requests\Audit\KkaRequest;
 use App\Models\Kka;
 use App\Models\KkaReview;
 use App\Models\Pka;
-use App\Models\Plotting;
+use App\Models\StrukturPerangkatDaerah;
 use App\Models\TemplateKka;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -36,6 +36,14 @@ class KkaController extends Controller
             ? ($u->username ? "{$u->username} | {$u->name}" : (string) $u->name)
             : null;
 
+        $bidangCaseSql = "CASE pkas.bidang 
+            WHEN 'Operasional' THEN 1 
+            WHEN 'Manajemen Anggaran dan Keuangan' THEN 2 
+            WHEN 'Logistik' THEN 3 
+            WHEN 'Sumber Daya Manusia' THEN 4 
+            WHEN 'Investigasi' THEN 5 
+            ELSE 6 END";
+
         $pkas = Pka::query()
             ->visibleTo($authUser)
             ->where('pkas.status', 'Final')
@@ -44,7 +52,8 @@ class KkaController extends Controller
                 'dibuatOleh:id,name,username',
                 'direviuOleh:id,name,username',
             ])
-            ->orderByDesc('id')
+            ->orderByRaw($bidangCaseSql)
+            ->orderByDesc('pkas.id')
             ->get()
             ->map(fn (Pka $pka): array => [
                 'id' => $pka->id,
@@ -65,21 +74,15 @@ class KkaController extends Controller
             ->orderBy('nama_template')
             ->get(['id', 'nama_template', 'lingkup', 'tujuan', 'langkah', 'hasil']);
 
-        $plottings = Plotting::query()
-            ->orderBy('id')
-            ->get(['id', 'plot'])
-            ->map(fn (Plotting $plotting): array => [
-                'id' => $plotting->id,
-                'code' => (string) $plotting->id,
-                'name' => $plotting->plot,
-            ])
-            ->values();
+        $plottings = collect();
 
-        $provinces = DB::table('wilayah')
-            ->whereRaw('LENGTH(kode_wilayah) = 2')
+        $targetWilayahTable = 'struktur_perangkat_daerah';
+
+        $provinces = DB::table($targetWilayahTable)
+            ->whereNotNull('kode_wilayah')
             ->whereNull('deleted_at')
             ->orderBy('kode_wilayah')
-            ->get(['kode_wilayah as code', 'provinsi as name']);
+            ->get(['kode_wilayah as code', 'nama_unit as name']);
 
         return view('audit.kka.index', [
             'dataTableConfig' => $dataTable->config($pkas, $templates, $plottings, $provinces),
@@ -118,6 +121,9 @@ class KkaController extends Controller
 
         $kka->load(['pka.sprin:id,no_sprin,tahap,sprin_tipe', 'templateKka:id,nama_template']);
 
+        $auditeeLevel = in_array($kka->auditee_level, ['Nasional', 'Dinas'], true) ? 'Dinas' : 'Kecamatan';
+        $spdId = $kka->struktur_perangkat_daerah_id ? (string) $kka->struktur_perangkat_daerah_id : '';
+
         return response()->json([
             'id' => $kka->id,
             'nomor_kka' => $kka->nomor_kka,
@@ -126,8 +132,9 @@ class KkaController extends Controller
             'tanggal_direviu' => $kka->tanggal_direviu?->format('Y-m-d') ?? '',
             'tanggal_kka' => $kka->tanggal_kka?->format('Y-m-d') ?? '',
             'tempat' => $kka->tempat,
-            'auditee_level' => $kka->auditee_level,
-            'auditee_plotting_id' => $kka->auditee_plotting_id ? (string) $kka->auditee_plotting_id : '',
+            'auditee_level' => $auditeeLevel,
+            'struktur_perangkat_daerah_id' => $spdId,
+            'auditee_plotting_id' => $spdId,
             ...$kka->auditeeRegionCodes(),
             'template_kka_id' => $kka->template_kka_id ? (string) $kka->template_kka_id : '',
             'tujuan' => $kka->tujuan ?? '',
@@ -151,21 +158,24 @@ class KkaController extends Controller
             'dibuatOleh:id,name,username,jabatan,role',
             'direviuOleh:id,name,username,jabatan,role',
             'creator:id,name,username,jabatan,role',
-            'auditeePlotting:id,plot',
+            'auditeePlotting:id,nama_unit',
             'tabulasis.kodeTemuan:id,kode,nama',
             'tabulasis.subKodeTemuan:id,kode_id,kode,nama',
         ]);
 
         $auditeeName = '-';
-        if ($kka->auditee_level === 'Nasional') {
-            $auditeeName = $kka->auditeePlotting?->plot ?? '-';
+        if ($kka->auditee_perangkat_daerah_id) {
+            $auditeeName = $kka->auditeePerangkatDaerah?->nama_unit ?? '-';
+        } elseif (in_array($kka->auditee_level, ['Nasional', 'Dinas'], true)) {
+            $auditeeName = $kka->auditeePerangkatDaerah?->nama_unit ?? '-';
         } elseif ($kka->auditee_kode_wilayah) {
-            $wilayah = DB::table('wilayah')
+            $wilayah = DB::table('struktur_perangkat_daerah')
                 ->where('kode_wilayah', $kka->auditee_kode_wilayah)
                 ->whereNull('deleted_at')
                 ->first();
             if ($wilayah) {
-                $auditeeName = $wilayah->desa_kelurahan
+                $auditeeName = $wilayah->nama_unit
+                    ?? $wilayah->desa_kelurahan
                     ?? $wilayah->kecamatan
                     ?? $wilayah->kabupaten_kota
                     ?? $wilayah->provinsi
@@ -412,6 +422,43 @@ class KkaController extends Controller
         $parent = (string) $request->query('parent');
 
         $items = match ($type) {
+            'dinas' => StrukturPerangkatDaerah::dinas()
+                ->orderBy('nama_unit')
+                ->get()
+                ->map(fn ($u): array => [
+                    'id' => $u->id,
+                    'code' => (string) $u->id,
+                    'name' => $u->nama_unit,
+                    'pimpinan' => $u->pimpinan,
+                    'jenis_unit' => $u->jenis_unit,
+                ]),
+            'kecamatans' => StrukturPerangkatDaerah::kecamatan()
+                ->orderBy('nama_unit')
+                ->get()
+                ->map(fn ($u): array => [
+                    'id' => $u->id,
+                    'code' => (string) $u->id,
+                    'name' => $u->nama_unit,
+                    'pimpinan' => $u->pimpinan,
+                    'jenis_unit' => $u->jenis_unit,
+                ]),
+            'sub_units' => StrukturPerangkatDaerah::query()
+                ->where(function ($q) use ($parent): void {
+                    $q->where('parent_id', $parent)
+                        ->orWhere('parent_id', function ($sub) use ($parent): void {
+                            $sub->select('id')->from('struktur_perangkat_daerah')->where('kode_unit', $parent)->limit(1);
+                        });
+                })
+                ->orderBy('nama_unit')
+                ->get()
+                ->map(fn ($u): array => [
+                    'id' => $u->id,
+                    'code' => (string) $u->id,
+                    'name' => $u->nama_unit,
+                    'pimpinan' => $u->pimpinan,
+                    'jenis_unit' => $u->jenis_unit,
+                ]),
+            'unit_hierarchy' => $this->getUnitHierarchy($parent),
             'cities' => $this->regionOptions(4, 'kabupaten_kota', $parent),
             'districts' => $this->regionOptions(6, 'kecamatan', $parent),
             'villages' => $this->regionOptions(10, 'desa_kelurahan', $parent),
@@ -422,11 +469,42 @@ class KkaController extends Controller
     }
 
     /**
+     * @return array<int, array<string, mixed>>
+     */
+    protected function getUnitHierarchy(string|int $unitId): array
+    {
+        $unit = StrukturPerangkatDaerah::find($unitId);
+        if (! $unit) {
+            return [];
+        }
+
+        $chain = [];
+        $curr = $unit;
+        while ($curr) {
+            array_unshift($chain, [
+                'id' => $curr->id,
+                'code' => (string) $curr->id,
+                'name' => $curr->nama_unit,
+                'parent_id' => $curr->parent_id,
+                'level' => $curr->level,
+                'jenis_unit' => $curr->jenis_unit,
+            ]);
+            $curr = $curr->parent;
+        }
+
+        return array_values(array_filter($chain, fn ($item): bool => ($item['level'] ?? 0) >= 1));
+    }
+
+    /**
      * @return Collection<int, object>
      */
     protected function regionOptions(int $codeLength, string $nameColumn, string $parent): Collection
     {
-        return DB::table('wilayah')
+        $targetWilayahTable = DB::table('struktur_perangkat_daerah')->whereNotNull('kode_wilayah')->exists()
+            ? 'struktur_perangkat_daerah'
+            : 'wilayah';
+
+        return DB::table($targetWilayahTable)
             ->whereRaw('LENGTH(kode_wilayah) = ?', [$codeLength])
             ->where('kode_wilayah', 'like', $parent.'%')
             ->whereNull('deleted_at')
@@ -441,11 +519,8 @@ class KkaController extends Controller
     protected function buildPayload(array $validated): array
     {
         $pka = Pka::query()->findOrFail((int) $validated['pka_id']);
-        $isNasional = $validated['auditee_level'] === 'Nasional';
-
-        $regionCode = $isNasional
-            ? null
-            : ($validated['village_code'] ?? $validated['district_code'] ?? $validated['city_code'] ?? $validated['province_code'] ?? null);
+        $spdId = $validated['struktur_perangkat_daerah_id'] ?? (! empty($validated['auditee_plotting_id']) ? (int) $validated['auditee_plotting_id'] : null);
+        $kodeWilayah = $spdId ? StrukturPerangkatDaerah::where('id', $spdId)->value('kode_wilayah') : null;
 
         return [
             'nomor_kka' => $validated['nomor_kka'],
@@ -457,8 +532,9 @@ class KkaController extends Controller
             'tanggal_kka' => $validated['tanggal_kka'],
             'tempat' => $validated['tempat'],
             'auditee_level' => $validated['auditee_level'],
-            'auditee_plotting_id' => $isNasional ? (int) $validated['auditee_plotting_id'] : null,
-            'auditee_kode_wilayah' => $regionCode,
+            'struktur_perangkat_daerah_id' => $spdId,
+            'auditee_plotting_id' => $spdId,
+            'auditee_kode_wilayah' => $kodeWilayah,
             'template_kka_id' => ! empty($validated['template_kka_id']) ? (int) $validated['template_kka_id'] : null,
             'tujuan' => $validated['tujuan'] ?? null,
             'langkah' => $validated['langkah'] ?? null,
@@ -500,14 +576,6 @@ class KkaController extends Controller
             return false;
         }
 
-        if ($user->role === 'Super Admin') {
-            return true;
-        }
-
-        if ($kka->created_by && (int) $kka->created_by === (int) $user->id) {
-            return true;
-        }
-
-        return $this->canAccessPkaId($user, (int) $kka->pka_id);
+        return Kka::query()->whereKey($kka->id)->visibleTo($user)->exists();
     }
 }

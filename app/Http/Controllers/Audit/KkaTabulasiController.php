@@ -9,7 +9,6 @@ use App\Models\Kka;
 use App\Models\KkaTabulasi;
 use App\Models\Kode;
 use App\Models\Kriteria;
-use App\Models\Pka;
 use App\Models\SubKode;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -46,7 +45,7 @@ class KkaTabulasiController extends Controller
             'pka.sprin.tim.auditors:id,name,username,role',
             'dibuatOleh:id,name,username',
             'direviuOleh:id,name,username',
-            'auditeePlotting:id,plot',
+            'auditeePlotting:id,nama_unit',
         ]);
 
         $auditors = $this->resolveAuditors($kka);
@@ -319,14 +318,6 @@ class KkaTabulasiController extends Controller
             return false;
         }
 
-        if ($user->role === 'Super Admin') {
-            return true;
-        }
-
-        if ($kka->created_by && (int) $kka->created_by === (int) $user->id) {
-            return true;
-        }
-
-        return $kka->pka_id && Pka::query()->whereKey($kka->pka_id)->visibleTo($user)->exists();
+        return Kka::query()->whereKey($kka->id)->visibleTo($user)->exists();
     }
 }

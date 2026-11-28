@@ -8,10 +8,10 @@ use App\Models\KkaReview;
 use App\Models\Pka;
 use App\Models\Plotting;
 use App\Models\Sprin;
+use App\Models\StrukturPerangkatDaerah;
 use App\Models\TemplateKka;
 use App\Models\Tim;
 use App\Models\User;
-use App\Models\Wilayah;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -69,7 +69,7 @@ class KkaModuleTest extends TestCase
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
      */
-    protected function kkaPayload(Pka $pka, Plotting $plotting, array $overrides = []): array
+    protected function kkaPayload(Pka $pka, StrukturPerangkatDaerah|Plotting $unit, array $overrides = []): array
     {
         return array_merge([
             'nomor_kka' => 'KKA/001/WIL-I/2026',
@@ -78,8 +78,9 @@ class KkaModuleTest extends TestCase
             'tanggal_direviu' => '2026-11-27',
             'tanggal_kka' => '2026-11-28',
             'tempat' => 'Kantor Balai Wilayah Sungai',
-            'auditee_level' => 'Nasional',
-            'auditee_plotting_id' => $plotting->id,
+            'auditee_level' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $unit->id,
+            'auditee_plotting_id' => $unit->id,
             'tujuan' => '<p>Tujuan KKA</p>',
             'langkah' => '<p>Langkah KKA</p>',
             'hasil' => '<p>Hasil KKA</p>',
@@ -87,9 +88,12 @@ class KkaModuleTest extends TestCase
         ], $overrides);
     }
 
-    protected function createKka(Pka $pka, User $admin, ?Plotting $plotting = null): Kka
+    protected function createKka(Pka $pka, User $admin, StrukturPerangkatDaerah|Plotting|null $unit = null): Kka
     {
-        $plotting ??= Plotting::query()->firstOrCreate(['plot' => 'WIL I']);
+        $unit ??= StrukturPerangkatDaerah::query()->firstOrCreate(
+            ['nama_unit' => 'Dinas Kesehatan'],
+            ['level' => 1, 'jenis_unit' => 'Dinas']
+        );
 
         return Kka::query()->create([
             'nomor_kka' => 'KKA/'.uniqid().'/2026',
@@ -98,8 +102,9 @@ class KkaModuleTest extends TestCase
             'direviu_oleh_id' => $admin->id,
             'tanggal_kka' => now()->toDateString(),
             'tempat' => 'Kantor Uji',
-            'auditee_level' => 'Nasional',
-            'auditee_plotting_id' => $plotting->id,
+            'auditee_level' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $unit->id,
+            'auditee_plotting_id' => $unit->id,
             'tujuan' => '<p>Tujuan</p>',
             'status' => 'Draft',
             'created_by' => $admin->id,
@@ -203,16 +208,20 @@ class KkaModuleTest extends TestCase
         $this->assertEquals(0, $other->json('recordsFiltered'));
     }
 
-    public function test_can_create_kka_for_nasional_auditee_and_copy_creators_from_pka(): void
+    public function test_can_create_kka_for_dinas_auditee_and_copy_creators_from_pka(): void
     {
         $admin = User::factory()->create();
         $reviewer = User::factory()->create();
-        $plotting = Plotting::query()->create(['plot' => 'WIL II']);
-        $pka = $this->createPka($admin, $plotting);
+        $unit = StrukturPerangkatDaerah::query()->create([
+            'nama_unit' => 'Dinas Pendidikan',
+            'level' => 1,
+            'jenis_unit' => 'Dinas',
+        ]);
+        $pka = $this->createPka($admin);
         $pka->update(['direviu_oleh_id' => $reviewer->id]);
 
         $response = $this->actingAs($admin)
-            ->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $plotting));
+            ->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $unit));
 
         $response->assertCreated()
             ->assertJsonFragment(['message' => 'Kertas Kerja Audit (KKA) berhasil ditambahkan.']);
@@ -222,8 +231,8 @@ class KkaModuleTest extends TestCase
             'dibuat_oleh_id' => $admin->id,
             'direviu_oleh_id' => $reviewer->id,
             'tempat' => 'Kantor Balai Wilayah Sungai',
-            'auditee_level' => 'Nasional',
-            'auditee_plotting_id' => $plotting->id,
+            'auditee_level' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $unit->id,
             'auditee_kode_wilayah' => null,
             'tujuan' => '<p>Tujuan KKA</p>',
             'langkah' => '<p>Langkah KKA</p>',
@@ -233,92 +242,103 @@ class KkaModuleTest extends TestCase
         ]);
     }
 
-    public function test_can_create_kka_for_wilayah_auditee_with_deepest_selected_region(): void
+    public function test_can_create_kka_for_kecamatan_auditee(): void
     {
         $admin = User::factory()->create();
-        $plotting = Plotting::query()->create(['plot' => 'WIL I']);
-        $pka = $this->createPka($admin, $plotting);
+        $unit = StrukturPerangkatDaerah::query()->create([
+            'nama_unit' => 'Kecamatan Terbanggi Besar',
+            'level' => 1,
+            'jenis_unit' => 'Kecamatan',
+            'kode_wilayah' => '180201',
+        ]);
+        $pka = $this->createPka($admin);
 
-        Wilayah::query()->create(['kode_wilayah' => '32', 'provinsi' => 'JAWA BARAT']);
-        Wilayah::query()->create(['kode_wilayah' => '3209', 'provinsi' => 'JAWA BARAT', 'kabupaten_kota' => 'KABUPATEN CIREBON']);
-        Wilayah::query()->create(['kode_wilayah' => '320919', 'provinsi' => 'JAWA BARAT', 'kabupaten_kota' => 'KABUPATEN CIREBON', 'kecamatan' => 'WERU']);
-
-        $provinceOnly = $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $plotting, [
-            'auditee_level' => 'Wilayah',
-            'auditee_plotting_id' => null,
-            'province_code' => '32',
+        $response = $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $unit, [
+            'auditee_level' => 'Kecamatan',
+            'struktur_perangkat_daerah_id' => $unit->id,
         ]));
-        $provinceOnly->assertCreated();
-        $this->assertDatabaseHas('kkas', ['id' => $provinceOnly->json('data.id'), 'auditee_kode_wilayah' => '32', 'auditee_plotting_id' => null]);
-
-        $district = $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $plotting, [
-            'auditee_level' => 'Wilayah',
-            'auditee_plotting_id' => null,
-            'province_code' => '32',
-            'city_code' => '3209',
-            'district_code' => '320919',
-        ]));
-        $district->assertCreated();
-        $this->assertDatabaseHas('kkas', ['id' => $district->json('data.id'), 'auditee_kode_wilayah' => '320919']);
+        $response->assertCreated();
+        $this->assertDatabaseHas('kkas', [
+            'id' => $response->json('data.id'),
+            'auditee_level' => 'Kecamatan',
+            'struktur_perangkat_daerah_id' => $unit->id,
+            'auditee_kode_wilayah' => '180201',
+        ]);
 
         $json = $this->actingAs($admin)->getJson(route('audit.kka.index'), ['X-Requested-With' => 'XMLHttpRequest']);
         $names = collect($json->json('data'))->pluck('auditee_name')->all();
-        $this->assertContains('Weru', $names);
-        $this->assertContains('Jawa Barat', $names);
+        $this->assertContains('Kecamatan Terbanggi Besar', $names);
+    }
+
+    public function test_can_create_kka_for_sub_unit_and_retrieve_options(): void
+    {
+        $admin = User::factory()->create();
+        $dinas = StrukturPerangkatDaerah::query()->create([
+            'nama_unit' => 'Badan Pengelolaan Keuangan dan Aset Daerah',
+            'level' => 1,
+            'jenis_unit' => 'Badan',
+        ]);
+        $subUnit = StrukturPerangkatDaerah::query()->create([
+            'parent_id' => $dinas->id,
+            'nama_unit' => 'Bidang Anggaran',
+            'level' => 2,
+            'jenis_unit' => 'Bidang',
+        ]);
+        $pka = $this->createPka($admin);
+
+        $optionsSub = $this->actingAs($admin)->getJson(route('audit.kka.index', ['options' => 'sub_units', 'parent' => $dinas->id]));
+        $optionsSub->assertOk()
+            ->assertJsonFragment(['name' => 'Bidang Anggaran']);
+
+        $optionsHierarchy = $this->actingAs($admin)->getJson(route('audit.kka.index', ['options' => 'unit_hierarchy', 'parent' => $subUnit->id]));
+        $optionsHierarchy->assertOk()
+            ->assertJsonFragment(['name' => 'Badan Pengelolaan Keuangan dan Aset Daerah'])
+            ->assertJsonFragment(['name' => 'Bidang Anggaran']);
+
+        $response = $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $subUnit, [
+            'auditee_level' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $subUnit->id,
+        ]));
+        $response->assertCreated();
+        $this->assertDatabaseHas('kkas', [
+            'id' => $response->json('data.id'),
+            'struktur_perangkat_daerah_id' => $subUnit->id,
+        ]);
+
+        $json = $this->actingAs($admin)->getJson(route('audit.kka.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $row = collect($json->json('data'))->firstWhere('id', $response->json('data.id'));
+        $this->assertEquals('Bidang Anggaran', $row['auditee_name']);
+        $this->assertEquals('Badan Pengelolaan Keuangan dan Aset Daerah', $row['auditee_detail']);
     }
 
     public function test_kka_validation_rules(): void
     {
         $admin = User::factory()->create();
-        $plotting = Plotting::query()->create(['plot' => 'WIL I']);
-        $pka = $this->createPka($admin, $plotting);
-
-        Wilayah::query()->create(['kode_wilayah' => '32', 'provinsi' => 'JAWA BARAT']);
-        Wilayah::query()->create(['kode_wilayah' => '33', 'provinsi' => 'JAWA TENGAH']);
-        Wilayah::query()->create(['kode_wilayah' => '3209', 'provinsi' => 'JAWA BARAT', 'kabupaten_kota' => 'KABUPATEN CIREBON']);
-        Wilayah::query()->create(['kode_wilayah' => '320919', 'provinsi' => 'JAWA BARAT', 'kabupaten_kota' => 'KABUPATEN CIREBON', 'kecamatan' => 'WERU']);
+        $unit = StrukturPerangkatDaerah::query()->create([
+            'nama_unit' => 'Dinas Kesehatan',
+            'level' => 1,
+            'jenis_unit' => 'Dinas',
+        ]);
+        $pka = $this->createPka($admin);
 
         $this->actingAs($admin)->postJson(route('audit.kka.store'), [])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['nomor_kka', 'pka_id', 'tanggal_kka', 'tempat', 'auditee_level', 'status']);
+            ->assertJsonValidationErrors(['nomor_kka', 'pka_id', 'tanggal_kka', 'tempat', 'auditee_level', 'struktur_perangkat_daerah_id', 'status']);
 
-        $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $plotting, ['auditee_plotting_id' => null]))
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['auditee_plotting_id']);
-
-        $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $plotting, [
-            'auditee_level' => 'Wilayah',
-            'auditee_plotting_id' => null,
+        $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $unit, [
+            'auditee_level' => 'Nasional',
         ]))
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['province_code']);
+            ->assertJsonValidationErrors(['auditee_level']);
 
-        $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $plotting, [
-            'auditee_level' => 'Wilayah',
-            'auditee_plotting_id' => null,
-            'province_code' => '32',
-            'district_code' => '320919',
-        ]))
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['city_code']);
-
-        $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $plotting, [
-            'auditee_level' => 'Wilayah',
-            'auditee_plotting_id' => null,
-            'province_code' => '33',
-            'city_code' => '3209',
-        ]))
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['city_code']);
-
-        $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $plotting, ['status' => 'Lainnya']))
+        $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($pka, $unit, ['status' => 'Lainnya']))
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['status']);
 
         // PKA berstatus Draft tidak boleh dipilih untuk membuat KKA
-        $draftPka = $this->createPka($admin, $plotting, 'PKA-DRAFT-2026', 'Draft');
-        $finalPka = $this->createPka($admin, $plotting, 'PKA-FINAL-2026', 'Final');
-        $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($draftPka, $plotting))
+        $draftPka = $this->createPka($admin, null, 'PKA-DRAFT-2026', 'Draft');
+        $finalPka = $this->createPka($admin, null, 'PKA-FINAL-2026', 'Final');
+        $this->actingAs($admin)->postJson(route('audit.kka.store'), $this->kkaPayload($draftPka, $unit))
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['pka_id']);
 
@@ -332,17 +352,21 @@ class KkaModuleTest extends TestCase
     public function test_can_show_update_duplicate_change_status_and_soft_delete_kka(): void
     {
         $admin = User::factory()->create();
-        $plotting = Plotting::query()->create(['plot' => 'WIL I']);
-        $pka = $this->createPka($admin, $plotting);
-        $kka = $this->createKka($pka, $admin, $plotting);
+        $unit = StrukturPerangkatDaerah::query()->create([
+            'nama_unit' => 'Dinas Bina Marga',
+            'level' => 1,
+            'jenis_unit' => 'Dinas',
+        ]);
+        $pka = $this->createPka($admin);
+        $kka = $this->createKka($pka, $admin, $unit);
 
         $this->actingAs($admin)->getJson(route('audit.kka.show', $kka))
             ->assertOk()
             ->assertJsonFragment(['tempat' => 'Kantor Uji'])
-            ->assertJsonFragment(['auditee_level' => 'Nasional'])
+            ->assertJsonFragment(['auditee_level' => 'Dinas'])
             ->assertJsonFragment(['pka_id' => (string) $pka->id]);
 
-        $this->actingAs($admin)->putJson(route('audit.kka.update', $kka), $this->kkaPayload($pka, $plotting, [
+        $this->actingAs($admin)->putJson(route('audit.kka.update', $kka), $this->kkaPayload($pka, $unit, [
             'tempat' => 'Kantor Baru',
             'status' => 'Final',
         ]))
@@ -442,5 +466,56 @@ class KkaModuleTest extends TestCase
             ->getJson(route('audit.kka.index'), ['X-Requested-With' => 'XMLHttpRequest'])
             ->json('data.0');
         $this->assertEquals('Koreksi', $row['latest_katim_review_status']);
+    }
+
+    public function test_kka_datatable_and_access_isolated_to_assigned_auditor_creator_and_super_admin(): void
+    {
+        $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+        $creatorAdmin = User::factory()->create(['role' => 'Admin Dinas']);
+        $assignedAuditor = User::factory()->create(['role' => 'Auditor']);
+        $unassignedAuditor = User::factory()->create(['role' => 'Auditor']);
+
+        $pka = $this->createPka($superAdmin);
+        $unit = StrukturPerangkatDaerah::query()->create([
+            'nama_unit' => 'Dinas Perhubungan',
+            'level' => 1,
+            'jenis_unit' => 'Dinas',
+        ]);
+
+        $kka = Kka::query()->create([
+            'nomor_kka' => 'KKA/ISOLATION/001',
+            'pka_id' => $pka->id,
+            'dibuat_oleh_id' => $assignedAuditor->id,
+            'created_by' => $creatorAdmin->id,
+            'tanggal_dibuat' => now()->toDateString(),
+            'tanggal_direviu' => now()->toDateString(),
+            'tanggal_kka' => now()->toDateString(),
+            'tempat' => 'Gunung Sugih',
+            'auditee_level' => 'Dinas',
+            'struktur_perangkat_daerah_id' => $unit->id,
+            'status' => 'Draft',
+        ]);
+
+        // 1. Super Admin sees the KKA
+        $responseSuperAdmin = $this->actingAs($superAdmin)->getJson(route('audit.kka.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $responseSuperAdmin->assertOk();
+        $this->assertCount(1, $responseSuperAdmin->json('data'));
+
+        // 2. Creator Admin sees the KKA
+        $responseCreator = $this->actingAs($creatorAdmin)->getJson(route('audit.kka.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $responseCreator->assertOk();
+        $this->assertCount(1, $responseCreator->json('data'));
+
+        // 3. Assigned Auditor sees the KKA and can access show
+        $responseAssigned = $this->actingAs($assignedAuditor)->getJson(route('audit.kka.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $responseAssigned->assertOk();
+        $this->assertCount(1, $responseAssigned->json('data'));
+        $this->actingAs($assignedAuditor)->getJson(route('audit.kka.show', $kka))->assertOk();
+
+        // 4. Unassigned Auditor CANNOT see the KKA in datatable and CANNOT access show
+        $responseUnassigned = $this->actingAs($unassignedAuditor)->getJson(route('audit.kka.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $responseUnassigned->assertOk();
+        $this->assertCount(0, $responseUnassigned->json('data'));
+        $this->actingAs($unassignedAuditor)->getJson(route('audit.kka.show', $kka))->assertForbidden();
     }
 }

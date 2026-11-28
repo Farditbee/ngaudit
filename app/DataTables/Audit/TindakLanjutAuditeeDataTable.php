@@ -56,20 +56,21 @@ class TindakLanjutAuditeeDataTable extends KkaDataTable
         $filterJenisAudit = (string) $request->query('jenis_audit', '');
         $filterStatus = (string) $request->query('status', '');
 
-        $auditeeNameSql = 'COALESCE(auditee_plot.plot, aw.desa_kelurahan, aw.kecamatan, aw.kabupaten_kota, aw.provinsi)';
+        $auditeeNameSql = "COALESCE(spd.nama_unit, '')";
 
         $query = Kka::query()
-            ->visibleTo($authUser)
+            ->visibleForTindakLanjut($authUser)
             ->join('pkas', 'pkas.id', '=', 'kkas.pka_id')
             ->whereNull('pkas.deleted_at')
             ->join('sprins', 'sprins.id', '=', 'pkas.sprin_id')
             ->leftJoin('users as auditor', 'auditor.id', '=', 'kkas.dibuat_oleh_id')
             ->leftJoin('users as pembuat', 'pembuat.id', '=', 'kkas.created_by')
-            ->leftJoin('plottings as auditee_plot', 'auditee_plot.id', '=', 'kkas.auditee_plotting_id')
-            ->leftJoin('wilayah as aw', function ($join): void {
-                $join->on('aw.kode_wilayah', '=', 'kkas.auditee_kode_wilayah')
-                    ->whereNull('aw.deleted_at');
+            ->leftJoin('struktur_perangkat_daerah as spd', function ($join): void {
+                $join->on('spd.id', '=', 'kkas.struktur_perangkat_daerah_id')
+                    ->orOn('spd.kode_wilayah', '=', 'kkas.auditee_kode_wilayah')
+                    ->whereNull('spd.deleted_at');
             })
+            ->leftJoin('struktur_perangkat_daerah as spd_parent', 'spd_parent.id', '=', 'spd.parent_id')
             ->select([
                 'kkas.id',
                 'kkas.nomor_kka',
@@ -78,7 +79,7 @@ class TindakLanjutAuditeeDataTable extends KkaDataTable
                 'kkas.tanggal_dibuat',
                 'kkas.tanggal_kka',
                 'kkas.auditee_level',
-                'kkas.auditee_plotting_id',
+                'kkas.struktur_perangkat_daerah_id',
                 'kkas.auditee_kode_wilayah',
                 'kkas.status',
                 'kkas.created_by',
@@ -89,11 +90,15 @@ class TindakLanjutAuditeeDataTable extends KkaDataTable
                 'sprins.no_sprin',
                 'sprins.tahap',
                 DB::raw('COALESCE(auditor.name, pembuat.name) as auditor_name'),
-                'auditee_plot.plot as auditee_plot_name',
-                'aw.provinsi as aw_provinsi',
-                'aw.kabupaten_kota as aw_kabupaten_kota',
-                'aw.kecamatan as aw_kecamatan',
-                'aw.desa_kelurahan as aw_desa_kelurahan',
+                'spd.nama_unit as auditee_plot_name',
+                'spd.nama_unit as spd_nama_unit',
+                'spd.level as spd_level',
+                'spd.jenis_unit as spd_jenis_unit',
+                'spd_parent.nama_unit as spd_parent_name',
+                DB::raw("COALESCE(spd.provinsi, '') as aw_provinsi"),
+                DB::raw("COALESCE(spd.kabupaten_kota, '') as aw_kabupaten_kota"),
+                DB::raw("COALESCE(spd.kecamatan, '') as aw_kecamatan"),
+                DB::raw("COALESCE(spd.desa_kelurahan, '') as aw_desa_kelurahan"),
             ])
             ->withCount([
                 'tabulasis as temuan_count' => fn (Builder $q) => $q->where('jenis_tabulasi', 'Temuan'),
@@ -145,15 +150,19 @@ class TindakLanjutAuditeeDataTable extends KkaDataTable
             })
             ->addColumn('tanggal_diinput', fn (Kka $k): string => ($k->tanggal_kka ?? $k->created_at)?->format('d-m-Y') ?? '-')
             ->addColumn('auditee_name', fn (Kka $k): string => $this->auditeeName($k))
+            ->addColumn('auditee_parent', fn (Kka $k): ?string => $this->auditeeParent($k))
+            ->addColumn('auditee_sub_unit', fn (Kka $k): ?string => $this->auditeeSubUnit($k))
+            ->addColumn('auditee_detail', fn (Kka $k): string => $this->auditeeDetail($k))
             ->addColumn('auditee_hierarchy', fn (Kka $k): array => $this->auditeeHierarchy($k))
             ->addColumn('tanggapan_url', fn (Kka $k): string => route('audit.tindak-lanjut.show', [$k, 'tabulasi']))
             ->filterColumn('auditee_name', function (Builder $query, string $keyword): void {
                 $query->where(function (Builder $q) use ($keyword): void {
-                    $q->where('auditee_plot.plot', 'like', "%{$keyword}%")
-                        ->orWhere('aw.provinsi', 'like', "%{$keyword}%")
-                        ->orWhere('aw.kabupaten_kota', 'like', "%{$keyword}%")
-                        ->orWhere('aw.kecamatan', 'like', "%{$keyword}%")
-                        ->orWhere('aw.desa_kelurahan', 'like', "%{$keyword}%");
+                    $q->where('spd.nama_unit', 'like', "%{$keyword}%")
+                        ->orWhere('spd_parent.nama_unit', 'like', "%{$keyword}%")
+                        ->orWhere('spd.provinsi', 'like', "%{$keyword}%")
+                        ->orWhere('spd.kabupaten_kota', 'like', "%{$keyword}%")
+                        ->orWhere('spd.kecamatan', 'like', "%{$keyword}%")
+                        ->orWhere('spd.desa_kelurahan', 'like', "%{$keyword}%");
                 });
             })
             ->filterColumn('kkas.nomor_kka', function (Builder $query, string $keyword): void {

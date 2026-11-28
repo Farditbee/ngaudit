@@ -31,7 +31,7 @@ class SprinTest extends TestCase
 
         $plotting = Plotting::query()->create(['plot' => 'WIL I']);
         $admin = User::factory()->create(['role' => 'Admin Nasional', 'plotting_id' => $plotting->id]);
-        $tim = Tim::factory()->create(['plotting_id' => $plotting->id]);
+        $tim = Tim::factory()->create(['lingkup' => 'Nasional', 'plotting_id' => $plotting->id]);
         $otherTim = Tim::factory()->create();
 
         $payload = [

@@ -33,8 +33,7 @@
             'items' => [
                 ['label' => 'User', 'icon' => 'user', 'href' => route('master.user.index'), 'active' => request()->routeIs('master.user.*')],
                 ['label' => 'Tim', 'icon' => 'user-group', 'href' => route('master.tim.index'), 'active' => request()->routeIs('master.tim.*')],
-                ['label' => 'Wilayah', 'icon' => 'map', 'href' => route('master.wilayah.index'), 'active' => request()->routeIs('master.wilayah.*')],
-                ['label' => 'Plotting', 'icon' => 'land-plot', 'href' => route('master.plotting.index'), 'active' => request()->routeIs('master.plotting.*')],
+                ['label' => 'Perangkat Daerah', 'icon' => 'building-2', 'href' => route('master.wilayah.index'), 'active' => request()->routeIs('master.wilayah.*')],
                 ['label' => 'Template', 'icon' => 'notepad-text-dashed', 'open' => request()->routeIs('master.template.*'), 'children' => [
                     'Taklimat',
                     ['label' => 'PKA', 'href' => route('master.template.pka.index'), 'active' => request()->routeIs('master.template.pka.*')],
@@ -138,41 +137,84 @@
     $sidebarRegions = [];
 
     if ($authUser) {
-        if ($authUser->level === 'Nasional' && $authUser->plotting_id) {
-            $plotName = \Illuminate\Support\Facades\DB::table('plottings')->where('id', $authUser->plotting_id)->value('plot');
-            if ($plotName) {
-                $sidebarRegions[] = [
-                    'label' => $plotName,
-                    'class' => 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-                ];
+        if ($authUser->struktur_perangkat_daerah_id) {
+            $spd = \Illuminate\Support\Facades\DB::table('struktur_perangkat_daerah as spd')
+                ->leftJoin('struktur_perangkat_daerah as parent', 'parent.id', '=', 'spd.parent_id')
+                ->where('spd.id', $authUser->struktur_perangkat_daerah_id)
+                ->select([
+                    'spd.*',
+                    'parent.nama_unit as parent_nama_unit',
+                    'parent.level as parent_level',
+                    'parent.jenis_unit as parent_jenis_unit',
+                ])
+                ->first();
+
+            if ($spd) {
+                $hasParent = false;
+                $parentName = null;
+
+                if (! empty($spd->parent_nama_unit)) {
+                    $level = isset($spd->level) ? (int) $spd->level : null;
+                    if ($level !== null && $level > 1) {
+                        $hasParent = true;
+                        $parentName = (string) $spd->parent_nama_unit;
+                    } elseif (! in_array($spd->jenis_unit, ['Kecamatan', 'Dinas', 'Badan', 'Inspektorat', 'Sekretariat', 'Sekretariat Daerah', 'Sekretariat DPRD'], true)) {
+                        $hasParent = true;
+                        $parentName = (string) $spd->parent_nama_unit;
+                    }
+                }
+
+                $isKecamatan = $authUser->level === 'Kecamatan' || $spd->jenis_unit === 'Kecamatan' || str_contains(strtolower($spd->nama_unit), 'kecamatan') || str_contains(strtolower((string) $parentName), 'kecamatan');
+
+                $badgeClass = $isKecamatan
+                    ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
+                    : 'border border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800/60 dark:bg-indigo-950/40 dark:text-indigo-300';
+
+                if ($hasParent && $parentName) {
+                    $sidebarRegions[] = [
+                        'label' => $parentName,
+                        'class' => $badgeClass,
+                    ];
+
+                    $subName = preg_replace('/\s*-\s*Kec\.?\s+.*$/i', '', $spd->nama_unit);
+                    $sidebarRegions[] = [
+                        'label' => $subName,
+                        'class' => 'border border-purple-200 bg-purple-50/80 text-purple-700 dark:border-purple-800/60 dark:bg-purple-950/40 dark:text-purple-300',
+                    ];
+                } else {
+                    $sidebarRegions[] = [
+                        'label' => $spd->nama_unit,
+                        'class' => $badgeClass,
+                    ];
+                }
             }
+        } elseif ($authUser->level) {
+            $isKecamatan = $authUser->level === 'Kecamatan';
+            $badgeClass = $isKecamatan
+                ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
+                : 'border border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800/60 dark:bg-indigo-950/40 dark:text-indigo-300';
+
+            $sidebarRegions[] = [
+                'label' => $authUser->level,
+                'class' => $badgeClass,
+            ];
         } elseif ($authUser->kode_wilayah) {
-            $wilayahRow = \Illuminate\Support\Facades\DB::table('wilayah')
-                ->where('kode_wilayah', str_replace('.', '', (string) $authUser->kode_wilayah))
+            $cleanCode = str_replace('.', '', (string) $authUser->kode_wilayah);
+            $wilayahRow = \Illuminate\Support\Facades\DB::table('struktur_perangkat_daerah')
+                ->where('kode_wilayah', $cleanCode)
+                ->orWhere('id', (int) $authUser->kode_wilayah)
                 ->first();
             if ($wilayahRow) {
+                if (! empty($wilayahRow->nama_unit)) {
+                    $sidebarRegions[] = [
+                        'label' => $wilayahRow->nama_unit,
+                        'class' => 'border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300',
+                    ];
+                }
                 if (! empty($wilayahRow->desa_kelurahan)) {
                     $sidebarRegions[] = [
                         'label' => $wilayahRow->desa_kelurahan,
-                        'class' => 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-                    ];
-                }
-                if (! empty($wilayahRow->kecamatan)) {
-                    $sidebarRegions[] = [
-                        'label' => $wilayahRow->kecamatan,
-                        'class' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-                    ];
-                }
-                if (! empty($wilayahRow->kabupaten_kota)) {
-                    $sidebarRegions[] = [
-                        'label' => $wilayahRow->kabupaten_kota,
-                        'class' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-                    ];
-                }
-                if (! empty($wilayahRow->provinsi)) {
-                    $sidebarRegions[] = [
-                        'label' => $wilayahRow->provinsi,
-                        'class' => 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+                        'class' => 'border border-red-200 bg-red-50 text-red-700 dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-300',
                     ];
                 }
             }
@@ -217,7 +259,7 @@
                 @if (! empty($sidebarRegions))
                     <span class="mt-0.5 flex flex-col items-start gap-1 text-xs text-neutral-700 dark:text-neutral-300">
                         @foreach ($sidebarRegions as $region)
-                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase leading-tight {{ $region['class'] }}">
+                            <span class="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium leading-tight {{ $region['class'] }}">
                                 {{ $region['label'] }}
                             </span>
                         @endforeach

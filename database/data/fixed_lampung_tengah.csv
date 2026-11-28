@@ -1,0 +1,572 @@
+id,parent_id,nama_unit,level,jenis_unit,pimpinan
+1,,Bupati Lampung Tengah,0,Kepala Daerah,Bupati
+2,1,"Staf Ahli Bupati Bidang Pemerintahan, Hukum dan Politik",1,Staf Ahli,Staf Ahli Bupati
+3,1,"Staf Ahli Bupati Bidang Ekonomi, Keuangan dan Pembangunan",1,Staf Ahli,Staf Ahli Bupati
+4,1,Staf Ahli Bupati Bidang Kemasyarakatan dan Sumber Daya Manusia,1,Staf Ahli,Staf Ahli Bupati
+5,1,Sekretariat Daerah,1,Sekretariat Daerah,Sekretaris Daerah
+6,5,Asisten Pemerintahan dan Kesejahteraan Rakyat,2,Asisten,Asisten
+7,6,Bagian Tata Pemerintahan,3,Bagian,Kepala Bagian
+8,6,Bagian Hukum,3,Bagian,Kepala Bagian
+9,6,Bagian Kesejahteraan Rakyat,3,Bagian,Kepala Bagian
+10,6,Bagian Kerjasama,3,Bagian,Kepala Bagian
+11,5,Asisten Perekonomian dan Pembangunan,2,Asisten,Asisten
+12,11,Bagian Administrasi Pembangunan,3,Bagian,Kepala Bagian
+13,11,Bagian Perekonomian,3,Bagian,Kepala Bagian
+14,11,Bagian Pengadaan Barang dan Jasa,3,Bagian,Kepala Bagian
+15,5,Asisten Administrasi Umum,2,Asisten,Asisten
+16,15,Bagian Organisasi,3,Bagian,Kepala Bagian
+17,15,Bagian Protokol dan Komunikasi Pimpinan,3,Bagian,Kepala Bagian
+18,17,Sub Bagian Protokol,4,Sub Bagian,Kepala Sub Bagian
+19,15,Bagian Perencanaan dan Keuangan,3,Bagian,Kepala Bagian
+20,15,Bagian Umum,3,Bagian,Kepala Bagian
+21,1,Sekretariat DPRD,1,Sekretariat DPRD,Sekretaris DPRD
+22,21,Bagian Umum,2,Bagian,Kepala Bagian
+23,22,Sub Bagian Tata Usaha dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+24,21,Bagian Program dan Keuangan,2,Bagian,Kepala Bagian
+25,21,Bagian Persidangan dan Perundang-Undangan,2,Bagian,Kepala Bagian
+26,21,Bagian Fasilitasi Penganggaran dan Pengawasan,2,Bagian,Kepala Bagian
+27,1,Inspektorat,1,Inspektorat,Inspektur
+28,27,Sekretariat Inspektorat,2,Sekretariat,Sekretaris
+29,28,Sub Bagian Perencanaan,3,Sub Bagian,Kepala Sub Bagian
+30,28,Sub Bagian Analisis dan Evaluasi,3,Sub Bagian,Kepala Sub Bagian
+31,28,Sub Bagian Administrasi Umum,3,Sub Bagian,Kepala Sub Bagian
+32,27,Inspektur Pembantu I,2,Inspektur Pembantu,Inspektur Pembantu
+33,27,Inspektur Pembantu II,2,Inspektur Pembantu,Inspektur Pembantu
+34,27,Inspektur Pembantu III,2,Inspektur Pembantu,Inspektur Pembantu
+35,27,Inspektur Pembantu IV,2,Inspektur Pembantu,Inspektur Pembantu
+36,27,Inspektur Pembantu Khusus,2,Inspektur Pembantu,Inspektur Pembantu
+37,1,Dinas Pendidikan dan Kebudayaan,1,Dinas,Kepala Dinas
+38,37,Sekretariat Dinas Pendidikan dan Kebudayaan,2,Sekretariat,Sekretaris
+39,38,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+40,37,Bidang Pembinaan Pendidikan Dasar,2,Bidang,Kepala Bidang
+41,40,Seksi Kelembagaan dan Sarana Prasarana,3,Seksi,Kepala Seksi
+42,40,Seksi Peserta Didik dan Pembangunan Karakter,3,Seksi,Kepala Seksi
+43,37,Bidang Pembinaan PAUD dan Pendidikan Non Formal,2,Bidang,Kepala Bidang
+44,43,Seksi Kelembagaan dan Sarana Prasarana,3,Seksi,Kepala Seksi
+45,43,Seksi Peserta Didik dan Pembangunan Karakter,3,Seksi,Kepala Seksi
+46,37,Bidang Pembinaan Ketenagaan,2,Bidang,Kepala Bidang
+47,46,Seksi Pendidik dan Tenaga Kependidikan PAUD dan Pendidikan Non Formal,3,Seksi,Kepala Seksi
+48,46,Seksi Pendidik dan Tenaga Kependidikan Pendidikan Dasar,3,Seksi,Kepala Seksi
+49,37,Bidang Kebudayaan,2,Bidang,Kepala Bidang
+50,37,UPT Dinas Pendidikan dan Kebudayaan,2,UPT,Kepala UPT
+51,1,Dinas Kesehatan,1,Dinas,Kepala Dinas
+52,51,Sekretariat Dinas Kesehatan,2,Sekretariat,Sekretaris
+53,52,Sub Bagian Perencanaan dan Infokes,3,Sub Bagian,Kepala Sub Bagian
+54,52,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+55,51,Bidang Kesehatan Masyarakat,2,Bidang,Kepala Bidang
+56,51,Bidang Pencegahan dan Pengendalian Penyakit,2,Bidang,Kepala Bidang
+57,51,Bidang Pelayanan Kesehatan,2,Bidang,Kepala Bidang
+58,51,Bidang Sumber Daya Kesehatan,2,Bidang,Kepala Bidang
+59,51,UPT Dinas Kesehatan,2,UPT,Kepala UPT
+60,1,Dinas Bina Marga dan Bina Konstruksi,1,Dinas,Kepala Dinas
+61,60,Sekretariat Dinas Bina Marga dan Bina Konstruksi,2,Sekretariat,Sekretaris
+62,61,Sub Bagian Perencanaan dan Pelaporan,3,Sub Bagian,Kepala Sub Bagian
+63,61,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+64,60,Bidang Pembangunan Jalan dan Jembatan,2,Bidang,Kepala Bidang
+65,60,Bidang Pemeliharaan Jalan dan Jembatan,2,Bidang,Kepala Bidang
+66,60,Bidang Pengembangan Jasa Konstruksi,2,Bidang,Kepala Bidang
+67,60,Bidang Bina Program,2,Bidang,Kepala Bidang
+68,60,UPT Dinas Bina Marga dan Bina Konstruksi,2,UPT,Kepala UPT
+69,1,Dinas Sumber Daya Air,1,Dinas,Kepala Dinas
+70,69,Sekretariat Dinas Sumber Daya Air,2,Sekretariat,Sekretaris
+71,70,Sub Bagian Perencanaan dan Pelaporan,3,Sub Bagian,Kepala Sub Bagian
+72,70,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+73,69,Bidang Pembangunan dan Rehabilitasi Sumber Daya Air,2,Bidang,Kepala Bidang
+74,69,Bidang Operasi dan Pemeliharaan Sumber Daya Air,2,Bidang,Kepala Bidang
+75,69,Bidang Penatagunaan Sumber Daya Air,2,Bidang,Kepala Bidang
+76,69,Bidang Perencanaan Sumber Daya Air,2,Bidang,Kepala Bidang
+77,69,UPT Dinas Sumber Daya Air,2,UPT,Kepala UPT
+78,1,"Dinas Perumahan, Kawasan Permukiman, Pertanahan dan Cipta Karya",1,Dinas,Kepala Dinas
+79,78,"Sekretariat Dinas Perumahan, Kawasan Permukiman, Pertanahan dan Cipta Karya",2,Sekretariat,Sekretaris
+80,79,Sub Bagian Perencanaan dan Pelaporan,3,Sub Bagian,Kepala Sub Bagian
+81,79,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+82,78,Bidang Perumahan,2,Bidang,Kepala Bidang
+83,78,Bidang Kawasan Permukiman,2,Bidang,Kepala Bidang
+84,78,Bidang Gedung dan Infrastruktur Wilayah,2,Bidang,Kepala Bidang
+85,78,Bidang Penataan Ruang dan Pertanahan,2,Bidang,Kepala Bidang
+86,85,Seksi Penatausahaan Pertanahan,3,Seksi,Kepala Seksi
+87,78,"UPT Dinas Perumahan, Kawasan Permukiman, Pertanahan dan Cipta Karya",2,UPT,Kepala UPT
+88,1,"Satuan Polisi Pamong Praja, Pemadam Kebakaran dan Penyelamatan",1,Dinas,Kepala Satuan
+89,88,"Sekretariat Satuan Polisi Pamong Praja, Pemadam Kebakaran dan Penyelamatan",2,Sekretariat,Sekretaris
+90,89,Sub Bagian Perencanaan dan Pelaporan,3,Sub Bagian,Kepala Sub Bagian
+91,89,Sub Bagian Keuangan dan Aset,3,Sub Bagian,Kepala Sub Bagian
+92,89,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+93,88,Bidang Penegakan Peraturan Perundang-Undangan Daerah,2,Bidang,Kepala Bidang
+94,93,"Seksi Pembinaan, Pengawasan dan Penyuluhan",3,Seksi,Kepala Seksi
+95,93,Seksi Penyidikan dan Penyelidikan,3,Seksi,Kepala Seksi
+96,88,Bidang Ketertiban Umum dan Ketentraman Masyarakat,2,Bidang,Kepala Bidang
+97,96,Seksi Operasional dan Pengendalian,3,Seksi,Kepala Seksi
+98,96,Seksi Kerjasama,3,Seksi,Kepala Seksi
+99,88,Bidang Pembinaan Perlindungan Masyarakat dan Sumber Daya Aparatur,2,Bidang,Kepala Bidang
+100,99,Seksi Satuan Linmas,3,Seksi,Kepala Seksi
+101,99,Seksi Bina Potensi Masyarakat,3,Seksi,Kepala Seksi
+102,99,Seksi Sumber Daya Aparatur,3,Seksi,Kepala Seksi
+103,88,Bidang Pemadam Kebakaran dan Penyelamatan,2,Bidang,Kepala Bidang
+104,88,"UPT Satuan Polisi Pamong Praja, Pemadam Kebakaran dan Penyelamatan",2,UPT,Kepala UPT
+105,1,Dinas Sosial,1,Dinas,Kepala Dinas
+106,105,Sekretariat Dinas Sosial,2,Sekretariat,Sekretaris
+107,106,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+108,105,Bidang Perlindungan dan Jaminan Sosial,2,Bidang,Kepala Bidang
+109,105,Bidang Rehabilitasi Sosial,2,Bidang,Kepala Bidang
+110,105,Bidang Pemberdayaan Sosial,2,Bidang,Kepala Bidang
+111,105,Bidang Penanganan Bencana,2,Bidang,Kepala Bidang
+112,105,UPT Dinas Sosial,2,UPT,Kepala UPT
+113,1,Dinas Tenaga Kerja dan Transmigrasi,1,Dinas,Kepala Dinas
+114,113,Sekretariat Dinas Tenaga Kerja dan Transmigrasi,2,Sekretariat,Sekretaris
+115,114,Sub Bagian Perencanaan dan Pelaporan,3,Sub Bagian,Kepala Sub Bagian
+116,114,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+117,113,Bidang Pelatihan Kerja dan Peningkatan Produktivitas,2,Bidang,Kepala Bidang
+118,113,Bidang Penempatan Tenaga Kerja dan Perluasan Kesempatan Kerja,2,Bidang,Kepala Bidang
+119,113,Bidang Hubungan Industrial dan Jaminan Sosial Tenaga Kerja,2,Bidang,Kepala Bidang
+120,113,Bidang Transmigrasi,2,Bidang,Kepala Bidang
+121,113,UPT Dinas Tenaga Kerja dan Transmigrasi,2,UPT,Kepala UPT
+122,1,Dinas Pengendalian Penduduk dan Keluarga Berencana,1,Dinas,Kepala Dinas
+123,122,Sekretariat Dinas Pengendalian Penduduk dan Keluarga Berencana,2,Sekretariat,Sekretaris
+124,123,Sub Bagian Perencanaan dan Pelaporan,3,Sub Bagian,Kepala Sub Bagian
+125,123,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+126,122,Bidang Pengendalian Penduduk,2,Bidang,Kepala Bidang
+127,122,Bidang Keluarga Berencana,2,Bidang,Kepala Bidang
+128,122,Bidang Ketahanan dan Kesejahteraan Keluarga,2,Bidang,Kepala Bidang
+129,122,Bidang Penyuluhan dan Penggerakan,2,Bidang,Kepala Bidang
+130,122,UPT Dinas Pengendalian Penduduk dan Keluarga Berencana,2,UPT,Kepala UPT
+131,1,Dinas Pemberdayaan Perempuan dan Perlindungan Anak,1,Dinas,Kepala Dinas
+132,131,Sekretariat Dinas Pemberdayaan Perempuan dan Perlindungan Anak,2,Sekretariat,Sekretaris
+133,132,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+134,131,Bidang Kualitas Hidup Perempuan dan Keluarga,2,Bidang,Kepala Bidang
+135,131,Bidang Perlindungan Perempuan,2,Bidang,Kepala Bidang
+136,131,Bidang Perlindungan Anak,2,Bidang,Kepala Bidang
+137,131,UPT Dinas Pemberdayaan Perempuan dan Perlindungan Anak,2,UPT,Kepala UPT
+138,1,Dinas Lingkungan Hidup,1,Dinas,Kepala Dinas
+139,138,Sekretariat Dinas Lingkungan Hidup,2,Sekretariat,Sekretaris
+140,139,Sub Bagian Perencanaan dan Pelaporan,3,Sub Bagian,Kepala Sub Bagian
+141,139,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+142,138,Bidang Tata Lingkungan,2,Bidang,Kepala Bidang
+143,138,Bidang Pengelolaan Sampah dan Limbah B3,2,Bidang,Kepala Bidang
+144,138,Bidang Pengendalian Pencemaran dan Kerusakan Lingkungan Hidup,2,Bidang,Kepala Bidang
+145,138,Bidang Penataan dan Peningkatan Kapasitas Lingkungan Hidup,2,Bidang,Kepala Bidang
+146,138,UPT Dinas Lingkungan Hidup,2,UPT,Kepala UPT
+147,1,Dinas Kependudukan dan Pencatatan Sipil,1,Dinas,Kepala Dinas
+148,147,Sekretariat Dinas Kependudukan dan Pencatatan Sipil,2,Sekretariat,Sekretaris
+149,148,Sub Bagian Perencanaan dan Pelaporan,3,Sub Bagian,Kepala Sub Bagian
+150,148,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+151,147,Bidang Pelayanan Pendaftaran Penduduk,2,Bidang,Kepala Bidang
+152,147,Bidang Pelayanan Pencatatan Sipil,2,Bidang,Kepala Bidang
+153,147,Bidang Pengelolaan Informasi Administrasi Kependudukan,2,Bidang,Kepala Bidang
+154,147,Bidang Pemanfaatan Data dan Inovasi Pelayanan,2,Bidang,Kepala Bidang
+155,147,UPT Dinas Kependudukan dan Pencatatan Sipil,2,UPT,Kepala UPT
+156,1,Dinas Pemberdayaan Masyarakat dan Kampung,1,Dinas,Kepala Dinas
+157,156,Sekretariat Dinas Pemberdayaan Masyarakat dan Kampung,2,Sekretariat,Sekretaris
+158,157,Sub Bagian Perencanaan dan Pelaporan,3,Sub Bagian,Kepala Sub Bagian
+159,157,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+160,156,Bidang Pemerintahan Kampung,2,Bidang,Kepala Bidang
+161,156,Bidang Kelembagaan Sosial Budaya Masyarakat Kampung,2,Bidang,Kepala Bidang
+162,156,Bidang Usaha Pengembangan Perekonomian dan Pemberdayaan Masyarakat Kampung,2,Bidang,Kepala Bidang
+163,156,"Bidang Sumber Daya Alam, Teknologi Tepat Guna dan Kerjasama antar Kampung",2,Bidang,Kepala Bidang
+164,156,UPT Dinas Pemberdayaan Masyarakat dan Kampung,2,UPT,Kepala UPT
+165,1,Dinas Perhubungan,1,Dinas,Kepala Dinas
+166,165,Sekretariat Dinas Perhubungan,2,Sekretariat,Sekretaris
+167,166,"Sub Bagian Perencanaan, Keuangan dan Pelaporan",3,Sub Bagian,Kepala Sub Bagian
+168,166,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+169,165,Bidang Lalu Lintas,2,Bidang,Kepala Bidang
+170,169,Seksi Pemeliharaan Fasilitas Perlengkapan Jalan,3,Seksi,Kepala Seksi
+171,169,Seksi Pengawasan dan Pengendalian Lalu Lintas,3,Seksi,Kepala Seksi
+172,165,Bidang Keselamatan Sarana dan Prasarana,2,Bidang,Kepala Bidang
+173,172,Seksi Keselamatan Transportasi,3,Seksi,Kepala Seksi
+174,172,Seksi Pengelolaan Lampu Penerangan Jalan Umum,3,Seksi,Kepala Seksi
+175,165,Bidang Angkutan,2,Bidang,Kepala Bidang
+176,175,Seksi Pengembangan Pelayanan Angkutan,3,Seksi,Kepala Seksi
+177,175,Seksi Angkutan Sungai dan Penyeberangan,3,Seksi,Kepala Seksi
+178,165,UPT Dinas Perhubungan,2,UPT,Kepala UPT
+179,1,"Dinas Komunikasi, Informatika dan Statistik",1,Dinas,Kepala Dinas
+180,179,"Sekretariat Dinas Komunikasi, Informatika dan Statistik",2,Sekretariat,Sekretaris
+181,180,Sub Bagian Perencanaan dan Pelaporan,3,Sub Bagian,Kepala Sub Bagian
+182,180,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+183,179,Bidang Pengelolaan Informasi dan Komunikasi Publik,2,Bidang,Kepala Bidang
+184,179,Bidang Penyelenggaraan Pemerintahan Berbasis Elektronik,2,Bidang,Kepala Bidang
+185,179,Bidang Layanan Informasi dan Komunikasi Publik,2,Bidang,Kepala Bidang
+186,179,"Bidang Persandian, Statistik dan Telekomunikasi",2,Bidang,Kepala Bidang
+187,186,Seksi Persandian dan Keamanan Informasi,3,Seksi,Kepala Seksi
+188,186,Seksi Statistik Sektoral,3,Seksi,Kepala Seksi
+189,179,"UPT Dinas Komunikasi, Informatika dan Statistik",2,UPT,Kepala UPT
+190,1,"Dinas Koperasi, Usaha Kecil Menengah dan Perdagangan",1,Dinas,Kepala Dinas
+191,190,"Sekretariat Dinas Koperasi, Usaha Kecil Menengah dan Perdagangan",2,Sekretariat,Sekretaris
+192,191,Sub Bagian Perencanaan dan Pelaporan,3,Sub Bagian,Kepala Sub Bagian
+193,191,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+194,190,Bidang Kelembagaan dan Pengawasan Koperasi,2,Bidang,Kepala Bidang
+195,190,Bidang Pemberdayaan Koperasi dan Usaha Mikro,2,Bidang,Kepala Bidang
+196,190,"Bidang Bina Usaha, Informasi dan Perizinan",2,Bidang,Kepala Bidang
+197,190,Bidang Kemetrologian dan Pengawasan Perdagangan,2,Bidang,Kepala Bidang
+198,190,"Bidang Pembangunan, Pemeliharaan dan Pengelolaan Pasar",2,Bidang,Kepala Bidang
+199,190,"UPT Dinas Koperasi, Usaha Kecil Menengah dan Perdagangan",2,UPT,Kepala UPT
+200,1,Dinas Penanaman Modal dan Pelayanan Terpadu Satu Pintu,1,Dinas,Kepala Dinas
+201,200,Sekretariat Dinas Penanaman Modal dan Pelayanan Terpadu Satu Pintu,2,Sekretariat,Sekretaris
+202,201,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+203,200,Bidang Penanaman Modal,2,Bidang,Kepala Bidang
+204,200,Bidang Pelayanan Perizinan,2,Bidang,Kepala Bidang
+205,200,"Bidang Informasi, Pengaduan dan Pelaporan",2,Bidang,Kepala Bidang
+206,200,UPT Dinas Penanaman Modal dan Pelayanan Terpadu Satu Pintu,2,UPT,Kepala UPT
+207,1,"Dinas Pemuda, Olahraga dan Pariwisata",1,Dinas,Kepala Dinas
+208,207,"Sekretariat Dinas Pemuda, Olahraga dan Pariwisata",2,Sekretariat,Sekretaris
+209,208,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+210,207,Bidang Layanan Kepemudaan,2,Bidang,Kepala Bidang
+211,207,Bidang Keolahragaan,2,Bidang,Kepala Bidang
+212,207,Bidang Pemasaran Pariwisata,2,Bidang,Kepala Bidang
+213,207,Bidang Pengembangan Destinasi dan Kelembagaan Pariwisata,2,Bidang,Kepala Bidang
+214,207,"UPT Dinas Pemuda, Olahraga dan Pariwisata",2,UPT,Kepala UPT
+215,1,Dinas Perpustakaan dan Kearsipan,1,Dinas,Kepala Dinas
+216,215,Sekretariat Dinas Perpustakaan dan Kearsipan,2,Sekretariat,Sekretaris
+217,216,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+218,215,Bidang Perpustakaan,2,Bidang,Kepala Bidang
+219,215,Bidang Kearsipan,2,Bidang,Kepala Bidang
+220,215,"Bidang Layanan, Pelestarian, Teknologi Informasi dan Komunikasi dan Kerjasama",2,Bidang,Kepala Bidang
+221,215,UPT Dinas Perpustakaan dan Kearsipan,2,UPT,Kepala UPT
+222,1,"Dinas Ketahanan Pangan, Tanaman Pangan dan Hortikultura",1,Dinas,Kepala Dinas
+223,222,"Sekretariat Dinas Ketahanan Pangan, Tanaman Pangan dan Hortikultura",2,Sekretariat,Sekretaris
+224,223,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+225,222,Bidang Ketersediaan dan Distribusi Pangan,2,Bidang,Kepala Bidang
+226,222,Bidang Konsumsi dan Keamanan Pangan,2,Bidang,Kepala Bidang
+227,222,Bidang Tanaman Pangan dan Hortikultura,2,Bidang,Kepala Bidang
+228,222,Bidang Prasarana dan Sarana Pertanian,2,Bidang,Kepala Bidang
+229,222,Bidang Penyuluhan,2,Bidang,Kepala Bidang
+230,222,"UPT Dinas Ketahanan Pangan, Tanaman Pangan dan Hortikultura",2,UPT,Kepala UPT
+231,1,"Dinas Perkebunan, Peternakan dan Perikanan",1,Dinas,Kepala Dinas
+232,231,"Sekretariat Dinas Perkebunan, Peternakan dan Perikanan",2,Sekretariat,Sekretaris
+233,232,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+234,231,Bidang Perkebunan,2,Bidang,Kepala Bidang
+235,231,Bidang Peternakan dan Kesehatan Hewan,2,Bidang,Kepala Bidang
+236,231,Bidang Perikanan,2,Bidang,Kepala Bidang
+237,231,"Bidang Bina Usaha Perkebunan, Peternakan dan Perikanan",2,Bidang,Kepala Bidang
+238,231,Bidang Sarana dan Prasarana,2,Bidang,Kepala Bidang
+239,231,"UPT Dinas Perkebunan, Peternakan dan Perikanan",2,UPT,Kepala UPT
+240,1,Dinas Perindustrian,1,Dinas,Kepala Dinas
+241,240,Sekretariat Dinas Perindustrian,2,Sekretariat,Sekretaris
+242,241,"Sub Bagian Perencanaan, Keuangan dan Pelaporan",3,Sub Bagian,Kepala Sub Bagian
+243,241,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+244,240,Bidang Industri Kimia Agro dan Hasil Hutan,2,Bidang,Kepala Bidang
+245,240,"Bidang Industri Logam, Mesin, Elektronika dan Aneka",2,Bidang,Kepala Bidang
+246,240,Bidang Monitoring dan Pelaporan,2,Bidang,Kepala Bidang
+247,240,UPT Dinas Perindustrian,2,UPT,Kepala UPT
+248,1,Badan Perencanaan Pembangunan Daerah,1,Badan,Kepala Badan
+249,248,Sekretariat Badan Perencanaan Pembangunan Daerah,2,Sekretariat,Sekretaris
+250,249,Sub Bagian Perencanaan,3,Sub Bagian,Kepala Sub Bagian
+251,249,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+252,248,"Bidang Perencanaan, Pengendalian dan Evaluasi Pembangunan",2,Bidang,Kepala Bidang
+253,248,Bidang Perekonomian dan Sumber Daya Alam,2,Bidang,Kepala Bidang
+254,248,Bidang Pemerintahan dan Pembangunan Manusia,2,Bidang,Kepala Bidang
+255,248,Bidang Infrastruktur dan Kewilayahan,2,Bidang,Kepala Bidang
+256,248,UPT Badan Perencanaan Pembangunan Daerah,2,UPT,Kepala UPT
+257,1,Badan Pengelolaan Keuangan dan Aset Daerah,1,Badan,Kepala Badan
+258,257,Sekretariat Badan Pengelolaan Keuangan dan Aset Daerah,2,Sekretariat,Sekretaris
+259,258,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+260,257,Bidang Anggaran,2,Bidang,Kepala Bidang
+261,260,Sub Bidang Rencana Penyusunan Anggaran,3,Sub Bidang,Kepala Sub Bidang
+262,260,Sub Bidang Penyusunan Anggaran,3,Sub Bidang,Kepala Sub Bidang
+263,257,Bidang Perbendaharaan dan Belanja Pegawai,2,Bidang,Kepala Bidang
+264,263,Sub Bidang Perbendaharaan,3,Sub Bidang,Kepala Sub Bidang
+265,263,Sub Bidang Belanja Pegawai,3,Sub Bidang,Kepala Sub Bidang
+266,257,Bidang Akuntansi dan Verifikasi,2,Bidang,Kepala Bidang
+267,266,Sub Bidang Verifikasi Pendapatan dan Belanja,3,Sub Bidang,Kepala Sub Bidang
+268,266,Sub Bidang Pelaporan dan Pertanggungjawaban Keuangan,3,Sub Bidang,Kepala Sub Bidang
+269,257,Bidang Aset,2,Bidang,Kepala Bidang
+270,269,Sub Bidang Perencanaan Aset Daerah,3,Sub Bidang,Kepala Sub Bidang
+271,269,Sub Bidang Penatausahaan Aset Daerah,3,Sub Bidang,Kepala Sub Bidang
+272,257,UPT Badan Pengelolaan Keuangan dan Aset Daerah,2,UPT,Kepala UPT
+273,1,Badan Pendapatan Daerah,1,Badan,Kepala Badan
+274,273,Sekretariat Badan Pendapatan Daerah,2,Sekretariat,Sekretaris
+275,274,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+276,273,Bidang Pendataan dan Penilaian,2,Bidang,Kepala Bidang
+277,276,Sub Bidang Pendataan dan Verifikasi BPHTB,3,Sub Bidang,Kepala Sub Bidang
+278,276,Sub Bidang Pendataan Pajak Daerah Lainnya,3,Sub Bidang,Kepala Sub Bidang
+279,273,Bidang Penetapan dan Penyuluhan,2,Bidang,Kepala Bidang
+280,279,Sub Bidang Penetapan,3,Sub Bidang,Kepala Sub Bidang
+281,279,Sub Bidang Keberatan dan Pengurangan,3,Sub Bidang,Kepala Sub Bidang
+282,273,Bidang Penagihan dan Pengawasan,2,Bidang,Kepala Bidang
+283,282,Sub Bidang Penagihan,3,Sub Bidang,Kepala Sub Bidang
+284,282,Sub Bidang Monitoring dan Pengawasan,3,Sub Bidang,Kepala Sub Bidang
+285,273,"Bidang Pengembangan, Pengolahan Data dan Pelaporan",2,Bidang,Kepala Bidang
+286,285,Sub Bidang Analisis dan Pengembangan Potensi PAD,3,Sub Bidang,Kepala Sub Bidang
+287,285,Sub Bidang Pembukuan dan Pelaporan,3,Sub Bidang,Kepala Sub Bidang
+288,273,UPT Badan Pendapatan Daerah,2,UPT,Kepala UPT
+289,1,Badan Kepegawaian dan Pengembangan Sumber Daya Manusia,1,Badan,Kepala Badan
+290,289,Sekretariat Badan Kepegawaian dan Pengembangan Sumber Daya Manusia,2,Sekretariat,Sekretaris
+291,290,Sub Bagian Perencanaan dan Pelaporan,3,Sub Bagian,Kepala Sub Bagian
+292,290,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+293,289,"Bidang Pengadaan, Pemberhentian dan Informasi Kepegawaian",2,Bidang,Kepala Bidang
+294,289,Bidang Pengembangan Sumber Daya Manusia,2,Bidang,Kepala Bidang
+295,289,Bidang Mutasi dan Promosi ASN,2,Bidang,Kepala Bidang
+296,289,Bidang Penilaian dan Evaluasi Kinerja Aparatur,2,Bidang,Kepala Bidang
+297,289,UPT Badan Kepegawaian dan Pengembangan Sumber Daya Manusia,2,UPT,Kepala UPT
+298,1,Badan Penelitian dan Pengembangan Daerah,1,Badan,Kepala Badan
+299,298,Sekretariat Badan Penelitian dan Pengembangan Daerah,2,Sekretariat,Sekretaris
+300,299,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+301,298,Bidang Pemerintahan dan Sosial Budaya,2,Bidang,Kepala Bidang
+302,298,Bidang Ekonomi dan Pembangunan,2,Bidang,Kepala Bidang
+303,298,Bidang Inovasi dan Teknologi,2,Bidang,Kepala Bidang
+304,298,UPT Badan Penelitian dan Pengembangan Daerah,2,UPT,Kepala UPT
+305,1,Badan Kesatuan Bangsa dan Politik,1,Badan,Kepala Badan
+306,305,Sekretariat Badan Kesatuan Bangsa dan Politik,2,Sekretariat,Sekretaris
+307,306,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+308,305,"Bidang Bina Ideologi, Wawasan Kebangsaan dan Karakter Bangsa",2,Bidang,Kepala Bidang
+309,305,Bidang Politik Dalam Negeri,2,Bidang,Kepala Bidang
+310,305,"Bidang Ketahanan Ekonomi, Sosial Budaya, dan Organisasi Kemasyarakatan",2,Bidang,Kepala Bidang
+311,305,Bidang Penanganan Konflik dan Kewaspadaan Nasional,2,Bidang,Kepala Bidang
+312,305,UPT Badan Kesatuan Bangsa dan Politik,2,UPT,Kepala UPT
+313,1,Badan Penanggulangan Bencana Daerah,1,Badan,Kepala Pelaksana BPBD
+314,313,Sekretariat Badan Penanggulangan Bencana Daerah,2,Sekretariat,Sekretaris
+315,314,Sub Bagian Umum dan Kepegawaian,3,Sub Bagian,Kepala Sub Bagian
+316,313,Bidang Pencegahan dan Kesiapsiagaan,2,Bidang,Kepala Bidang
+317,313,Bidang Kedaruratan dan Logistik,2,Bidang,Kepala Bidang
+318,313,Bidang Rehabilitasi dan Rekonstruksi,2,Bidang,Kepala Bidang
+319,313,UPT Badan Penanggulangan Bencana Daerah,2,UPT,Kepala UPT
+320,1,Kecamatan Gunung Sugih,1,Kecamatan,Camat
+321,320,Sekretariat Kecamatan Gunung Sugih,2,Sekretariat,Sekretaris
+322,321,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Gunung Sugih",3,Sub Bagian,Kepala Sub Bagian
+323,321,Sub Bagian Umum dan Kepegawaian - Kec. Gunung Sugih,3,Sub Bagian,Kepala Sub Bagian
+324,320,Seksi Tata Pemerintahan - Kec. Gunung Sugih,2,Seksi,Kepala Seksi
+325,320,Seksi Ketentraman dan Ketertiban Umum - Kec. Gunung Sugih,2,Seksi,Kepala Seksi
+326,320,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Gunung Sugih,2,Seksi,Kepala Seksi
+327,320,Seksi Kesejahteraan Rakyat - Kec. Gunung Sugih,2,Seksi,Kepala Seksi
+328,320,Seksi Pengembangan Potensi dan Pendapatan - Kec. Gunung Sugih,2,Seksi,Kepala Seksi
+329,1,Kecamatan Terbanggi Besar,1,Kecamatan,Camat
+330,329,Sekretariat Kecamatan Terbanggi Besar,2,Sekretariat,Sekretaris
+331,330,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Terbanggi Besar",3,Sub Bagian,Kepala Sub Bagian
+332,330,Sub Bagian Umum dan Kepegawaian - Kec. Terbanggi Besar,3,Sub Bagian,Kepala Sub Bagian
+333,329,Seksi Tata Pemerintahan - Kec. Terbanggi Besar,2,Seksi,Kepala Seksi
+334,329,Seksi Ketentraman dan Ketertiban Umum - Kec. Terbanggi Besar,2,Seksi,Kepala Seksi
+335,329,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Terbanggi Besar,2,Seksi,Kepala Seksi
+336,329,Seksi Kesejahteraan Rakyat - Kec. Terbanggi Besar,2,Seksi,Kepala Seksi
+337,329,Seksi Pengembangan Potensi dan Pendapatan - Kec. Terbanggi Besar,2,Seksi,Kepala Seksi
+338,1,Kecamatan Seputih Agung,1,Kecamatan,Camat
+339,338,Sekretariat Kecamatan Seputih Agung,2,Sekretariat,Sekretaris
+340,339,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Seputih Agung",3,Sub Bagian,Kepala Sub Bagian
+341,339,Sub Bagian Umum dan Kepegawaian - Kec. Seputih Agung,3,Sub Bagian,Kepala Sub Bagian
+342,338,Seksi Tata Pemerintahan - Kec. Seputih Agung,2,Seksi,Kepala Seksi
+343,338,Seksi Ketentraman dan Ketertiban Umum - Kec. Seputih Agung,2,Seksi,Kepala Seksi
+344,338,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Seputih Agung,2,Seksi,Kepala Seksi
+345,338,Seksi Kesejahteraan Rakyat - Kec. Seputih Agung,2,Seksi,Kepala Seksi
+346,338,Seksi Pengembangan Potensi dan Pendapatan - Kec. Seputih Agung,2,Seksi,Kepala Seksi
+347,1,Kecamatan Bumi Ratu Nuban,1,Kecamatan,Camat
+348,347,Sekretariat Kecamatan Bumi Ratu Nuban,2,Sekretariat,Sekretaris
+349,348,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Bumi Ratu Nuban",3,Sub Bagian,Kepala Sub Bagian
+350,348,Sub Bagian Umum dan Kepegawaian - Kec. Bumi Ratu Nuban,3,Sub Bagian,Kepala Sub Bagian
+351,347,Seksi Tata Pemerintahan - Kec. Bumi Ratu Nuban,2,Seksi,Kepala Seksi
+352,347,Seksi Ketentraman dan Ketertiban Umum - Kec. Bumi Ratu Nuban,2,Seksi,Kepala Seksi
+353,347,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Bumi Ratu Nuban,2,Seksi,Kepala Seksi
+354,347,Seksi Kesejahteraan Rakyat - Kec. Bumi Ratu Nuban,2,Seksi,Kepala Seksi
+355,347,Seksi Pengembangan Potensi dan Pendapatan - Kec. Bumi Ratu Nuban,2,Seksi,Kepala Seksi
+356,1,Kecamatan Bekri,1,Kecamatan,Camat
+357,356,Sekretariat Kecamatan Bekri,2,Sekretariat,Sekretaris
+358,357,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Bekri",3,Sub Bagian,Kepala Sub Bagian
+359,357,Sub Bagian Umum dan Kepegawaian - Kec. Bekri,3,Sub Bagian,Kepala Sub Bagian
+360,356,Seksi Tata Pemerintahan - Kec. Bekri,2,Seksi,Kepala Seksi
+361,356,Seksi Ketentraman dan Ketertiban Umum - Kec. Bekri,2,Seksi,Kepala Seksi
+362,356,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Bekri,2,Seksi,Kepala Seksi
+363,356,Seksi Kesejahteraan Rakyat - Kec. Bekri,2,Seksi,Kepala Seksi
+364,356,Seksi Pengembangan Potensi dan Pendapatan - Kec. Bekri,2,Seksi,Kepala Seksi
+365,1,Kecamatan Bangun Rejo,1,Kecamatan,Camat
+366,365,Sekretariat Kecamatan Bangun Rejo,2,Sekretariat,Sekretaris
+367,366,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Bangun Rejo",3,Sub Bagian,Kepala Sub Bagian
+368,366,Sub Bagian Umum dan Kepegawaian - Kec. Bangun Rejo,3,Sub Bagian,Kepala Sub Bagian
+369,365,Seksi Tata Pemerintahan - Kec. Bangun Rejo,2,Seksi,Kepala Seksi
+370,365,Seksi Ketentraman dan Ketertiban Umum - Kec. Bangun Rejo,2,Seksi,Kepala Seksi
+371,365,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Bangun Rejo,2,Seksi,Kepala Seksi
+372,365,Seksi Kesejahteraan Rakyat - Kec. Bangun Rejo,2,Seksi,Kepala Seksi
+373,365,Seksi Pengembangan Potensi dan Pendapatan - Kec. Bangun Rejo,2,Seksi,Kepala Seksi
+374,1,Kecamatan Kalirejo,1,Kecamatan,Camat
+375,374,Sekretariat Kecamatan Kalirejo,2,Sekretariat,Sekretaris
+376,375,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Kalirejo",3,Sub Bagian,Kepala Sub Bagian
+377,375,Sub Bagian Umum dan Kepegawaian - Kec. Kalirejo,3,Sub Bagian,Kepala Sub Bagian
+378,374,Seksi Tata Pemerintahan - Kec. Kalirejo,2,Seksi,Kepala Seksi
+379,374,Seksi Ketentraman dan Ketertiban Umum - Kec. Kalirejo,2,Seksi,Kepala Seksi
+380,374,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Kalirejo,2,Seksi,Kepala Seksi
+381,374,Seksi Kesejahteraan Rakyat - Kec. Kalirejo,2,Seksi,Kepala Seksi
+382,374,Seksi Pengembangan Potensi dan Pendapatan - Kec. Kalirejo,2,Seksi,Kepala Seksi
+383,1,Kecamatan Sendang Agung,1,Kecamatan,Camat
+384,383,Sekretariat Kecamatan Sendang Agung,2,Sekretariat,Sekretaris
+385,384,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Sendang Agung",3,Sub Bagian,Kepala Sub Bagian
+386,384,Sub Bagian Umum dan Kepegawaian - Kec. Sendang Agung,3,Sub Bagian,Kepala Sub Bagian
+387,383,Seksi Tata Pemerintahan - Kec. Sendang Agung,2,Seksi,Kepala Seksi
+388,383,Seksi Ketentraman dan Ketertiban Umum - Kec. Sendang Agung,2,Seksi,Kepala Seksi
+389,383,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Sendang Agung,2,Seksi,Kepala Seksi
+390,383,Seksi Kesejahteraan Rakyat - Kec. Sendang Agung,2,Seksi,Kepala Seksi
+391,383,Seksi Pengembangan Potensi dan Pendapatan - Kec. Sendang Agung,2,Seksi,Kepala Seksi
+392,1,Kecamatan Anak Tuha,1,Kecamatan,Camat
+393,392,Sekretariat Kecamatan Anak Tuha,2,Sekretariat,Sekretaris
+394,393,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Anak Tuha",3,Sub Bagian,Kepala Sub Bagian
+395,393,Sub Bagian Umum dan Kepegawaian - Kec. Anak Tuha,3,Sub Bagian,Kepala Sub Bagian
+396,392,Seksi Tata Pemerintahan - Kec. Anak Tuha,2,Seksi,Kepala Seksi
+397,392,Seksi Ketentraman dan Ketertiban Umum - Kec. Anak Tuha,2,Seksi,Kepala Seksi
+398,392,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Anak Tuha,2,Seksi,Kepala Seksi
+399,392,Seksi Kesejahteraan Rakyat - Kec. Anak Tuha,2,Seksi,Kepala Seksi
+400,392,Seksi Pengembangan Potensi dan Pendapatan - Kec. Anak Tuha,2,Seksi,Kepala Seksi
+401,1,Kecamatan Padang Ratu,1,Kecamatan,Camat
+402,401,Sekretariat Kecamatan Padang Ratu,2,Sekretariat,Sekretaris
+403,402,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Padang Ratu",3,Sub Bagian,Kepala Sub Bagian
+404,402,Sub Bagian Umum dan Kepegawaian - Kec. Padang Ratu,3,Sub Bagian,Kepala Sub Bagian
+405,401,Seksi Tata Pemerintahan - Kec. Padang Ratu,2,Seksi,Kepala Seksi
+406,401,Seksi Ketentraman dan Ketertiban Umum - Kec. Padang Ratu,2,Seksi,Kepala Seksi
+407,401,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Padang Ratu,2,Seksi,Kepala Seksi
+408,401,Seksi Kesejahteraan Rakyat - Kec. Padang Ratu,2,Seksi,Kepala Seksi
+409,401,Seksi Pengembangan Potensi dan Pendapatan - Kec. Padang Ratu,2,Seksi,Kepala Seksi
+410,1,Kecamatan Pubian,1,Kecamatan,Camat
+411,410,Sekretariat Kecamatan Pubian,2,Sekretariat,Sekretaris
+412,411,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Pubian",3,Sub Bagian,Kepala Sub Bagian
+413,411,Sub Bagian Umum dan Kepegawaian - Kec. Pubian,3,Sub Bagian,Kepala Sub Bagian
+414,410,Seksi Tata Pemerintahan - Kec. Pubian,2,Seksi,Kepala Seksi
+415,410,Seksi Ketentraman dan Ketertiban Umum - Kec. Pubian,2,Seksi,Kepala Seksi
+416,410,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Pubian,2,Seksi,Kepala Seksi
+417,410,Seksi Kesejahteraan Rakyat - Kec. Pubian,2,Seksi,Kepala Seksi
+418,410,Seksi Pengembangan Potensi dan Pendapatan - Kec. Pubian,2,Seksi,Kepala Seksi
+419,1,Kecamatan Selagai Lingga,1,Kecamatan,Camat
+420,419,Sekretariat Kecamatan Selagai Lingga,2,Sekretariat,Sekretaris
+421,420,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Selagai Lingga",3,Sub Bagian,Kepala Sub Bagian
+422,420,Sub Bagian Umum dan Kepegawaian - Kec. Selagai Lingga,3,Sub Bagian,Kepala Sub Bagian
+423,419,Seksi Tata Pemerintahan - Kec. Selagai Lingga,2,Seksi,Kepala Seksi
+424,419,Seksi Ketentraman dan Ketertiban Umum - Kec. Selagai Lingga,2,Seksi,Kepala Seksi
+425,419,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Selagai Lingga,2,Seksi,Kepala Seksi
+426,419,Seksi Kesejahteraan Rakyat - Kec. Selagai Lingga,2,Seksi,Kepala Seksi
+427,419,Seksi Pengembangan Potensi dan Pendapatan - Kec. Selagai Lingga,2,Seksi,Kepala Seksi
+428,1,Kecamatan Anak Ratu Aji,1,Kecamatan,Camat
+429,428,Sekretariat Kecamatan Anak Ratu Aji,2,Sekretariat,Sekretaris
+430,429,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Anak Ratu Aji",3,Sub Bagian,Kepala Sub Bagian
+431,429,Sub Bagian Umum dan Kepegawaian - Kec. Anak Ratu Aji,3,Sub Bagian,Kepala Sub Bagian
+432,428,Seksi Tata Pemerintahan - Kec. Anak Ratu Aji,2,Seksi,Kepala Seksi
+433,428,Seksi Ketentraman dan Ketertiban Umum - Kec. Anak Ratu Aji,2,Seksi,Kepala Seksi
+434,428,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Anak Ratu Aji,2,Seksi,Kepala Seksi
+435,428,Seksi Kesejahteraan Rakyat - Kec. Anak Ratu Aji,2,Seksi,Kepala Seksi
+436,428,Seksi Pengembangan Potensi dan Pendapatan - Kec. Anak Ratu Aji,2,Seksi,Kepala Seksi
+437,1,Kecamatan Terusan Nunyai,1,Kecamatan,Camat
+438,437,Sekretariat Kecamatan Terusan Nunyai,2,Sekretariat,Sekretaris
+439,438,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Terusan Nunyai",3,Sub Bagian,Kepala Sub Bagian
+440,438,Sub Bagian Umum dan Kepegawaian - Kec. Terusan Nunyai,3,Sub Bagian,Kepala Sub Bagian
+441,437,Seksi Tata Pemerintahan - Kec. Terusan Nunyai,2,Seksi,Kepala Seksi
+442,437,Seksi Ketentraman dan Ketertiban Umum - Kec. Terusan Nunyai,2,Seksi,Kepala Seksi
+443,437,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Terusan Nunyai,2,Seksi,Kepala Seksi
+444,437,Seksi Kesejahteraan Rakyat - Kec. Terusan Nunyai,2,Seksi,Kepala Seksi
+445,437,Seksi Pengembangan Potensi dan Pendapatan - Kec. Terusan Nunyai,2,Seksi,Kepala Seksi
+446,1,Kecamatan Way Pengubuan,1,Kecamatan,Camat
+447,446,Sekretariat Kecamatan Way Pengubuan,2,Sekretariat,Sekretaris
+448,447,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Way Pengubuan",3,Sub Bagian,Kepala Sub Bagian
+449,447,Sub Bagian Umum dan Kepegawaian - Kec. Way Pengubuan,3,Sub Bagian,Kepala Sub Bagian
+450,446,Seksi Tata Pemerintahan - Kec. Way Pengubuan,2,Seksi,Kepala Seksi
+451,446,Seksi Ketentraman dan Ketertiban Umum - Kec. Way Pengubuan,2,Seksi,Kepala Seksi
+452,446,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Way Pengubuan,2,Seksi,Kepala Seksi
+453,446,Seksi Kesejahteraan Rakyat - Kec. Way Pengubuan,2,Seksi,Kepala Seksi
+454,446,Seksi Pengembangan Potensi dan Pendapatan - Kec. Way Pengubuan,2,Seksi,Kepala Seksi
+455,1,Kecamatan Trimurjo,1,Kecamatan,Camat
+456,455,Sekretariat Kecamatan Trimurjo,2,Sekretariat,Sekretaris
+457,456,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Trimurjo",3,Sub Bagian,Kepala Sub Bagian
+458,456,Sub Bagian Umum dan Kepegawaian - Kec. Trimurjo,3,Sub Bagian,Kepala Sub Bagian
+459,455,Seksi Tata Pemerintahan - Kec. Trimurjo,2,Seksi,Kepala Seksi
+460,455,Seksi Ketentraman dan Ketertiban Umum - Kec. Trimurjo,2,Seksi,Kepala Seksi
+461,455,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Trimurjo,2,Seksi,Kepala Seksi
+462,455,Seksi Kesejahteraan Rakyat - Kec. Trimurjo,2,Seksi,Kepala Seksi
+463,455,Seksi Pengembangan Potensi dan Pendapatan - Kec. Trimurjo,2,Seksi,Kepala Seksi
+464,1,Kecamatan Punggur,1,Kecamatan,Camat
+465,464,Sekretariat Kecamatan Punggur,2,Sekretariat,Sekretaris
+466,465,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Punggur",3,Sub Bagian,Kepala Sub Bagian
+467,465,Sub Bagian Umum dan Kepegawaian - Kec. Punggur,3,Sub Bagian,Kepala Sub Bagian
+468,464,Seksi Tata Pemerintahan - Kec. Punggur,2,Seksi,Kepala Seksi
+469,464,Seksi Ketentraman dan Ketertiban Umum - Kec. Punggur,2,Seksi,Kepala Seksi
+470,464,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Punggur,2,Seksi,Kepala Seksi
+471,464,Seksi Kesejahteraan Rakyat - Kec. Punggur,2,Seksi,Kepala Seksi
+472,464,Seksi Pengembangan Potensi dan Pendapatan - Kec. Punggur,2,Seksi,Kepala Seksi
+473,1,Kecamatan Kota Gajah,1,Kecamatan,Camat
+474,473,Sekretariat Kecamatan Kota Gajah,2,Sekretariat,Sekretaris
+475,474,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Kota Gajah",3,Sub Bagian,Kepala Sub Bagian
+476,474,Sub Bagian Umum dan Kepegawaian - Kec. Kota Gajah,3,Sub Bagian,Kepala Sub Bagian
+477,473,Seksi Tata Pemerintahan - Kec. Kota Gajah,2,Seksi,Kepala Seksi
+478,473,Seksi Ketentraman dan Ketertiban Umum - Kec. Kota Gajah,2,Seksi,Kepala Seksi
+479,473,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Kota Gajah,2,Seksi,Kepala Seksi
+480,473,Seksi Kesejahteraan Rakyat - Kec. Kota Gajah,2,Seksi,Kepala Seksi
+481,473,Seksi Pengembangan Potensi dan Pendapatan - Kec. Kota Gajah,2,Seksi,Kepala Seksi
+482,1,Kecamatan Seputih Raman,1,Kecamatan,Camat
+483,482,Sekretariat Kecamatan Seputih Raman,2,Sekretariat,Sekretaris
+484,483,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Seputih Raman",3,Sub Bagian,Kepala Sub Bagian
+485,483,Sub Bagian Umum dan Kepegawaian - Kec. Seputih Raman,3,Sub Bagian,Kepala Sub Bagian
+486,482,Seksi Tata Pemerintahan - Kec. Seputih Raman,2,Seksi,Kepala Seksi
+487,482,Seksi Ketentraman dan Ketertiban Umum - Kec. Seputih Raman,2,Seksi,Kepala Seksi
+488,482,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Seputih Raman,2,Seksi,Kepala Seksi
+489,482,Seksi Kesejahteraan Rakyat - Kec. Seputih Raman,2,Seksi,Kepala Seksi
+490,482,Seksi Pengembangan Potensi dan Pendapatan - Kec. Seputih Raman,2,Seksi,Kepala Seksi
+491,1,Kecamatan Seputih Banyak,1,Kecamatan,Camat
+492,491,Sekretariat Kecamatan Seputih Banyak,2,Sekretariat,Sekretaris
+493,492,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Seputih Banyak",3,Sub Bagian,Kepala Sub Bagian
+494,492,Sub Bagian Umum dan Kepegawaian - Kec. Seputih Banyak,3,Sub Bagian,Kepala Sub Bagian
+495,491,Seksi Tata Pemerintahan - Kec. Seputih Banyak,2,Seksi,Kepala Seksi
+496,491,Seksi Ketentraman dan Ketertiban Umum - Kec. Seputih Banyak,2,Seksi,Kepala Seksi
+497,491,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Seputih Banyak,2,Seksi,Kepala Seksi
+498,491,Seksi Kesejahteraan Rakyat - Kec. Seputih Banyak,2,Seksi,Kepala Seksi
+499,491,Seksi Pengembangan Potensi dan Pendapatan - Kec. Seputih Banyak,2,Seksi,Kepala Seksi
+500,1,Kecamatan Way Seputih,1,Kecamatan,Camat
+501,500,Sekretariat Kecamatan Way Seputih,2,Sekretariat,Sekretaris
+502,501,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Way Seputih",3,Sub Bagian,Kepala Sub Bagian
+503,501,Sub Bagian Umum dan Kepegawaian - Kec. Way Seputih,3,Sub Bagian,Kepala Sub Bagian
+504,500,Seksi Tata Pemerintahan - Kec. Way Seputih,2,Seksi,Kepala Seksi
+505,500,Seksi Ketentraman dan Ketertiban Umum - Kec. Way Seputih,2,Seksi,Kepala Seksi
+506,500,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Way Seputih,2,Seksi,Kepala Seksi
+507,500,Seksi Kesejahteraan Rakyat - Kec. Way Seputih,2,Seksi,Kepala Seksi
+508,500,Seksi Pengembangan Potensi dan Pendapatan - Kec. Way Seputih,2,Seksi,Kepala Seksi
+509,1,Kecamatan Putra Rumbia,1,Kecamatan,Camat
+510,509,Sekretariat Kecamatan Putra Rumbia,2,Sekretariat,Sekretaris
+511,510,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Putra Rumbia",3,Sub Bagian,Kepala Sub Bagian
+512,510,Sub Bagian Umum dan Kepegawaian - Kec. Putra Rumbia,3,Sub Bagian,Kepala Sub Bagian
+513,509,Seksi Tata Pemerintahan - Kec. Putra Rumbia,2,Seksi,Kepala Seksi
+514,509,Seksi Ketentraman dan Ketertiban Umum - Kec. Putra Rumbia,2,Seksi,Kepala Seksi
+515,509,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Putra Rumbia,2,Seksi,Kepala Seksi
+516,509,Seksi Kesejahteraan Rakyat - Kec. Putra Rumbia,2,Seksi,Kepala Seksi
+517,509,Seksi Pengembangan Potensi dan Pendapatan - Kec. Putra Rumbia,2,Seksi,Kepala Seksi
+518,1,Kecamatan Rumbia,1,Kecamatan,Camat
+519,518,Sekretariat Kecamatan Rumbia,2,Sekretariat,Sekretaris
+520,519,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Rumbia",3,Sub Bagian,Kepala Sub Bagian
+521,519,Sub Bagian Umum dan Kepegawaian - Kec. Rumbia,3,Sub Bagian,Kepala Sub Bagian
+522,518,Seksi Tata Pemerintahan - Kec. Rumbia,2,Seksi,Kepala Seksi
+523,518,Seksi Ketentraman dan Ketertiban Umum - Kec. Rumbia,2,Seksi,Kepala Seksi
+524,518,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Rumbia,2,Seksi,Kepala Seksi
+525,518,Seksi Kesejahteraan Rakyat - Kec. Rumbia,2,Seksi,Kepala Seksi
+526,518,Seksi Pengembangan Potensi dan Pendapatan - Kec. Rumbia,2,Seksi,Kepala Seksi
+527,1,Kecamatan Bumi Nabung,1,Kecamatan,Camat
+528,527,Sekretariat Kecamatan Bumi Nabung,2,Sekretariat,Sekretaris
+529,528,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Bumi Nabung",3,Sub Bagian,Kepala Sub Bagian
+530,528,Sub Bagian Umum dan Kepegawaian - Kec. Bumi Nabung,3,Sub Bagian,Kepala Sub Bagian
+531,527,Seksi Tata Pemerintahan - Kec. Bumi Nabung,2,Seksi,Kepala Seksi
+532,527,Seksi Ketentraman dan Ketertiban Umum - Kec. Bumi Nabung,2,Seksi,Kepala Seksi
+533,527,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Bumi Nabung,2,Seksi,Kepala Seksi
+534,527,Seksi Kesejahteraan Rakyat - Kec. Bumi Nabung,2,Seksi,Kepala Seksi
+535,527,Seksi Pengembangan Potensi dan Pendapatan - Kec. Bumi Nabung,2,Seksi,Kepala Seksi
+536,1,Kecamatan Seputih Surabaya,1,Kecamatan,Camat
+537,536,Sekretariat Kecamatan Seputih Surabaya,2,Sekretariat,Sekretaris
+538,537,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Seputih Surabaya",3,Sub Bagian,Kepala Sub Bagian
+539,537,Sub Bagian Umum dan Kepegawaian - Kec. Seputih Surabaya,3,Sub Bagian,Kepala Sub Bagian
+540,536,Seksi Tata Pemerintahan - Kec. Seputih Surabaya,2,Seksi,Kepala Seksi
+541,536,Seksi Ketentraman dan Ketertiban Umum - Kec. Seputih Surabaya,2,Seksi,Kepala Seksi
+542,536,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Seputih Surabaya,2,Seksi,Kepala Seksi
+543,536,Seksi Kesejahteraan Rakyat - Kec. Seputih Surabaya,2,Seksi,Kepala Seksi
+544,536,Seksi Pengembangan Potensi dan Pendapatan - Kec. Seputih Surabaya,2,Seksi,Kepala Seksi
+545,1,Kecamatan Bandar Surabaya,1,Kecamatan,Camat
+546,545,Sekretariat Kecamatan Bandar Surabaya,2,Sekretariat,Sekretaris
+547,546,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Bandar Surabaya",3,Sub Bagian,Kepala Sub Bagian
+548,546,Sub Bagian Umum dan Kepegawaian - Kec. Bandar Surabaya,3,Sub Bagian,Kepala Sub Bagian
+549,545,Seksi Tata Pemerintahan - Kec. Bandar Surabaya,2,Seksi,Kepala Seksi
+550,545,Seksi Ketentraman dan Ketertiban Umum - Kec. Bandar Surabaya,2,Seksi,Kepala Seksi
+551,545,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Bandar Surabaya,2,Seksi,Kepala Seksi
+552,545,Seksi Kesejahteraan Rakyat - Kec. Bandar Surabaya,2,Seksi,Kepala Seksi
+553,545,Seksi Pengembangan Potensi dan Pendapatan - Kec. Bandar Surabaya,2,Seksi,Kepala Seksi
+554,1,Kecamatan Seputih Mataram,1,Kecamatan,Camat
+555,554,Sekretariat Kecamatan Seputih Mataram,2,Sekretariat,Sekretaris
+556,555,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Seputih Mataram",3,Sub Bagian,Kepala Sub Bagian
+557,555,Sub Bagian Umum dan Kepegawaian - Kec. Seputih Mataram,3,Sub Bagian,Kepala Sub Bagian
+558,554,Seksi Tata Pemerintahan - Kec. Seputih Mataram,2,Seksi,Kepala Seksi
+559,554,Seksi Ketentraman dan Ketertiban Umum - Kec. Seputih Mataram,2,Seksi,Kepala Seksi
+560,554,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Seputih Mataram,2,Seksi,Kepala Seksi
+561,554,Seksi Kesejahteraan Rakyat - Kec. Seputih Mataram,2,Seksi,Kepala Seksi
+562,554,Seksi Pengembangan Potensi dan Pendapatan - Kec. Seputih Mataram,2,Seksi,Kepala Seksi
+563,1,Kecamatan Bandar Mataram,1,Kecamatan,Camat
+564,563,Sekretariat Kecamatan Bandar Mataram,2,Sekretariat,Sekretaris
+565,564,"Sub Bagian Perencanaan, Keuangan dan Pelaporan - Kec. Bandar Mataram",3,Sub Bagian,Kepala Sub Bagian
+566,564,Sub Bagian Umum dan Kepegawaian - Kec. Bandar Mataram,3,Sub Bagian,Kepala Sub Bagian
+567,563,Seksi Tata Pemerintahan - Kec. Bandar Mataram,2,Seksi,Kepala Seksi
+568,563,Seksi Ketentraman dan Ketertiban Umum - Kec. Bandar Mataram,2,Seksi,Kepala Seksi
+569,563,Seksi Pembangunan dan Pemberdayaan Masyarakat - Kec. Bandar Mataram,2,Seksi,Kepala Seksi
+570,563,Seksi Kesejahteraan Rakyat - Kec. Bandar Mataram,2,Seksi,Kepala Seksi
+571,563,Seksi Pengembangan Potensi dan Pendapatan - Kec. Bandar Mataram,2,Seksi,Kepala Seksi

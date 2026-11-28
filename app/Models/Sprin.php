@@ -22,6 +22,10 @@ class Sprin extends Model
      */
     public const TAHAPS = ['1', '2', 'Khusus'];
 
+    protected $appends = [
+        'plotting_id',
+    ];
+
     /**
      * @var list<string>
      */
@@ -35,6 +39,7 @@ class Sprin extends Model
         'file_surat_pemberitahuan_name',
         'tgl_mulai',
         'tgl_akhir',
+        'struktur_perangkat_daerah_id',
         'plotting_id',
         'kode_wilayah',
         'tim_id',
@@ -82,19 +87,19 @@ class Sprin extends Model
             return;
         }
 
-        if ($user->role === 'Admin Nasional' && $user->plotting_id) {
-            $query->where('sprins.sprin_tipe', 'Nasional')
-                ->where('sprins.plotting_id', $user->plotting_id);
-        } elseif ($user->role === 'Admin Wilayah' && $user->kode_wilayah) {
+        if (in_array($user->role, ['Admin Nasional', 'Admin Dinas'], true) && $user->plotting_id) {
+            $query->whereIn('sprins.sprin_tipe', ['Nasional', 'Dinas'])
+                ->where('sprins.struktur_perangkat_daerah_id', $user->plotting_id);
+        } elseif (in_array($user->role, ['Admin Wilayah', 'Admin Kecamatan'], true) && $user->kode_wilayah) {
             $provinceCode = substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2);
-            $query->where('sprins.sprin_tipe', 'Wilayah')
+            $query->whereIn('sprins.sprin_tipe', ['Wilayah', 'Kecamatan'])
                 ->where('sprins.kode_wilayah', $provinceCode);
         } elseif ($user->role === 'Koordinator dan Pengendali') {
             if ($user->plotting_id) {
-                $query->where('sprins.plotting_id', $user->plotting_id);
+                $query->where('sprins.struktur_perangkat_daerah_id', $user->plotting_id);
             } elseif ($user->kode_wilayah) {
                 $provinceCode = substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2);
-                $query->where('sprins.sprin_tipe', 'Wilayah')
+                $query->whereIn('sprins.sprin_tipe', ['Wilayah', 'Kecamatan'])
                     ->where('sprins.kode_wilayah', $provinceCode);
             } else {
                 $query->where('sprins.daltu', $user->id);
@@ -124,6 +129,17 @@ class Sprin extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function setPlottingIdAttribute(mixed $value): void
+    {
+        $this->attributes['struktur_perangkat_daerah_id'] = $value;
+        unset($this->attributes['plotting_id']);
+    }
+
+    public function getPlottingIdAttribute(): mixed
+    {
+        return $this->attributes['struktur_perangkat_daerah_id'] ?? null;
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -136,7 +152,7 @@ class Sprin extends Model
 
     public function plotting(): BelongsTo
     {
-        return $this->belongsTo(Plotting::class);
+        return $this->belongsTo(StrukturPerangkatDaerah::class, 'struktur_perangkat_daerah_id');
     }
 
     public function province(): BelongsTo
@@ -193,9 +209,18 @@ class Sprin extends Model
             : null;
     }
 
+    public function strukturPerangkatDaerah(): BelongsTo
+    {
+        return $this->belongsTo(StrukturPerangkatDaerah::class, 'struktur_perangkat_daerah_id');
+    }
+
     public function plotName(): ?string
     {
-        return $this->plotting?->plot;
+        if (! in_array($this->sprin_tipe, ['Nasional', 'Dinas'], true)) {
+            return null;
+        }
+
+        return $this->strukturPerangkatDaerah?->nama_unit;
     }
 
     public function provinceName(): ?string
@@ -205,10 +230,9 @@ class Sprin extends Model
         }
 
         if ($this->kode_wilayah) {
-            $province = DB::table('wilayah')
+            $province = DB::table('struktur_perangkat_daerah')
                 ->where('kode_wilayah', $this->kode_wilayah)
-                ->whereNull('kabupaten_kota')
-                ->value('provinsi');
+                ->value('nama_unit');
 
             if ($province) {
                 return (string) $province;

@@ -47,20 +47,22 @@ class WilayahDataTable
         $cityCode = (string) $request->query('city_code', '');
         $districtCode = (string) $request->query('district_code', '');
 
-        $query = DB::table('wilayah')
+        $targetTable = 'struktur_perangkat_daerah';
+
+        $query = DB::table($targetTable)
             ->whereNull('deleted_at')
             ->selectRaw("
                 kode_wilayah as code,
                 kode_wilayah as raw_code,
                 CASE
-                    WHEN CHAR_LENGTH(kode_wilayah) = 2 THEN 'province'
-                    WHEN CHAR_LENGTH(kode_wilayah) = 4 THEN 'city'
-                    WHEN CHAR_LENGTH(kode_wilayah) = 6 THEN 'district'
+                    WHEN LENGTH(kode_wilayah) = 2 THEN 'province'
+                    WHEN LENGTH(kode_wilayah) = 4 THEN 'city'
+                    WHEN LENGTH(kode_wilayah) = 6 THEN 'district'
                     ELSE 'village'
                 END as level,
                 SUBSTRING(kode_wilayah, 1, 2) as province_code,
-                CASE WHEN CHAR_LENGTH(kode_wilayah) >= 4 THEN SUBSTRING(kode_wilayah, 1, 4) ELSE '' END as city_code,
-                CASE WHEN CHAR_LENGTH(kode_wilayah) >= 6 THEN SUBSTRING(kode_wilayah, 1, 6) ELSE '' END as district_code,
+                CASE WHEN LENGTH(kode_wilayah) >= 4 THEN SUBSTRING(kode_wilayah, 1, 4) ELSE '' END as city_code,
+                CASE WHEN LENGTH(kode_wilayah) >= 6 THEN SUBSTRING(kode_wilayah, 1, 6) ELSE '' END as district_code,
                 COALESCE(provinsi, '') as province_name,
                 COALESCE(kabupaten_kota, '') as city_name,
                 COALESCE(kecamatan, '') as district_name,
@@ -69,10 +71,10 @@ class WilayahDataTable
 
         if ($districtCode !== '') {
             $query->where('kode_wilayah', 'like', $districtCode.'%')
-                ->whereRaw('CHAR_LENGTH(kode_wilayah) >= 6');
+                ->whereRaw('LENGTH(kode_wilayah) >= 6');
         } elseif ($cityCode !== '') {
             $query->where('kode_wilayah', 'like', $cityCode.'%')
-                ->whereRaw('CHAR_LENGTH(kode_wilayah) >= 4');
+                ->whereRaw('LENGTH(kode_wilayah) >= 4');
         } elseif ($provinceCode !== '') {
             $query->where('kode_wilayah', 'like', $provinceCode.'%');
         }
