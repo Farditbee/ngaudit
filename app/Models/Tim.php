@@ -66,17 +66,31 @@ class Tim extends Model
             return;
         }
 
-        if (in_array($user->role, ['Admin Nasional', 'Admin Dinas'], true) && $user->plotting_id) {
-            $query->whereIn('tims.lingkup', ['Nasional', 'Dinas'])
-                ->where('tims.struktur_perangkat_daerah_id', $user->plotting_id);
-        } elseif (in_array($user->role, ['Admin Wilayah', 'Admin Kecamatan'], true) && $user->kode_wilayah) {
-            $query->whereIn('tims.lingkup', ['Wilayah', 'Kecamatan'])
-                ->where('tims.province_code', substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2));
-        } elseif ($user->role === 'Koordinator dan Pengendali') {
-            if ($user->plotting_id) {
-                $query->where('tims.struktur_perangkat_daerah_id', $user->plotting_id);
+        if (in_array($user->role, ['Admin Nasional', 'Admin Dinas'], true)) {
+            $query->whereIn('tims.lingkup', ['Nasional', 'Dinas']);
+
+            if ($user->struktur_perangkat_daerah_id) {
+                $unitIds = StrukturPerangkatDaerah::getDescendantIds((int) $user->struktur_perangkat_daerah_id);
+                $query->whereIn('tims.struktur_perangkat_daerah_id', $unitIds);
+            }
+        } elseif (in_array($user->role, ['Admin Wilayah', 'Admin Kecamatan'], true)) {
+            $query->whereIn('tims.lingkup', ['Wilayah', 'Kecamatan']);
+
+            if ($user->struktur_perangkat_daerah_id) {
+                $unitIds = StrukturPerangkatDaerah::getDescendantIds((int) $user->struktur_perangkat_daerah_id);
+                $query->whereIn('tims.struktur_perangkat_daerah_id', $unitIds);
             } elseif ($user->kode_wilayah) {
-                $query->where('tims.province_code', substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2));
+                $cleanAuthWilayah = str_replace('.', '', (string) $user->kode_wilayah);
+                $query->whereRaw("REPLACE(tims.province_code, '.', '') LIKE ?", [$cleanAuthWilayah.'%']);
+            }
+        } elseif ($user->role === 'Koordinator dan Pengendali') {
+            if ($user->struktur_perangkat_daerah_id) {
+                $unitIds = StrukturPerangkatDaerah::getDescendantIds((int) $user->struktur_perangkat_daerah_id);
+                $query->whereIn('tims.struktur_perangkat_daerah_id', $unitIds);
+            } elseif ($user->kode_wilayah) {
+                $cleanAuthWilayah = str_replace('.', '', (string) $user->kode_wilayah);
+                $query->whereIn('tims.lingkup', ['Wilayah', 'Kecamatan'])
+                    ->whereRaw("REPLACE(tims.province_code, '.', '') LIKE ?", [$cleanAuthWilayah.'%']);
             } else {
                 $query->where('tims.daltu_id', $user->id);
             }

@@ -103,8 +103,19 @@
                     </td>
 
                     {{-- 3. Auditor (Dibuat Oleh) --}}
-                    <td class="border-r border-neutral-200 px-4 py-3 text-xs font-medium text-neutral-800 dark:border-neutral-800 dark:text-neutral-200">
-                        <span x-text="row.auditor_name || '-'"></span>
+                    <td class="border-r border-neutral-200 px-4 py-3 text-xs dark:border-neutral-800">
+                        <div class="flex flex-col items-start gap-1">
+                            <span class="font-medium text-neutral-800 dark:text-neutral-200" x-text="row.auditor_name || '-'"></span>
+                            <template x-if="row.sprin_tipe">
+                                <span
+                                    class="inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-medium leading-normal"
+                                    :class="(row.sprin_tipe === 'Nasional' || row.sprin_tipe === 'Dinas')
+                                        ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800/60 dark:bg-indigo-950/40 dark:text-indigo-300'
+                                        : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'"
+                                    x-text="row.sprin_tipe === 'Nasional' ? 'Dinas' : (row.sprin_tipe === 'Wilayah' ? 'Kecamatan' : row.sprin_tipe)"
+                                ></span>
+                            </template>
+                        </div>
                     </td>
 
                     {{-- 4. Auditee --}}

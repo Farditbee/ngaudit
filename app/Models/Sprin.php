@@ -87,20 +87,31 @@ class Sprin extends Model
             return;
         }
 
-        if (in_array($user->role, ['Admin Nasional', 'Admin Dinas'], true) && $user->plotting_id) {
-            $query->whereIn('sprins.sprin_tipe', ['Nasional', 'Dinas'])
-                ->where('sprins.struktur_perangkat_daerah_id', $user->plotting_id);
-        } elseif (in_array($user->role, ['Admin Wilayah', 'Admin Kecamatan'], true) && $user->kode_wilayah) {
-            $provinceCode = substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2);
-            $query->whereIn('sprins.sprin_tipe', ['Wilayah', 'Kecamatan'])
-                ->where('sprins.kode_wilayah', $provinceCode);
-        } elseif ($user->role === 'Koordinator dan Pengendali') {
-            if ($user->plotting_id) {
-                $query->where('sprins.struktur_perangkat_daerah_id', $user->plotting_id);
+        if (in_array($user->role, ['Admin Nasional', 'Admin Dinas'], true)) {
+            $query->whereIn('sprins.sprin_tipe', ['Nasional', 'Dinas']);
+
+            if ($user->struktur_perangkat_daerah_id) {
+                $unitIds = StrukturPerangkatDaerah::getDescendantIds((int) $user->struktur_perangkat_daerah_id);
+                $query->whereIn('sprins.struktur_perangkat_daerah_id', $unitIds);
+            }
+        } elseif (in_array($user->role, ['Admin Wilayah', 'Admin Kecamatan'], true)) {
+            $query->whereIn('sprins.sprin_tipe', ['Wilayah', 'Kecamatan']);
+
+            if ($user->struktur_perangkat_daerah_id) {
+                $unitIds = StrukturPerangkatDaerah::getDescendantIds((int) $user->struktur_perangkat_daerah_id);
+                $query->whereIn('sprins.struktur_perangkat_daerah_id', $unitIds);
             } elseif ($user->kode_wilayah) {
-                $provinceCode = substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2);
+                $cleanAuthWilayah = str_replace('.', '', (string) $user->kode_wilayah);
+                $query->whereRaw("REPLACE(sprins.kode_wilayah, '.', '') LIKE ?", [$cleanAuthWilayah.'%']);
+            }
+        } elseif ($user->role === 'Koordinator dan Pengendali') {
+            if ($user->struktur_perangkat_daerah_id) {
+                $unitIds = StrukturPerangkatDaerah::getDescendantIds((int) $user->struktur_perangkat_daerah_id);
+                $query->whereIn('sprins.struktur_perangkat_daerah_id', $unitIds);
+            } elseif ($user->kode_wilayah) {
+                $cleanAuthWilayah = str_replace('.', '', (string) $user->kode_wilayah);
                 $query->whereIn('sprins.sprin_tipe', ['Wilayah', 'Kecamatan'])
-                    ->where('sprins.kode_wilayah', $provinceCode);
+                    ->whereRaw("REPLACE(sprins.kode_wilayah, '.', '') LIKE ?", [$cleanAuthWilayah.'%']);
             } else {
                 $query->where('sprins.daltu', $user->id);
             }

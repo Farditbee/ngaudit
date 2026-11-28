@@ -191,6 +191,11 @@ class KkaDataTable
             ->addColumn('nomor_pka', fn (Kka $k): string => (string) ($k->nomor_pka ?? $k->pka?->nomor_pka ?? ''))
             ->addColumn('no_sprin', fn (Kka $k): string => (string) ($k->no_sprin ?? $k->pka?->sprin?->no_sprin ?? ''))
             ->addColumn('auditor_name', fn (Kka $k): string => (string) ($k->auditor_name ?? ''))
+            ->addColumn('sprin_tipe', fn (Kka $k): string => match ($k->sprin_tipe ?? $k->pka?->sprin?->sprin_tipe ?? '') {
+                'Nasional' => 'Dinas',
+                'Wilayah' => 'Kecamatan',
+                default => (string) ($k->sprin_tipe ?? $k->pka?->sprin?->sprin_tipe ?? ''),
+            })
             ->addColumn('bidang', fn (Kka $k): string => (string) ($k->bidang ?? ''))
             ->addColumn('tahap', fn (Kka $k): string => (string) ($k->tahap ?? ''))
             ->addColumn('tanggal_kka_formatted', fn (Kka $k): string => $k->tanggal_kka?->format('d/m/Y') ?? '-')
@@ -235,7 +240,8 @@ class KkaDataTable
             ->filterColumn('auditor_name', function (Builder $query, string $keyword): void {
                 $query->where(function (Builder $q) use ($keyword): void {
                     $q->where('auditor.name', 'like', "%{$keyword}%")
-                        ->orWhere('pembuat.name', 'like', "%{$keyword}%");
+                        ->orWhere('pembuat.name', 'like', "%{$keyword}%")
+                        ->orWhere('sprins.sprin_tipe', 'like', "%{$keyword}%");
                 });
             })
             ->filterColumn('auditee_name', function (Builder $query, string $keyword): void {

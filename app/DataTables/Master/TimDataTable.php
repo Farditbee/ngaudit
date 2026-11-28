@@ -101,10 +101,21 @@ class TimDataTable
                 'ketua_tim_2.name as ketua_tim_2_name',
             ]);
 
-        if (in_array($authUser?->role, ['Admin Nasional', 'Admin Dinas'], true) && $authUser->struktur_perangkat_daerah_id) {
-            $query->where('tims.struktur_perangkat_daerah_id', $authUser->struktur_perangkat_daerah_id);
-        } elseif (in_array($authUser?->role, ['Admin Wilayah', 'Admin Kecamatan'], true) && $authUser->struktur_perangkat_daerah_id) {
-            $query->where('tims.struktur_perangkat_daerah_id', $authUser->struktur_perangkat_daerah_id);
+        if (in_array($authUser?->role, ['Admin Nasional', 'Admin Dinas'], true)) {
+            $query->whereIn('tims.lingkup', ['Nasional', 'Dinas']);
+            if ($authUser->struktur_perangkat_daerah_id) {
+                $unitIds = StrukturPerangkatDaerah::getDescendantIds((int) $authUser->struktur_perangkat_daerah_id);
+                $query->whereIn('tims.struktur_perangkat_daerah_id', $unitIds);
+            }
+        } elseif (in_array($authUser?->role, ['Admin Wilayah', 'Admin Kecamatan'], true)) {
+            $query->whereIn('tims.lingkup', ['Wilayah', 'Kecamatan']);
+            if ($authUser->struktur_perangkat_daerah_id) {
+                $unitIds = StrukturPerangkatDaerah::getDescendantIds((int) $authUser->struktur_perangkat_daerah_id);
+                $query->whereIn('tims.struktur_perangkat_daerah_id', $unitIds);
+            } elseif ($authUser->kode_wilayah) {
+                $cleanAuthWilayah = str_replace('.', '', (string) $authUser->kode_wilayah);
+                $query->whereRaw("REPLACE(tims.province_code, '.', '') LIKE ?", [$cleanAuthWilayah.'%']);
+            }
         } elseif ($filterLingkup !== '') {
             $query->where('tims.lingkup', $filterLingkup);
         }

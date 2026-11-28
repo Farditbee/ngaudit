@@ -32,9 +32,10 @@ class PkaSeeder extends Seeder
             return;
         }
 
-        $templates = TemplatePka::query()
+        $templatesDinas = TemplatePka::query()
             ->where('lingkup', 'Dinas')
             ->get();
+        $templatesAll = TemplatePka::query()->get();
 
         // Bersihkan data PKA lama dari Sprin yang disetujui agar seeder bersifat idempoten
         $existingPkaIds = Pka::query()
@@ -208,48 +209,94 @@ class PkaSeeder extends Seeder
         ];
 
         foreach ($approvedSprins as $sprin) {
-            $opdName = $sprin->tim?->strukturPerangkatDaerah?->nama_unit ?? 'Dinas';
+            $isKecamatan = $sprin->sprin_tipe === 'Kecamatan' || ($sprin->tim?->lingkup === 'Kecamatan');
+            $opdName = $sprin->tim?->strukturPerangkatDaerah?->nama_unit ?? ($isKecamatan ? 'Kecamatan' : 'Dinas');
 
-            $opdCode = match (true) {
-                str_contains($opdName, 'Kesehatan') => 'DINKES',
-                str_contains($opdName, 'Pendidikan') => 'DISDIKBUD',
-                str_contains($opdName, 'Bina Marga') => 'DBMBK',
-                str_contains($opdName, 'Lingkungan Hidup') => 'DLH',
-                default => 'DINAS',
-            };
+            if ($isKecamatan) {
+                $opdCode = match (true) {
+                    str_contains($opdName, 'Gunung Sugih') => 'KEC-GS',
+                    str_contains($opdName, 'Terbanggi Besar') => 'KEC-TB',
+                    str_contains($opdName, 'Seputih Agung') => 'KEC-SA',
+                    str_contains($opdName, 'Bumi Ratu Nuban') => 'KEC-BRN',
+                    str_contains($opdName, 'Bekri') => 'KEC-BKR',
+                    str_contains($opdName, 'Kalirejo') => 'KEC-KL',
+                    default => 'KEC',
+                };
 
-            $pool = $opdTopics[$opdCode] ?? [
-                [
-                    'bidang' => 'Operasional',
-                    'jenis_audit' => 'Audit Kinerja',
-                    'sasaran_auditi' => "Evaluasi Kinerja Pelaksanaan Program Kerja dan Anggaran Operasional pada {$opdName}",
-                    'anggaran' => 150000000,
-                ],
-                [
-                    'bidang' => 'Manajemen Anggaran dan Keuangan',
-                    'jenis_audit' => 'Audit Kinerja',
-                    'sasaran_auditi' => "Pemeriksaan Akuntabilitas Pengelolaan Kas dan Belanja Barang/Jasa pada {$opdName}",
-                    'anggaran' => 200000000,
-                ],
-                [
-                    'bidang' => 'Logistik',
-                    'jenis_audit' => 'Audit Kinerja',
-                    'sasaran_auditi' => "Pengujian Penatausahaan dan Inventarisasi Barang Milik Daerah pada {$opdName}",
-                    'anggaran' => 130000000,
-                ],
-                [
-                    'bidang' => 'Investigasi',
-                    'jenis_audit' => 'Audit Tujuan Tertentu',
-                    'sasaran_auditi' => "Audit Kepatuhan Pelaksanaan Pengadaan Langsung dan Kontrak Kerja pada {$opdName}",
-                    'anggaran' => 110000000,
-                ],
-                [
-                    'bidang' => 'Sumber Daya Manusia',
-                    'jenis_audit' => 'Audit Kinerja',
-                    'sasaran_auditi' => "Evaluasi Efektivitas Manajemen Kepegawaian dan Disiplin Kerja ASN pada {$opdName}",
-                    'anggaran' => 90000000,
-                ],
-            ];
+                $pool = [
+                    [
+                        'bidang' => 'Operasional',
+                        'jenis_audit' => 'Audit Kinerja',
+                        'sasaran_auditi' => "Evaluasi Kinerja Pelayanan Administrasi Terpadu Kecamatan (PATEN) dan Trantibum pada {$opdName}",
+                        'anggaran' => 45000000,
+                    ],
+                    [
+                        'bidang' => 'Manajemen Anggaran dan Keuangan',
+                        'jenis_audit' => 'Audit Kepatuhan',
+                        'sasaran_auditi' => "Pemeriksaan Kepatuhan Penatausahaan Kas, SPJ Belanja Operasional, dan Honorarium pada Kantor {$opdName}",
+                        'anggaran' => 60000000,
+                    ],
+                    [
+                        'bidang' => 'Logistik',
+                        'jenis_audit' => 'Audit Kinerja',
+                        'sasaran_auditi' => "Pengujian Penatausahaan, Pengamanan, dan Inventarisasi Barang Milik Daerah (BMD) di Lingkungan {$opdName}",
+                        'anggaran' => 35000000,
+                    ],
+                    [
+                        'bidang' => 'Sumber Daya Manusia',
+                        'jenis_audit' => 'Audit Kinerja',
+                        'sasaran_auditi' => "Evaluasi Efektivitas Penegakan Disiplin Kerja ASN dan Pemanfaatan Tenaga Teknis Pelayanan pada {$opdName}",
+                        'anggaran' => 25000000,
+                    ],
+                    [
+                        'bidang' => 'Investigasi',
+                        'jenis_audit' => 'Audit Tujuan Tertentu',
+                        'sasaran_auditi' => "Pemeriksaan Kepatuhan Penyaluran Bantuan Sosial dan Pungutan Retribusi Pelayanan Umum pada {$opdName}",
+                        'anggaran' => 40000000,
+                    ],
+                ];
+            } else {
+                $opdCode = match (true) {
+                    str_contains($opdName, 'Kesehatan') => 'DINKES',
+                    str_contains($opdName, 'Pendidikan') => 'DISDIKBUD',
+                    str_contains($opdName, 'Bina Marga') => 'DBMBK',
+                    str_contains($opdName, 'Lingkungan Hidup') => 'DLH',
+                    default => 'DINAS',
+                };
+
+                $pool = $opdTopics[$opdCode] ?? [
+                    [
+                        'bidang' => 'Operasional',
+                        'jenis_audit' => 'Audit Kinerja',
+                        'sasaran_auditi' => "Evaluasi Kinerja Pelaksanaan Program Kerja dan Anggaran Operasional pada {$opdName}",
+                        'anggaran' => 150000000,
+                    ],
+                    [
+                        'bidang' => 'Manajemen Anggaran dan Keuangan',
+                        'jenis_audit' => 'Audit Kinerja',
+                        'sasaran_auditi' => "Pemeriksaan Akuntabilitas Pengelolaan Kas dan Belanja Barang/Jasa pada {$opdName}",
+                        'anggaran' => 200000000,
+                    ],
+                    [
+                        'bidang' => 'Logistik',
+                        'jenis_audit' => 'Audit Kinerja',
+                        'sasaran_auditi' => "Pengujian Penatausahaan dan Inventarisasi Barang Milik Daerah pada {$opdName}",
+                        'anggaran' => 130000000,
+                    ],
+                    [
+                        'bidang' => 'Investigasi',
+                        'jenis_audit' => 'Audit Tujuan Tertentu',
+                        'sasaran_auditi' => "Audit Kepatuhan Pelaksanaan Pengadaan Langsung dan Kontrak Kerja pada {$opdName}",
+                        'anggaran' => 110000000,
+                    ],
+                    [
+                        'bidang' => 'Sumber Daya Manusia',
+                        'jenis_audit' => 'Audit Kinerja',
+                        'sasaran_auditi' => "Evaluasi Efektivitas Manajemen Kepegawaian dan Disiplin Kerja ASN pada {$opdName}",
+                        'anggaran' => 90000000,
+                    ],
+                ];
+            }
 
             // Acak jumlah PKA antara 2 sampai 5 per Sprin
             $count = random_int(2, 5);
@@ -259,6 +306,10 @@ class PkaSeeder extends Seeder
             $auditorIds = $auditors->pluck('id')->all();
 
             $sprinStartDate = $sprin->tgl_mulai ? Carbon::parse($sprin->tgl_mulai) : Carbon::now();
+
+            $activeTemplates = $isKecamatan
+                ? ($templatesAll->isNotEmpty() ? $templatesAll : $templatesDinas)
+                : ($templatesDinas->isNotEmpty() ? $templatesDinas : $templatesAll);
 
             for ($i = 0; $i < $count; $i++) {
                 $topic = $pool[$i % count($pool)];
@@ -277,8 +328,8 @@ class PkaSeeder extends Seeder
                 $direviuOlehId = $sprin->dalnis ?: $sprin->daltu;
 
                 // Template PKA pendukung
-                $template = $templates->isNotEmpty()
-                    ? $templates->get($i % $templates->count())
+                $template = $activeTemplates->isNotEmpty()
+                    ? $activeTemplates->get($i % $activeTemplates->count())
                     : null;
 
                 $nomorPka = sprintf(

@@ -153,6 +153,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/audit/tindak-lanjut/{kka}/tabulasi/{tabulasi}/uji-nilai', [TindakLanjutAuditeeController::class, 'storeUjiNilai'])->name('audit.tindak-lanjut.uji-nilai');
     Route::post('/audit/tindak-lanjut/{kka}/tabulasi/{tabulasi}/messages', [TindakLanjutAuditeeController::class, 'storeMessage'])->name('audit.tindak-lanjut.messages.store');
     Route::post('/audit/tindak-lanjut/{kka}/tabulasi/{tabulasi}/lampiran', [TindakLanjutAuditeeController::class, 'storeLampiran'])->name('audit.tindak-lanjut.lampiran');
+    Route::delete('/audit/tindak-lanjut/{kka}/tabulasi/{tabulasi}/lampiran/{lampiran}', [TindakLanjutAuditeeController::class, 'destroyLampiran'])->name('audit.tindak-lanjut.lampiran.destroy');
     Route::get('/audit/tindak-lanjut/{kka}/{tab?}', [TindakLanjutAuditeeController::class, 'show'])
         ->where('tab', 'tabulasi|konsultasi|positif')
         ->name('audit.tindak-lanjut.show');

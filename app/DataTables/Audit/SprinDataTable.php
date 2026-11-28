@@ -35,17 +35,17 @@ class SprinDataTable
     public function config(array $tims): array
     {
         $authUser = auth()->user();
-        $isAdminNasional = $authUser?->role === 'Admin Nasional';
-        $isAdminWilayah = $authUser?->role === 'Admin Wilayah';
+        $isAdminNasional = in_array($authUser?->role, ['Admin Nasional', 'Admin Dinas'], true);
+        $isAdminWilayah = in_array($authUser?->role, ['Admin Wilayah', 'Admin Kecamatan'], true);
         $isDaltu = $authUser?->role === 'Koordinator dan Pengendali';
 
         $scopeLabel = null;
         $scopeName = null;
-        if ($isAdminNasional || ($isDaltu && $authUser?->plotting_id)) {
-            $scopeLabel = 'WIL';
-            $scopeName = $authUser->plotting?->nama_unit ?? $authUser->plotting?->plot;
+        if ($isAdminNasional || ($isDaltu && $authUser?->struktur_perangkat_daerah_id)) {
+            $scopeLabel = 'Dinas';
+            $scopeName = $authUser->strukturPerangkatDaerah?->nama_unit ?? $authUser->plotting?->plot;
         } elseif ($isAdminWilayah || ($isDaltu && $authUser?->kode_wilayah)) {
-            $scopeLabel = 'Provinsi';
+            $scopeLabel = 'Kecamatan';
             $provinceCode = substr(str_replace('.', '', (string) $authUser->kode_wilayah), 0, 2);
             $scopeName = DB::table('struktur_perangkat_daerah')->where('kode_wilayah', $provinceCode)->value('nama_unit');
         }

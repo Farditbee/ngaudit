@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Audit;
 
+use App\Http\Controllers\Audit\SprinController;
 use App\Models\Sprin;
 use App\Models\Tim;
 use Illuminate\Foundation\Http\FormRequest;
@@ -11,6 +12,16 @@ class SprinRequest extends FormRequest
 {
     public function authorize(): bool
     {
+        $user = $this->user();
+        if (! $user) {
+            return false;
+        }
+
+        $sprin = $this->route('sprin');
+        if ($sprin instanceof Sprin) {
+            return app(SprinController::class)->canAccessSprin($user, $sprin);
+        }
+
         return true;
     }
 

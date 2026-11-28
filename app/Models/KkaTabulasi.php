@@ -45,8 +45,8 @@ class KkaTabulasi extends Model
      */
     public const STATUS_TINJUTS = [
         'Belum Ditinjut',
-        'Dalam Proses',
-        'Belum Sesuai',
+        'Sudah Ditinjut',
+        'Koreksi',
         'Selesai',
     ];
 

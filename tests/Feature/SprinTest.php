@@ -284,4 +284,76 @@ class SprinTest extends TestCase
         $this->assertSame($sprinOld->no_sprin, $responseWithOrder->json('data.0.no_sprin'));
         $this->assertSame($sprinNew->no_sprin, $responseWithOrder->json('data.1.no_sprin'));
     }
+
+    public function test_admin_kecamatan_only_sees_kecamatan_sprin_and_admin_dinas_cannot_see_kecamatan_sprin(): void
+    {
+        $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+        $adminDinas = User::factory()->create(['role' => 'Admin Dinas', 'level' => 'Dinas']);
+        $adminKecamatan = User::factory()->create(['role' => 'Admin Kecamatan', 'level' => 'Kecamatan']);
+
+        $timDinas = Tim::factory()->create([
+            'nama_tim' => 'Tim Audit Dinas Perhubungan',
+            'lingkup' => 'Dinas',
+        ]);
+
+        $timKecamatan = Tim::factory()->create([
+            'nama_tim' => 'Tim Audit Kec. Bandar Surabaya',
+            'lingkup' => 'Kecamatan',
+        ]);
+
+        $sprinDinas = Sprin::factory()->create([
+            'no_sprin' => 'SPRIN/DINAS/001',
+            'sprin_tipe' => 'Dinas',
+            'tim_id' => $timDinas->id,
+        ]);
+
+        $sprinKecamatan = Sprin::factory()->create([
+            'no_sprin' => 'SPRIN/KEC/001',
+            'sprin_tipe' => 'Kecamatan',
+            'tim_id' => $timKecamatan->id,
+        ]);
+
+        // 1. Admin Kecamatan datatable check
+        $resKec = $this->actingAs($adminKecamatan)->getJson(route('audit.sprin.index'));
+        $resKec->assertOk();
+        $kecData = collect($resKec->json('data'));
+        $this->assertTrue($kecData->contains('id', $sprinKecamatan->id));
+        $this->assertFalse($kecData->contains('id', $sprinDinas->id));
+
+        // Admin Kecamatan options tim check
+        $viewKec = $this->actingAs($adminKecamatan)->get(route('audit.sprin.index'));
+        $viewKec->assertOk();
+        $timsForKec = collect($viewKec->viewData('tableConfig')['tims']);
+        $this->assertTrue($timsForKec->contains('id', $timKecamatan->id));
+        $this->assertFalse($timsForKec->contains('id', $timDinas->id));
+
+        // Admin Kecamatan cannot access reviews or delete Sprin Dinas
+        $this->actingAs($adminKecamatan)->getJson(route('audit.sprin.reviews.index', $sprinDinas))->assertForbidden();
+        $this->actingAs($adminKecamatan)->deleteJson(route('audit.sprin.destroy', $sprinDinas))->assertForbidden();
+
+        // 2. Admin Dinas datatable check
+        $resDinas = $this->actingAs($adminDinas)->getJson(route('audit.sprin.index'));
+        $resDinas->assertOk();
+        $dinasData = collect($resDinas->json('data'));
+        $this->assertTrue($dinasData->contains('id', $sprinDinas->id));
+        $this->assertFalse($dinasData->contains('id', $sprinKecamatan->id));
+
+        // Admin Dinas options tim check
+        $viewDinas = $this->actingAs($adminDinas)->get(route('audit.sprin.index'));
+        $viewDinas->assertOk();
+        $timsForDinas = collect($viewDinas->viewData('tableConfig')['tims']);
+        $this->assertTrue($timsForDinas->contains('id', $timDinas->id));
+        $this->assertFalse($timsForDinas->contains('id', $timKecamatan->id));
+
+        // Admin Dinas cannot access reviews or delete Sprin Kecamatan
+        $this->actingAs($adminDinas)->getJson(route('audit.sprin.reviews.index', $sprinKecamatan))->assertForbidden();
+        $this->actingAs($adminDinas)->deleteJson(route('audit.sprin.destroy', $sprinKecamatan))->assertForbidden();
+
+        // 3. Super Admin sees both
+        $resSuper = $this->actingAs($superAdmin)->getJson(route('audit.sprin.index'));
+        $resSuper->assertOk();
+        $superData = collect($resSuper->json('data'));
+        $this->assertTrue($superData->contains('id', $sprinDinas->id));
+        $this->assertTrue($superData->contains('id', $sprinKecamatan->id));
+    }
 }

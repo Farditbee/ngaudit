@@ -18,6 +18,21 @@
     line-height: 1.5;
 }
 
+.tiptap .ProseMirror p,
+.ProseMirror p,
+.tiptap .ProseMirror.prose p,
+.ProseMirror.prose p {
+    margin-top: 0 !important;
+    margin-bottom: 0.25rem !important;
+}
+
+.tiptap .ProseMirror p:last-child,
+.ProseMirror p:last-child,
+.tiptap .ProseMirror.prose p:last-child,
+.ProseMirror.prose p:last-child {
+    margin-bottom: 0 !important;
+}
+
 .tiptap p.is-editor-empty:first-child::before {
     content: attr(data-placeholder);
     float: left;

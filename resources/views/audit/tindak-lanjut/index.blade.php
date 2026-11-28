@@ -38,11 +38,11 @@
                             </a>
 
                             <span class="inline-flex items-center rounded-full bg-sky-500 px-2.5 py-0.5 text-[11px] font-semibold text-white">
-                                <span x-text="(row.sudah_ditinjut_count ?? 0) + ' Sudah ditinjut oleh auditi'"></span>
+                                <span x-text="(row.sudah_ditinjut_count ?? 0) + ' Sudah ditinjut Auditi'"></span>
                             </span>
 
                             <span class="inline-flex items-center rounded-full bg-amber-500 px-2.5 py-0.5 text-[11px] font-semibold text-white">
-                                <span x-text="(row.belum_sesuai_count ?? 0) + ' Belum Sesuai'"></span>
+                                <span x-text="(row.koreksi_count ?? row.belum_sesuai_count ?? 0) + ' Koreksi'"></span>
                             </span>
 
                             <span class="inline-flex items-center rounded-full bg-emerald-600 px-2.5 py-0.5 text-[11px] font-semibold text-white">

@@ -38,6 +38,24 @@ class UserSeeder extends Seeder
             ]
         );
 
+        // 1b. Pastikan Admin Dinas ada
+        User::query()->updateOrCreate(
+            ['username' => 'admindinas'],
+            [
+                'name' => 'Admin Dinas',
+                'email' => 'admin.dinas@eaudit.test',
+                'phone' => '081199990001',
+                'role' => 'Admin Dinas',
+                'password' => $defaultPassword,
+                'level' => 'Dinas',
+                'struktur_perangkat_daerah_id' => null,
+                'kode_wilayah' => null,
+                'bidang' => null,
+                'jabatan' => 'Administrator Tingkat Dinas',
+                'created_by' => 1,
+            ]
+        );
+
         // 2. 30 Auditor dengan Level Dinas, acak di Dinas/Badan/OPD
         $dinasList = StrukturPerangkatDaerah::dinas()->get();
 
@@ -91,7 +109,7 @@ class UserSeeder extends Seeder
                     'level' => 'Dinas',
                     'struktur_perangkat_daerah_id' => $randomDinas?->id,
                     'kode_wilayah' => null,
-                    'bidang' => null,
+                    'bidang' => User::BIDANGS[$idx % count(User::BIDANGS)],
                     'jabatan' => 'Auditor',
                     'created_by' => 1,
                 ]
@@ -125,7 +143,7 @@ class UserSeeder extends Seeder
                     'level' => 'Dinas',
                     'struktur_perangkat_daerah_id' => $randomDinas?->id,
                     'kode_wilayah' => null,
-                    'bidang' => null,
+                    'bidang' => User::BIDANGS[$idx % count(User::BIDANGS)],
                     'jabatan' => 'Koordinator dan Pengendali (Daltu)',
                     'created_by' => 1,
                 ]
@@ -161,7 +179,7 @@ class UserSeeder extends Seeder
                     'level' => 'Dinas',
                     'struktur_perangkat_daerah_id' => $randomDinas?->id,
                     'kode_wilayah' => null,
-                    'bidang' => null,
+                    'bidang' => User::BIDANGS[$idx % count(User::BIDANGS)],
                     'jabatan' => 'Pengendali Teknis (Dalnis)',
                     'created_by' => 1,
                 ]
@@ -197,7 +215,7 @@ class UserSeeder extends Seeder
                     'level' => 'Dinas',
                     'struktur_perangkat_daerah_id' => $randomDinas?->id,
                     'kode_wilayah' => null,
-                    'bidang' => null,
+                    'bidang' => User::BIDANGS[$idx % count(User::BIDANGS)],
                     'jabatan' => 'Ketua Tim Audit',
                     'created_by' => 1,
                 ]
@@ -293,5 +311,7 @@ class UserSeeder extends Seeder
                 ]
             );
         }
+
+        $this->call(UserKecamatanSeeder::class);
     }
 }

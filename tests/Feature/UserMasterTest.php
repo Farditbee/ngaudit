@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Plotting;
 use App\Models\User;
+use Database\Seeders\StrukturPerangkatDaerahSeeder;
+use Database\Seeders\UserKecamatanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -363,5 +365,45 @@ class UserMasterTest extends TestCase
         $this->assertTrue($superRows->contains('id', $userDinas->id));
         $this->assertTrue($superRows->contains('id', $adminKecamatan->id));
         $this->assertTrue($superRows->contains('id', $userKecamatan->id));
+    }
+
+    public function test_user_kecamatan_seeder_seeds_required_users_and_associations(): void
+    {
+        User::factory()->create(['id' => 1, 'role' => 'Super Admin']);
+        $this->seed(StrukturPerangkatDaerahSeeder::class);
+        $this->seed(UserKecamatanSeeder::class);
+
+        $this->assertDatabaseHas('users', [
+            'username' => 'adminkecamatan',
+            'role' => 'Admin Kecamatan',
+            'level' => 'Kecamatan',
+        ]);
+
+        // 17 Auditor Kecamatan
+        $auditors = User::query()->where('role', 'Auditor')->where('level', 'Kecamatan')->get();
+        $this->assertCount(17, $auditors);
+
+        // 7 Auditee sub-units
+        $auditees = User::query()->where('role', 'Auditee')->where('level', 'Kecamatan')->get();
+        $this->assertCount(7, $auditees);
+        foreach ($auditees as $auditee) {
+            $this->assertNotNull($auditee->bidang);
+            $this->assertNotNull($auditee->struktur_perangkat_daerah_id);
+        }
+
+        // Koordinator dan Pengendali (4 - 9 orang)
+        $daltu = User::query()->where('role', 'Koordinator dan Pengendali')->where('level', 'Kecamatan')->get();
+        $this->assertGreaterThanOrEqual(4, $daltu->count());
+        $this->assertLessThanOrEqual(9, $daltu->count());
+
+        // Pengawas Tim (4 - 9 orang)
+        $dalnis = User::query()->where('role', 'Pengawas Tim')->where('level', 'Kecamatan')->get();
+        $this->assertGreaterThanOrEqual(4, $dalnis->count());
+        $this->assertLessThanOrEqual(9, $dalnis->count());
+
+        // Ketua Tim (4 - 9 orang)
+        $katim = User::query()->where('role', 'Ketua Tim')->where('level', 'Kecamatan')->get();
+        $this->assertGreaterThanOrEqual(4, $katim->count());
+        $this->assertLessThanOrEqual(9, $katim->count());
     }
 }

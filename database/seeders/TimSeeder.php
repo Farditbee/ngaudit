@@ -14,10 +14,20 @@ class TimSeeder extends Seeder
      */
     public function run(): void
     {
-        $daltuUsers = User::query()->where('role', 'Koordinator dan Pengendali')->orderBy('id')->get();
-        $dalnisUsers = User::query()->where('role', 'Pengawas Tim')->orderBy('id')->get();
-        $katimUsers = User::query()->where('role', 'Ketua Tim')->orderBy('id')->get();
-        $auditorUsers = User::query()->where('role', 'Auditor')->orderBy('id')->get();
+        $daltuAll = User::query()->where('role', 'Koordinator dan Pengendali')->orderBy('id')->get();
+        $dalnisAll = User::query()->where('role', 'Pengawas Tim')->orderBy('id')->get();
+        $katimAll = User::query()->where('role', 'Ketua Tim')->orderBy('id')->get();
+        $auditorAll = User::query()->where('role', 'Auditor')->orderBy('id')->get();
+
+        $daltuDinas = $daltuAll->where('level', 'Dinas')->values();
+        $dalnisDinas = $dalnisAll->where('level', 'Dinas')->values();
+        $katimDinas = $katimAll->where('level', 'Dinas')->values();
+        $auditorDinas = $auditorAll->where('level', 'Dinas')->values();
+
+        $daltuDinas = $daltuDinas->isNotEmpty() ? $daltuDinas : $daltuAll;
+        $dalnisDinas = $dalnisDinas->isNotEmpty() ? $dalnisDinas : $dalnisAll;
+        $katimDinas = $katimDinas->isNotEmpty() ? $katimDinas : $katimAll;
+        $auditorDinas = $auditorDinas->isNotEmpty() ? $auditorDinas : $auditorAll;
 
         $timDefinitions = [
             [
@@ -64,11 +74,11 @@ class TimSeeder extends Seeder
                 ->where('nama_unit', 'LIKE', '%'.$def['target_spd'].'%')
                 ->first();
 
-            $daltu = $daltuUsers->get($idx % $daltuUsers->count());
-            $dalnis = $dalnisUsers->get($idx % $dalnisUsers->count());
-            $katim = $katimUsers->get($idx % $katimUsers->count());
+            $daltu = $daltuDinas->get($idx % max(1, $daltuDinas->count()));
+            $dalnis = $dalnisDinas->get($idx % max(1, $dalnisDinas->count()));
+            $katim = $katimDinas->get($idx % max(1, $katimDinas->count()));
 
-            $assignedAuditors = $auditorUsers->slice($auditorOffset, $def['auditor_count']);
+            $assignedAuditors = $auditorDinas->slice($auditorOffset, $def['auditor_count']);
             $auditorOffset += $def['auditor_count'];
 
             $tim = Tim::query()->updateOrCreate(
@@ -89,6 +99,82 @@ class TimSeeder extends Seeder
 
             if ($assignedAuditors->isNotEmpty()) {
                 $tim->auditors()->sync($assignedAuditors->pluck('id')->toArray());
+            }
+        }
+
+        // Seeder Tim Audit Khusus Lingkup Kecamatan
+        $daltuKec = $daltuAll->where('level', 'Kecamatan')->values();
+        $dalnisKec = $dalnisAll->where('level', 'Kecamatan')->values();
+        $katimKec = $katimAll->where('level', 'Kecamatan')->values();
+        $auditorKec = $auditorAll->where('level', 'Kecamatan')->values();
+
+        if ($auditorKec->isNotEmpty()) {
+            $timKecamatanDefinitions = [
+                [
+                    'nama_tim' => 'Tim Audit Kecamatan 01 - Kec. Gunung Sugih',
+                    'target_spd' => 'Kecamatan Gunung Sugih',
+                    'auditor_count' => 3,
+                ],
+                [
+                    'nama_tim' => 'Tim Audit Kecamatan 02 - Kec. Terbanggi Besar',
+                    'target_spd' => 'Kecamatan Terbanggi Besar',
+                    'auditor_count' => 3,
+                ],
+                [
+                    'nama_tim' => 'Tim Audit Kecamatan 03 - Kec. Seputih Agung',
+                    'target_spd' => 'Kecamatan Seputih Agung',
+                    'auditor_count' => 3,
+                ],
+                [
+                    'nama_tim' => 'Tim Audit Kecamatan 04 - Kec. Bumi Ratu Nuban',
+                    'target_spd' => 'Kecamatan Bumi Ratu Nuban',
+                    'auditor_count' => 3,
+                ],
+                [
+                    'nama_tim' => 'Tim Audit Kecamatan 05 - Kec. Bekri',
+                    'target_spd' => 'Kecamatan Bekri',
+                    'auditor_count' => 2,
+                ],
+                [
+                    'nama_tim' => 'Tim Audit Kecamatan 06 - Kec. Kalirejo',
+                    'target_spd' => 'Kecamatan Kalirejo',
+                    'auditor_count' => 3,
+                ],
+            ];
+
+            $auditorKecOffset = 0;
+
+            foreach ($timKecamatanDefinitions as $kIdx => $kDef) {
+                $spdKec = StrukturPerangkatDaerah::query()
+                    ->where('nama_unit', 'LIKE', '%'.$kDef['target_spd'].'%')
+                    ->first();
+
+                $daltu = $daltuKec->isNotEmpty() ? $daltuKec->get($kIdx % $daltuKec->count()) : null;
+                $dalnis = $dalnisKec->isNotEmpty() ? $dalnisKec->get($kIdx % $dalnisKec->count()) : null;
+                $katim = $katimKec->isNotEmpty() ? $katimKec->get($kIdx % $katimKec->count()) : null;
+
+                $assignedAuditors = $auditorKec->slice($auditorKecOffset, $kDef['auditor_count']);
+                $auditorKecOffset += $kDef['auditor_count'];
+
+                $tim = Tim::query()->updateOrCreate(
+                    ['nama_tim' => $kDef['nama_tim']],
+                    [
+                        'lingkup' => 'Kecamatan',
+                        'struktur_perangkat_daerah_id' => $spdKec?->id,
+                        'plotting_id' => $spdKec?->id,
+                        'province_code' => null,
+                        'daltu_id' => $daltu?->id,
+                        'dalnis_id' => $dalnis?->id,
+                        'ketua_tim_id' => $katim?->id,
+                        'ketua_tim_2_id' => null,
+                        'jumlah_anggota' => $assignedAuditors->count(),
+                        'created_by' => 1,
+                    ]
+                );
+
+                if ($assignedAuditors->isNotEmpty()) {
+                    $tim->auditors()->sync($assignedAuditors->pluck('id')->toArray());
+                }
             }
         }
     }

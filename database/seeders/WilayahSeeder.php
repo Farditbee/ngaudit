@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 
 class WilayahSeeder extends Seeder
 {
@@ -13,7 +14,7 @@ class WilayahSeeder extends Seeder
      */
     public function run(): void
     {
-        if (DB::table('wilayah')->count() > 0) {
+        if (! Schema::hasTable('wilayah') || DB::table('wilayah')->count() > 0) {
             return;
         }
 

@@ -135,6 +135,8 @@ class TindakLanjutAuditeeController extends Controller
                 'bidang' => $kka->pka?->bidang ?? '-',
                 'canUjiNilaiRole' => $this->isAuditorOrReviewer($authUser),
                 'userRole' => $authUser?->role ?? '',
+                'isAuditee' => $authUser?->role === 'Auditee',
+                'currentUserId' => $authUser?->id,
                 'items' => $items,
                 'kodeTinjuts' => $kodeTinjuts,
                 'statusTinjuts' => KkaTabulasi::STATUS_TINJUTS,
@@ -154,6 +156,12 @@ class TindakLanjutAuditeeController extends Controller
             ], 403);
         }
 
+        if ($tabulasi->status_tinjut === 'Selesai') {
+            return response()->json([
+                'message' => 'Tindak lanjut sudah selesai diverifikasi oleh auditor dan tidak dapat diubah lagi.',
+            ], 422);
+        }
+
         if ($request->has('nilai_pengembalian') && is_string($request->input('nilai_pengembalian'))) {
             $cleaned = preg_replace('/[^\d]/', '', (string) $request->input('nilai_pengembalian'));
             $request->merge([
@@ -162,7 +170,7 @@ class TindakLanjutAuditeeController extends Controller
         }
 
         $validated = $request->validate([
-            'status_tinjut' => ['nullable', 'string', Rule::in(KkaTabulasi::STATUS_TINJUTS)],
+            'status_tinjut' => ['nullable', 'string', Rule::in(array_merge(KkaTabulasi::STATUS_TINJUTS, ['Dalam Proses', 'Belum Sesuai']))],
             'kode_tinjut_id' => [
                 'nullable',
                 'integer',
@@ -182,8 +190,10 @@ class TindakLanjutAuditeeController extends Controller
         ]);
 
         $nextStatus = $validated['status_tinjut'] ?? $tabulasi->status_tinjut;
-        if (! $nextStatus || $nextStatus === 'Belum Ditinjut') {
-            $nextStatus = 'Dalam Proses';
+        if (! $nextStatus || $nextStatus === 'Belum Ditinjut' || $nextStatus === 'Dalam Proses') {
+            $nextStatus = 'Sudah Ditinjut';
+        } elseif ($nextStatus === 'Belum Sesuai') {
+            $nextStatus = 'Koreksi';
         }
 
         $payload = [
@@ -240,19 +250,34 @@ class TindakLanjutAuditeeController extends Controller
             ], 422);
         }
 
+        if (empty(trim(strip_tags((string) $request->input('kesimpulan_tinjut'))))) {
+            return response()->json([
+                'message' => 'Kesimpulan wajib diisi.',
+                'errors' => [
+                    'kesimpulan_tinjut' => ['Kesimpulan wajib diisi.'],
+                ],
+            ], 422);
+        }
+
         $validated = $request->validate([
-            'kesimpulan_tinjut' => ['required', 'string', 'max:100'],
-            'alasan_tinjut' => ['nullable', 'string', 'max:2000'],
-            'status_tinjut' => ['required', 'string', Rule::in(KkaTabulasi::STATUS_TINJUTS)],
+            'kesimpulan_tinjut' => ['required', 'string'],
+            'alasan_tinjut' => ['nullable', 'string'],
+            'status_tinjut' => ['required', 'string', Rule::in(array_merge(KkaTabulasi::STATUS_TINJUTS, ['Dalam Proses', 'Belum Sesuai']))],
         ], [
             'kesimpulan_tinjut.required' => 'Kesimpulan wajib diisi.',
             'status_tinjut.required' => 'Status tindak lanjut wajib dipilih.',
         ]);
 
+        $statusTinjut = match ($validated['status_tinjut']) {
+            'Dalam Proses' => 'Sudah Ditinjut',
+            'Belum Sesuai' => 'Koreksi',
+            default => $validated['status_tinjut'],
+        };
+
         $tabulasi->update([
             'kesimpulan_tinjut' => $validated['kesimpulan_tinjut'],
             'alasan_tinjut' => $validated['alasan_tinjut'] ?? null,
-            'status_tinjut' => $validated['status_tinjut'],
+            'status_tinjut' => $statusTinjut,
         ]);
 
         return response()->json([
@@ -304,7 +329,7 @@ class TindakLanjutAuditeeController extends Controller
     }
 
     /**
-     * Simpan Lampiran Tindak Lanjut (Upload File atau Tautan / Link URL + Keterangan Lampiran).
+     * Simpan Lampiran Tindak Lanjut (Upload File tunggal / multi-file atau Tautan / Link URL + Keterangan Lampiran).
      */
     public function storeLampiran(Request $request, Kka $kka, KkaTabulasi $tabulasi): JsonResponse
     {
@@ -316,57 +341,120 @@ class TindakLanjutAuditeeController extends Controller
 
         $jenisUnggahan = (string) $request->input('jenis_unggahan', 'file');
 
-        $validated = $request->validate([
-            'jenis_unggahan' => ['nullable', 'string', Rule::in(['file', 'link'])],
-            'lampiran' => [
-                Rule::requiredIf($jenisUnggahan === 'file'),
-                'nullable',
-                'file',
-                'max:10240',
-            ],
-            'link_url' => [
-                Rule::requiredIf($jenisUnggahan === 'link'),
-                'nullable',
-                'url',
-                'max:1000',
-            ],
-            'keterangan' => ['nullable', 'string', 'max:500'],
-        ], [
-            'lampiran.required' => 'Silakan pilih file lampiran pendukung terlebih dahulu.',
-            'lampiran.max' => 'Ukuran file lampiran maksimal 10 MB.',
-            'link_url.required' => 'Tautan / Link URL wajib diisi.',
-            'link_url.url' => 'Format Tautan / Link URL tidak valid.',
-        ]);
-
-        $path = null;
-        $name = null;
-        $linkUrl = null;
-
         if ($jenisUnggahan === 'link') {
-            $linkUrl = trim((string) $validated['link_url']);
-            $name = $linkUrl;
-        } elseif ($request->hasFile('lampiran')) {
-            $file = $request->file('lampiran');
-            $path = $file->store('kka/tindak-lanjut', 'public');
-            $name = $file->getClientOriginalName();
+            $validated = $request->validate([
+                'link_url' => ['required', 'url', 'max:1000'],
+                'keterangan' => ['nullable', 'string', 'max:500'],
+            ], [
+                'link_url.required' => 'Tautan / Link URL wajib diisi.',
+                'link_url.url' => 'Format Tautan / Link URL tidak valid.',
+            ]);
 
-            $tabulasi->update([
-                'lampiran_tinjut_path' => $path,
-                'lampiran_tinjut_name' => $name,
+            $linkUrl = trim((string) $validated['link_url']);
+            $keterangan = ! empty($validated['keterangan']) ? trim((string) $validated['keterangan']) : 'Link Google Drive';
+
+            $tabulasi->lampirans()->create([
+                'user_id' => $request->user()?->id,
+                'jenis_unggahan' => 'link',
+                'file_path' => null,
+                'file_name' => $linkUrl,
+                'link_url' => $linkUrl,
+                'keterangan' => $keterangan,
+            ]);
+
+            return response()->json([
+                'message' => 'Tautan lampiran berhasil ditambahkan.',
+                'data' => $this->reloadAndFormat($tabulasi),
             ]);
         }
 
-        $tabulasi->lampirans()->create([
-            'user_id' => $request->user()?->id,
-            'jenis_unggahan' => $jenisUnggahan,
-            'file_path' => $path,
-            'file_name' => $name,
-            'link_url' => $linkUrl,
-            'keterangan' => ! empty($validated['keterangan']) ? trim((string) $validated['keterangan']) : ($name ?? 'Lampiran Pendukung'),
+        // Mode Upload File (Mendukung Multi-file)
+        $files = [];
+        if ($request->hasFile('lampiran')) {
+            $uploaded = $request->file('lampiran');
+            $files = is_array($uploaded) ? $uploaded : [$uploaded];
+        } elseif ($request->hasFile('files')) {
+            $uploaded = $request->file('files');
+            $files = is_array($uploaded) ? $uploaded : [$uploaded];
+        }
+
+        if (empty($files)) {
+            return response()->json([
+                'message' => 'Silakan pilih minimal satu file lampiran pendukung.',
+                'errors' => [
+                    'lampiran' => ['Silakan pilih minimal satu file lampiran pendukung.'],
+                ],
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'lampiran' => ['nullable'],
+            'lampiran.*' => ['file', 'max:10240'],
+            'files.*' => ['file', 'max:10240'],
+            'keterangan' => ['nullable', 'string', 'max:500'],
+        ], [
+            'lampiran.*.max' => 'Ukuran setiap file lampiran maksimal 10 MB.',
+            'files.*.max' => 'Ukuran setiap file lampiran maksimal 10 MB.',
+        ]);
+
+        $customKet = ! empty($validated['keterangan']) ? trim((string) $validated['keterangan']) : null;
+        $lastPath = null;
+        $lastName = null;
+
+        foreach ($files as $file) {
+            $path = $file->store('kka/tindak-lanjut', 'public');
+            $name = $file->getClientOriginalName();
+            $lastPath = $path;
+            $lastName = $name;
+
+            $tabulasi->lampirans()->create([
+                'user_id' => $request->user()?->id,
+                'jenis_unggahan' => 'file',
+                'file_path' => $path,
+                'file_name' => $name,
+                'link_url' => null,
+                'keterangan' => $customKet ?? $name,
+            ]);
+        }
+
+        if ($lastPath) {
+            $tabulasi->update([
+                'lampiran_tinjut_path' => $lastPath,
+                'lampiran_tinjut_name' => $lastName,
+            ]);
+        }
+
+        return response()->json([
+            'message' => count($files).' file lampiran pendukung berhasil diunggah.',
+            'data' => $this->reloadAndFormat($tabulasi),
+        ]);
+    }
+
+    /**
+     * Hapus lampiran pendukung tindak lanjut.
+     */
+    public function destroyLampiran(Request $request, Kka $kka, KkaTabulasi $tabulasi, KkaTabulasiLampiran $lampiran): JsonResponse
+    {
+        if (! $this->canAccessKka($request->user(), $kka) || (int) $tabulasi->kka_id !== (int) $kka->id || (int) $lampiran->kka_tabulasi_id !== (int) $tabulasi->id) {
+            return response()->json([
+                'message' => 'Anda tidak memiliki hak akses untuk menghapus lampiran ini.',
+            ], 403);
+        }
+
+        if ($lampiran->file_path && Storage::disk('public')->exists($lampiran->file_path)) {
+            Storage::disk('public')->delete($lampiran->file_path);
+        }
+
+        $lampiran->delete();
+
+        $latest = $tabulasi->lampirans()->whereNotNull('file_path')->latest('id')->first();
+        $tabulasi->update([
+            'lampiran_tinjut_path' => $latest?->file_path,
+            'lampiran_tinjut_name' => $latest?->file_name,
         ]);
 
         return response()->json([
-            'message' => 'Lampiran pendukung berhasil dikirim.',
+            'message' => 'Lampiran berhasil dihapus.',
             'data' => $this->reloadAndFormat($tabulasi),
         ]);
     }
@@ -438,7 +526,9 @@ class TindakLanjutAuditeeController extends Controller
             'kode_tinjut_id' => $t->kode_tinjut_id ? (string) $t->kode_tinjut_id : '',
             'sub_kode_tinjut_id' => $t->sub_kode_tinjut_id ? (string) $t->sub_kode_tinjut_id : '',
             'kode_tinjut_kode' => $t->kodeTinjut?->kode,
+            'kode_tinjut_nama' => $t->kodeTinjut?->nama,
             'sub_kode_tinjut_kode' => $t->subKodeTinjut?->kode,
+            'sub_kode_tinjut_nama' => $t->subKodeTinjut?->nama,
             'tindak_lanjut' => $t->tindak_lanjut ?? '',
             'nilai_pengembalian' => $t->nilai_pengembalian !== null ? (string) (float) $t->nilai_pengembalian : '',
             'nilai_pengembalian_formatted' => $t->nilai_pengembalian !== null
@@ -451,6 +541,8 @@ class TindakLanjutAuditeeController extends Controller
             'messages' => ($t->relationLoaded('messages') ? $t->messages : collect())->map(
                 fn (KkaTabulasiMessage $m): array => [
                     'id' => $m->id,
+                    'user_id' => $m->user_id,
+                    'is_current_user' => (int) $m->user_id === (int) auth()->id(),
                     'sender_name' => $m->user?->name ?? 'Pengguna',
                     'sender_role' => $m->user?->role ?? '',
                     'pesan' => $m->pesan,
@@ -468,8 +560,8 @@ class TindakLanjutAuditeeController extends Controller
                         ? $l->link_url
                         : ($l->file_path ? asset('storage/'.$l->file_path) : null),
                     'keterangan' => $l->keterangan,
-                    'uploader_name' => $l->user?->name ?? '-',
-                    'created_at' => $l->created_at?->timezone('Asia/Jakarta')->format('d/m/Y H:i') ?? '-',
+                    'uploader_name' => $l->user?->name ?? 'Pengguna',
+                    'created_at' => $l->created_at?->locale('id')->timezone('Asia/Jakarta')->translatedFormat('l, j F Y \p\u\k\u\l H.i') ?? '-',
                 ]
             )->values()->all(),
         ];

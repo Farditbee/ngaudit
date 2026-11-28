@@ -139,6 +139,7 @@ class KkaModuleTest extends TestCase
         $this->assertEquals($pka->nomor_pka, $response->json('data.0.nomor_pka'));
         $this->assertEquals($pka->sprin->no_sprin, $response->json('data.0.no_sprin'));
         $this->assertEquals('Auditor Uji', $response->json('data.0.auditor_name'));
+        $this->assertEquals('Dinas', $response->json('data.0.sprin_tipe'));
         $this->assertEquals('WIL I', $response->json('data.0.auditee_name'));
         $this->assertEquals('Operasional', $response->json('data.0.bidang'));
         $this->assertEquals('1', $response->json('data.0.tahap'));
@@ -186,6 +187,64 @@ class KkaModuleTest extends TestCase
             ->getJson(route('audit.kka.index', $params), ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertJsonPath('recordsFiltered', 0);
+    }
+
+    public function test_kka_datatable_auditor_column_returns_sprin_tipe_for_dinas_and_kecamatan(): void
+    {
+        $admin = User::factory()->create();
+        $plotting = Plotting::query()->create(['plot' => 'WIL I']);
+
+        $pkaDinas = $this->createPka($admin, $plotting, 'PKA/DINAS/2026');
+        $this->createKka($pkaDinas, $admin, $plotting);
+
+        $timKec = Tim::query()->create([
+            'nama_tim' => 'Tim Audit Kec '.uniqid(),
+            'lingkup' => 'Kecamatan',
+            'daltu_id' => $admin->id,
+            'dalnis_id' => $admin->id,
+            'ketua_tim_id' => $admin->id,
+            'created_by' => $admin->id,
+        ]);
+
+        $sprinKec = Sprin::query()->create([
+            'no_sprin' => 'SPRIN/KEC/'.uniqid().'/2026',
+            'no_surat_pemberitahuan' => 'SPT/KEC/'.uniqid().'/2026',
+            'tgl_mulai' => now()->toDateString(),
+            'tgl_akhir' => now()->addDays(14)->toDateString(),
+            'sprin_tipe' => 'Kecamatan',
+            'tahap' => '1',
+            'tim_id' => $timKec->id,
+            'daltu' => $admin->id,
+            'dalnis' => $admin->id,
+            'katim' => $admin->id,
+            'approved_by_daltu_date' => now(),
+            'created_by' => $admin->id,
+        ]);
+
+        $pkaKec = Pka::query()->create([
+            'sprin_id' => $sprinKec->id,
+            'nomor_pka' => 'PKA/KEC/'.uniqid().'/2026',
+            'tanggal' => now()->toDateString(),
+            'anggaran' => 50000000,
+            'bidang' => 'Operasional',
+            'jenis_audit' => 'Audit Kinerja',
+            'sasaran_auditi' => 'Sasaran Kec',
+            'status' => 'Final',
+            'dibuat_oleh_id' => $admin->id,
+            'direviu_oleh_id' => $admin->id,
+            'created_by' => $admin->id,
+        ]);
+
+        $this->createKka($pkaKec, $admin, $plotting);
+
+        $response = $this->actingAs($admin)
+            ->getJson(route('audit.kka.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+
+        $response->assertOk();
+        $this->assertEquals(2, $response->json('recordsTotal'));
+        $tipes = collect($response->json('data'))->pluck('sprin_tipe')->all();
+        $this->assertContains('Dinas', $tipes);
+        $this->assertContains('Kecamatan', $tipes);
     }
 
     public function test_kka_datatable_can_be_filtered_by_bidang_and_status(): void

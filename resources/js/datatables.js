@@ -6164,10 +6164,11 @@ export function registerDataTables(Alpine) {
             },
             buildKodeUraianHtml(mainObj, subObj = null) {
                 if (!mainObj) return '';
-                let html = `<p>(${mainObj.kode}) - ${mainObj.nama}</p>`;
+                let html = `<p>(${mainObj.kode}) - ${mainObj.nama}`;
                 if (subObj) {
-                    html += `<p>(${subObj.kode}) - ${subObj.nama}</p>`;
+                    html += `<br>(${subObj.kode}) - ${subObj.nama}`;
                 }
+                html += `</p>`;
                 return html;
             },
 
@@ -6481,7 +6482,8 @@ export function registerDataTables(Alpine) {
     });
 
     Alpine.data('tindakLanjutAuditeePage', (config) => {
-        let rawEditor = null;
+        const rawEditors = {};
+        const editorElements = {};
 
         return {
             ...getTipTapToolbarMethods(),
@@ -6489,20 +6491,35 @@ export function registerDataTables(Alpine) {
             jenisTabulasi: config.jenisTabulasi || 'Temuan',
             canUjiNilaiRole: Boolean(config.canUjiNilaiRole),
             userRole: config.userRole || '',
+            isAuditee: Boolean(config.isAuditee || config.userRole === 'Auditee'),
+            currentUserId: config.currentUserId || null,
+            isCurrentUser(msg) {
+                if (!msg) return false;
+                if (typeof msg.is_current_user !== 'undefined') {
+                    return Boolean(msg.is_current_user);
+                }
+                if (this.currentUserId && msg.user_id) {
+                    return String(this.currentUserId) === String(msg.user_id);
+                }
+                return false;
+            },
             rows: config.items || [],
             kodeTinjuts: config.kodeTinjuts || [],
-            statusTinjuts: config.statusTinjuts || ['Belum Ditinjut', 'Dalam Proses', 'Belum Sesuai', 'Selesai'],
+            statusTinjuts: config.statusTinjuts || ['Belum Ditinjut', 'Sudah Ditinjut', 'Koreksi', 'Selesai'],
             kesimpulanTinjuts: config.kesimpulanTinjuts || [],
             showCompleted: true,
             tanggapiModalOpen: false,
+            conversationOpen: false,
+            unreadMessagesCount: 0,
             sidebarTab: 'informasi',
             activeRow: null,
-            activeTab: 'tindak_lanjut',
+            activeEditorKey: 'tindak_lanjut',
             saving: false,
             savingUji: false,
             sendingChat: false,
             uploadingLampiran: false,
             lampiranFile: null,
+            lampiranFiles: [],
             chatFile: null,
             chatError: '',
             chatForm: {
@@ -6518,7 +6535,14 @@ export function registerDataTables(Alpine) {
             ujiForm: {
                 kesimpulan_tinjut: '',
                 alasan_tinjut: '',
-                status_tinjut: 'Dalam Proses',
+                status_tinjut: 'Sudah Ditinjut',
+            },
+            formatStatusBadge(status) {
+                if (!status || status === 'Belum Ditinjut') return 'Belum Ditinjut';
+                if (status === 'Sudah Ditinjut' || status === 'Dalam Proses') return 'Sudah Tinjut';
+                if (status === 'Koreksi' || status === 'Belum Sesuai') return 'Koreksi';
+                if (status === 'Selesai') return 'Selesai';
+                return status;
             },
             lampiranForm: {
                 jenis_unggahan: 'file',
@@ -6537,6 +6561,9 @@ export function registerDataTables(Alpine) {
             },
             get canEditUjiNilai() {
                 return Boolean(this.canUjiNilaiRole && this.activeRow?.has_tinjut);
+            },
+            get canEditTinjut() {
+                return Boolean(this.isAuditee && this.activeRow?.status_tinjut !== 'Selesai');
             },
             get kodeTinjutOptions() {
                 return this.kodeTinjuts.map((k) => ({ code: String(k.id), name: k.name }));
@@ -6570,75 +6597,212 @@ export function registerDataTables(Alpine) {
                 window.notify.show(type, message);
             },
             getActiveEditor() {
-                return rawEditor;
+                return rawEditors[this.activeEditorKey] || rawEditors['kesimpulan_tinjut'] || rawEditors['tindak_lanjut'] || null;
             },
-            mountEditor() {
-                const el = this.$refs?.editor_tindak_lanjut || document.querySelector('[data-tinjut-editor="tindak_lanjut"]');
+            decodeHtml(html) {
+                if (!html || typeof html !== 'string') return '';
+                if (html.includes('&lt;') || html.includes('&gt;') || html.includes('&amp;')) {
+                    const txt = document.createElement('textarea');
+                    txt.innerHTML = html;
+                    return txt.value;
+                }
+                return html;
+            },
+            mountSingleEditor(key) {
+                const el = this.$refs?.['editor_' + key] || document.querySelector(`[data-tinjut-editor="${key}"]`);
                 if (!el) return;
-                if (rawEditor) {
+                editorElements[key] = el;
+
+                if (rawEditors[key]) {
                     try {
-                        rawEditor.destroy();
+                        rawEditors[key].destroy();
                     } catch (e) {
                         // Ignore
                     }
-                    rawEditor = null;
+                    delete rawEditors[key];
                 }
                 el.innerHTML = '';
-                rawEditor = createTipTapEditor({
+
+                const initialContent = key === 'tindak_lanjut'
+                    ? (this.form.tindak_lanjut || '')
+                    : (this.ujiForm[key] || '');
+
+                const ed = createTipTapEditor({
                     element: el,
-                    content: this.form.tindak_lanjut || '',
+                    content: this.decodeHtml(initialContent),
                     onUpdate: (html) => {
-                        this.form.tindak_lanjut = html;
+                        if (key === 'tindak_lanjut') {
+                            this.form.tindak_lanjut = html;
+                        } else {
+                            this.ujiForm[key] = html;
+                        }
                     },
                 });
+
+                try {
+                    ed.on('focus', () => {
+                        this.activeEditorKey = key;
+                    });
+                } catch (e) {
+                    // Ignore
+                }
+
+                rawEditors[key] = ed;
             },
-            destroyEditor() {
-                if (rawEditor) {
+            mountEditorsForCurrentTab() {
+                if (this.sidebarTab === 'informasi') {
+                    if (this.canEditTinjut) {
+                        this.mountSingleEditor('tindak_lanjut');
+                    } else {
+                        this.destroySingleEditor('tindak_lanjut');
+                    }
+                } else if (this.sidebarTab === 'uji_nilai' && this.canEditUjiNilai) {
+                    this.mountSingleEditor('kesimpulan_tinjut');
+                    this.mountSingleEditor('alasan_tinjut');
+                }
+            },
+            mountEditor() {
+                this.mountEditorsForCurrentTab();
+            },
+            destroySingleEditor(key) {
+                if (rawEditors[key]) {
                     try {
-                        rawEditor.destroy();
+                        rawEditors[key].destroy();
                     } catch (e) {
                         // Ignore
                     }
-                    rawEditor = null;
+                    delete rawEditors[key];
                 }
-                const el = this.$refs?.editor_tindak_lanjut || document.querySelector('[data-tinjut-editor="tindak_lanjut"]');
+                const el = editorElements[key] || this.$refs?.['editor_' + key] || document.querySelector(`[data-tinjut-editor="${key}"]`);
                 if (el) {
                     el.innerHTML = '';
                 }
             },
-            setEditorContent(html) {
-                this.form.tindak_lanjut = html;
-                this.mountEditor();
+            destroyAllEditors() {
+                ['tindak_lanjut', 'kesimpulan_tinjut', 'alasan_tinjut'].forEach((key) => {
+                    this.destroySingleEditor(key);
+                });
+            },
+            destroyEditor() {
+                this.destroyAllEditors();
+            },
+            focusEditorKey(key, e) {
+                this.activeEditorKey = key;
+                const editor = rawEditors[key];
+                if (!editor) return;
+                if (e && e.target && e.target.closest && e.target.closest('.ProseMirror')) {
+                    return;
+                }
+                if (!editor.isFocused) {
+                    try {
+                        editor.commands.focus('end');
+                    } catch (err) {
+                        // Safe fallback
+                    }
+                }
+            },
+            focusActiveEditor(e) {
+                this.focusEditorKey(this.activeEditorKey || 'tindak_lanjut', e);
+            },
+            setEditorContent(keyOrHtml, maybeHtml) {
+                let key = 'tindak_lanjut';
+                let html = keyOrHtml;
+                if (typeof maybeHtml !== 'undefined') {
+                    key = keyOrHtml;
+                    html = maybeHtml;
+                }
+                if (key === 'tindak_lanjut') {
+                    this.form.tindak_lanjut = html;
+                } else {
+                    this.ujiForm[key] = html;
+                }
+                this.mountSingleEditor(key);
             },
             buildKodeUraianHtml(mainObj, subObj = null) {
                 if (!mainObj) return '';
-                let html = `<p>(${mainObj.kode}) - ${mainObj.nama}</p>`;
+                let html = `<p>(${mainObj.kode}) - ${mainObj.nama}`;
                 if (subObj) {
-                    html += `<p>(${subObj.kode}) - ${subObj.nama}</p>`;
+                    html += `<br>(${subObj.kode}) - ${subObj.nama}`;
                 }
+                html += `</p>`;
                 return html;
             },
             onKodeTinjutChange() {
                 this.form.sub_kode_tinjut_id = '';
                 const kt = this.selectedKodeTinjut;
-                this.setEditorContent(this.buildKodeUraianHtml(kt, null));
+                this.setEditorContent('tindak_lanjut', this.buildKodeUraianHtml(kt, null));
             },
             onSubKodeTinjutChange() {
                 const kt = this.selectedKodeTinjut;
                 if (!kt) return;
                 const sub = (kt.sub_kodes || []).find((s) => String(s.id) === String(this.form.sub_kode_tinjut_id)) || null;
-                this.setEditorContent(this.buildKodeUraianHtml(kt, sub));
+                this.setEditorContent('tindak_lanjut', this.buildKodeUraianHtml(kt, sub));
             },
 
             switchSidebarTab(tab) {
-                if (this.sidebarTab === 'informasi' && rawEditor) {
-                    this.form.tindak_lanjut = rawEditor.getHTML();
+                if (this.sidebarTab === 'informasi' && rawEditors['tindak_lanjut']) {
+                    this.form.tindak_lanjut = rawEditors['tindak_lanjut'].getHTML();
+                }
+                if (this.sidebarTab === 'uji_nilai') {
+                    if (rawEditors['kesimpulan_tinjut']) {
+                        this.ujiForm.kesimpulan_tinjut = rawEditors['kesimpulan_tinjut'].getHTML();
+                    }
+                    if (rawEditors['alasan_tinjut']) {
+                        this.ujiForm.alasan_tinjut = rawEditors['alasan_tinjut'].getHTML();
+                    }
                 }
                 this.sidebarTab = tab;
                 if (tab === 'informasi') {
+                    this.activeEditorKey = 'tindak_lanjut';
+                } else if (tab === 'uji_nilai') {
+                    this.activeEditorKey = 'kesimpulan_tinjut';
+                }
+                this.$nextTick(() => {
+                    this.mountEditorsForCurrentTab();
+                });
+            },
+
+            getUnreadCount(row) {
+                if (!row || !Array.isArray(row.messages) || row.messages.length === 0) {
+                    return 0;
+                }
+                let lastReadId = 0;
+                try {
+                    lastReadId = parseInt(localStorage.getItem('eaudit_last_read_msg_' + row.id) || '0', 10);
+                } catch (e) {
+                    lastReadId = 0;
+                }
+                const unread = row.messages.filter((msg) => {
+                    const isMe = msg.is_current_user || this.isCurrentUser(msg);
+                    if (isMe) return false;
+                    if (!lastReadId) return true;
+                    return (parseInt(msg.id, 10) || 0) > lastReadId;
+                });
+                return unread.length;
+            },
+            toggleConversation() {
+                this.conversationOpen = !this.conversationOpen;
+                if (this.conversationOpen) {
+                    this.markConversationAsRead();
                     this.$nextTick(() => {
-                        this.mountEditor();
+                        const chatBox = this.$refs.chatMessagesBox;
+                        if (chatBox) {
+                            chatBox.scrollTop = chatBox.scrollHeight;
+                        }
                     });
+                }
+            },
+            markConversationAsRead() {
+                this.unreadMessagesCount = 0;
+                if (this.activeRow && Array.isArray(this.activeRow.messages) && this.activeRow.messages.length > 0) {
+                    const maxId = this.activeRow.messages.reduce((max, m) => Math.max(max, parseInt(m.id, 10) || 0), 0);
+                    if (maxId > 0 && this.activeRow.id) {
+                        try {
+                            localStorage.setItem('eaudit_last_read_msg_' + this.activeRow.id, String(maxId));
+                        } catch (e) {
+                            // Ignore storage errors
+                        }
+                    }
                 }
             },
 
@@ -6651,13 +6815,25 @@ export function registerDataTables(Alpine) {
                 this.activeRow = updated;
                 this.ujiForm.kesimpulan_tinjut = updated.kesimpulan_tinjut || '';
                 this.ujiForm.alasan_tinjut = updated.alasan_tinjut || '';
-                this.ujiForm.status_tinjut = updated.status_tinjut || 'Dalam Proses';
+                this.ujiForm.status_tinjut = updated.status_tinjut || 'Sudah Ditinjut';
+
+                if (this.conversationOpen) {
+                    this.markConversationAsRead();
+                } else {
+                    this.unreadMessagesCount = this.getUnreadCount(updated);
+                }
+
+                this.$nextTick(() => {
+                    this.mountEditorsForCurrentTab();
+                });
             },
 
             openTanggapiModal(row, initialTab = 'informasi') {
-                this.destroyEditor();
+                this.destroyAllEditors();
                 this.activeRow = row;
                 this.sidebarTab = initialTab;
+                this.conversationOpen = false;
+                this.unreadMessagesCount = this.getUnreadCount(row);
                 this.errors = {};
                 this.ujiErrors = {};
                 this.lampiranErrors = {};
@@ -6665,6 +6841,7 @@ export function registerDataTables(Alpine) {
                 this.chatForm = { pesan: '' };
                 this.chatFile = null;
                 this.lampiranFile = null;
+                this.lampiranFiles = [];
                 if (this.$refs.chatFileInput) this.$refs.chatFileInput.value = '';
                 if (this.$refs.lampiranInput) this.$refs.lampiranInput.value = '';
 
@@ -6678,7 +6855,9 @@ export function registerDataTables(Alpine) {
                 this.ujiForm = {
                     kesimpulan_tinjut: row.kesimpulan_tinjut || '',
                     alasan_tinjut: row.alasan_tinjut || '',
-                    status_tinjut: row.status_tinjut && row.status_tinjut !== 'Belum Ditinjut' ? row.status_tinjut : 'Dalam Proses',
+                    status_tinjut: row.status_tinjut && row.status_tinjut !== 'Belum Ditinjut'
+                        ? (row.status_tinjut === 'Dalam Proses' ? 'Sudah Ditinjut' : (row.status_tinjut === 'Belum Sesuai' ? 'Koreksi' : row.status_tinjut))
+                        : 'Sudah Ditinjut',
                 };
                 this.lampiranForm = {
                     jenis_unggahan: 'file',
@@ -6686,15 +6865,16 @@ export function registerDataTables(Alpine) {
                     keterangan: '',
                 };
 
+                this.activeEditorKey = initialTab === 'uji_nilai' ? 'kesimpulan_tinjut' : 'tindak_lanjut';
                 this.tanggapiModalOpen = true;
                 this.$nextTick(() => {
-                    this.mountEditor();
+                    this.mountEditorsForCurrentTab();
                 });
             },
             closeTanggapiModal() {
                 if (this.saving || this.savingUji || this.uploadingLampiran || this.sendingChat) return;
                 this.tanggapiModalOpen = false;
-                this.destroyEditor();
+                this.destroyAllEditors();
                 this.activeRow = null;
             },
 
@@ -6737,6 +6917,14 @@ export function registerDataTables(Alpine) {
                     }
 
                     this.syncActiveRow(json.data);
+                    this.conversationOpen = true;
+                    this.markConversationAsRead();
+                    this.$nextTick(() => {
+                        const chatBox = this.$refs.chatMessagesBox;
+                        if (chatBox) {
+                            chatBox.scrollTop = chatBox.scrollHeight;
+                        }
+                    });
                     this.chatForm.pesan = '';
                     this.chatFile = null;
                     if (this.$refs.chatFileInput) {
@@ -6756,8 +6944,8 @@ export function registerDataTables(Alpine) {
                 this.saving = true;
                 this.errors = {};
 
-                if (rawEditor) {
-                    this.form.tindak_lanjut = rawEditor.getHTML();
+                if (rawEditors['tindak_lanjut']) {
+                    this.form.tindak_lanjut = rawEditors['tindak_lanjut'].getHTML();
                 }
 
                 try {
@@ -6796,6 +6984,13 @@ export function registerDataTables(Alpine) {
                 this.savingUji = true;
                 this.ujiErrors = {};
 
+                if (rawEditors['kesimpulan_tinjut']) {
+                    this.ujiForm.kesimpulan_tinjut = rawEditors['kesimpulan_tinjut'].getHTML();
+                }
+                if (rawEditors['alasan_tinjut']) {
+                    this.ujiForm.alasan_tinjut = rawEditors['alasan_tinjut'].getHTML();
+                }
+
                 try {
                     const response = await fetch(`${this.baseUrl}/tabulasi/${this.activeRow.id}/uji-nilai`, {
                         method: 'POST',
@@ -6829,7 +7024,15 @@ export function registerDataTables(Alpine) {
 
             onFileSelect(e) {
                 const files = e.target.files;
-                this.lampiranFile = files && files.length > 0 ? files[0] : null;
+                this.lampiranFiles = files ? Array.from(files) : [];
+                this.lampiranFile = this.lampiranFiles[0] || null;
+            },
+            formatFileSize(bytes) {
+                if (!bytes || bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
             },
             async uploadLampiran() {
                 if (!this.activeRow) return;
@@ -6839,8 +7042,13 @@ export function registerDataTables(Alpine) {
                 const formData = new FormData();
                 formData.append('jenis_unggahan', this.lampiranForm.jenis_unggahan);
                 formData.append('keterangan', this.lampiranForm.keterangan || '');
-                if (this.lampiranForm.jenis_unggahan === 'file' && this.lampiranFile) {
-                    formData.append('lampiran', this.lampiranFile);
+
+                if (this.lampiranForm.jenis_unggahan === 'file') {
+                    if (this.lampiranFiles && this.lampiranFiles.length > 0) {
+                        this.lampiranFiles.forEach((file) => {
+                            formData.append('lampiran[]', file);
+                        });
+                    }
                 } else if (this.lampiranForm.jenis_unggahan === 'link') {
                     formData.append('link_url', this.lampiranForm.link_url || '');
                 }
@@ -6867,6 +7075,7 @@ export function registerDataTables(Alpine) {
 
                     this.syncActiveRow(json.data);
                     this.lampiranFile = null;
+                    this.lampiranFiles = [];
                     this.lampiranForm.link_url = '';
                     this.lampiranForm.keterangan = '';
                     if (this.$refs.lampiranInput) {
@@ -6878,6 +7087,36 @@ export function registerDataTables(Alpine) {
                     this.showFlash(e.message || 'Gagal mengirim lampiran.', 'error');
                 } finally {
                     this.uploadingLampiran = false;
+                }
+            },
+            async deleteLampiran(lampiran) {
+                if (!this.activeRow || !lampiran) return;
+                const confirmed = await window.dialog.confirm(
+                    'Hapus Lampiran',
+                    `Apakah Anda yakin ingin menghapus lampiran "${lampiran.keterangan || lampiran.file_name}"?`
+                );
+                if (!confirmed) return;
+
+                try {
+                    const response = await fetch(`${this.baseUrl}/tabulasi/${this.activeRow.id}/lampiran/${lampiran.id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-CSRF-TOKEN': this.csrfToken(),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+
+                    const json = await response.json();
+                    if (!response.ok) {
+                        throw new Error(json.message || 'Gagal menghapus lampiran.');
+                    }
+
+                    this.syncActiveRow(json.data);
+                    this.showFlash(json.message || 'Lampiran berhasil dihapus.');
+                } catch (e) {
+                    console.error(e);
+                    this.showFlash(e.message || 'Terjadi kesalahan saat menghapus lampiran.', 'error');
                 }
             },
         };

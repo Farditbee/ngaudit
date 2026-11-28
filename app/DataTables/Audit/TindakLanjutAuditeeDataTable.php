@@ -103,13 +103,20 @@ class TindakLanjutAuditeeDataTable extends KkaDataTable
             ->withCount([
                 'tabulasis as temuan_count' => fn (Builder $q) => $q->where('jenis_tabulasi', 'Temuan'),
                 'tabulasis as sudah_ditinjut_count' => fn (Builder $q) => $q->where('jenis_tabulasi', 'Temuan')
-                    ->whereNotNull('tindak_lanjut')
-                    ->where('tindak_lanjut', '!=', ''),
-                'tabulasis as belum_sesuai_count' => fn (Builder $q) => $q->where('jenis_tabulasi', 'Temuan')
                     ->where(function (Builder $b): void {
-                        $b->where('status_tinjut', 'Dalam Proses')
-                            ->orWhere('kesimpulan_tinjut', 'like', '%Belum Sesuai%');
+                        $b->whereIn('status_tinjut', ['Sudah Ditinjut', 'Dalam Proses', 'Koreksi', 'Belum Sesuai', 'Selesai'])
+                            ->orWhere(function (Builder $sub): void {
+                                $sub->where(function (Builder $w): void {
+                                    $w->whereNull('status_tinjut')->orWhere('status_tinjut', '!=', 'Belum Ditinjut');
+                                })
+                                    ->whereNotNull('tindak_lanjut')
+                                    ->where('tindak_lanjut', '!=', '');
+                            });
                     }),
+                'tabulasis as koreksi_count' => fn (Builder $q) => $q->where('jenis_tabulasi', 'Temuan')
+                    ->whereIn('status_tinjut', ['Koreksi', 'Belum Sesuai']),
+                'tabulasis as belum_sesuai_count' => fn (Builder $q) => $q->where('jenis_tabulasi', 'Temuan')
+                    ->whereIn('status_tinjut', ['Koreksi', 'Belum Sesuai']),
                 'tabulasis as selesai_count' => fn (Builder $q) => $q->where('jenis_tabulasi', 'Temuan')
                     ->where('status_tinjut', 'Selesai'),
                 'tabulasis as draft_count' => fn (Builder $q) => $q->where('jenis_tabulasi', 'Temuan')

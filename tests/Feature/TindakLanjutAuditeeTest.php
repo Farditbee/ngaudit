@@ -113,6 +113,9 @@ class TindakLanjutAuditeeTest extends TestCase
         $this->actingAs($admin)->getJson(route('audit.tindak-lanjut.index'), ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertJsonPath('data.0.temuan_count', 1)
+            ->assertJsonPath('data.0.sudah_ditinjut_count', 0)
+            ->assertJsonPath('data.0.koreksi_count', 0)
+            ->assertJsonPath('data.0.selesai_count', 0)
             ->assertJsonPath('data.0.nomor_kka', 'CONTOH/KKA-01 OKTOBER');
 
         $this->actingAs($admin)->get(route('audit.tindak-lanjut.show', [$kka, 'tabulasi']))
@@ -125,7 +128,8 @@ class TindakLanjutAuditeeTest extends TestCase
             ->assertSee('Tabulasi Temuan (1)')
             ->assertSee('Tabulasi Konsultasi (0)')
             ->assertSee('Temuan Positif (0)')
-            ->assertSee('Tampilkan Temuan Selesai');
+            ->assertSee('Tampilkan Temuan Selesai')
+            ->assertSee('Auditee belum melakukan tinjut');
     }
 
     public function test_user_can_submit_tanggapan_uji_nilai_messages_and_upload_lampiran(): void
@@ -153,17 +157,23 @@ class TindakLanjutAuditeeTest extends TestCase
             'tindak_lanjut' => "<p>({$kodeTinjut->kode}) - {$kodeTinjut->nama}</p>",
             'nilai_pengembalian' => '7.924.000',
         ])->assertOk()
-            ->assertJsonPath('data.status_tinjut', 'Dalam Proses')
+            ->assertJsonPath('data.status_tinjut', 'Sudah Ditinjut')
             ->assertJsonPath('data.has_tinjut', true)
             ->assertJsonPath('data.nilai_pengembalian', '7924000');
 
         $this->assertDatabaseHas('kka_tabulasis', [
             'id' => $tabulasi->id,
-            'status_tinjut' => 'Dalam Proses',
+            'status_tinjut' => 'Sudah Ditinjut',
             'kode_tinjut_id' => $kodeTinjut->id,
             'sub_kode_tinjut_id' => $subTinjut->id,
             'nilai_pengembalian' => 7924000,
         ]);
+
+        $this->actingAs($auditor)->getJson(route('audit.tindak-lanjut.index'), ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()
+            ->assertJsonPath('data.0.sudah_ditinjut_count', 1)
+            ->assertJsonPath('data.0.koreksi_count', 0)
+            ->assertJsonPath('data.0.selesai_count', 0);
 
         // 3. Auditee cannot submit Uji Nilai even after tindak_lanjut is filled
         $this->actingAs($auditee)->postJson(route('audit.tindak-lanjut.uji-nilai', [$kka, $tabulasi]), [
@@ -172,14 +182,44 @@ class TindakLanjutAuditeeTest extends TestCase
             'alasan_tinjut' => 'Auditee mencoba uji nilai',
         ])->assertForbidden();
 
-        // 4. Auditor can now submit Uji Nilai after Auditee has submitted tindak_lanjut
+        // 4. Auditor can now submit Uji Nilai after Auditee has submitted tindak_lanjut (supports TipTap HTML & Statuses)
+        $this->actingAs($auditor)->postJson(route('audit.tindak-lanjut.uji-nilai', [$kka, $tabulasi]), [
+            'status_tinjut' => 'Koreksi',
+            'kesimpulan_tinjut' => '<p><strong>Perlu perbaikan bukti setor.</strong></p>',
+            'alasan_tinjut' => '<p>Mohon lampirkan struk setor asli yang terbaca jelas.</p>',
+        ])->assertOk()
+            ->assertJsonPath('data.status_tinjut', 'Koreksi')
+            ->assertJsonPath('data.kesimpulan_tinjut', '<p><strong>Perlu perbaikan bukti setor.</strong></p>')
+            ->assertJsonPath('data.alasan_tinjut', '<p>Mohon lampirkan struk setor asli yang terbaca jelas.</p>');
+
+        $this->actingAs($auditor)->getJson(route('audit.tindak-lanjut.index'), ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()
+            ->assertJsonPath('data.0.sudah_ditinjut_count', 1)
+            ->assertJsonPath('data.0.koreksi_count', 1)
+            ->assertJsonPath('data.0.selesai_count', 0);
+
+        // Auditor finalizes to Selesai
         $this->actingAs($auditor)->postJson(route('audit.tindak-lanjut.uji-nilai', [$kka, $tabulasi]), [
             'status_tinjut' => 'Selesai',
-            'kesimpulan_tinjut' => 'Sesuai Rekomendasi',
-            'alasan_tinjut' => 'Bukti setor NTPN sudah lengkap.',
+            'kesimpulan_tinjut' => '<p>Selesai sesuai rekomendasi auditor.</p>',
+            'alasan_tinjut' => '<p>Bukti setor NTPN sudah lengkap dan valid.</p>',
         ])->assertOk()
             ->assertJsonPath('data.status_tinjut', 'Selesai')
-            ->assertJsonPath('data.kesimpulan_tinjut', 'Sesuai Rekomendasi');
+            ->assertJsonPath('data.kesimpulan_tinjut', '<p>Selesai sesuai rekomendasi auditor.</p>');
+
+        $this->actingAs($auditor)->getJson(route('audit.tindak-lanjut.index'), ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()
+            ->assertJsonPath('data.0.sudah_ditinjut_count', 1)
+            ->assertJsonPath('data.0.koreksi_count', 0)
+            ->assertJsonPath('data.0.selesai_count', 1);
+
+        // Auditee cannot edit tanggapan anymore once Selesai
+        $this->actingAs($auditee)->postJson(route('audit.tindak-lanjut.tanggapan', [$kka, $tabulasi]), [
+            'kode_tinjut_id' => $kodeTinjut->id,
+            'sub_kode_tinjut_id' => $subTinjut->id,
+            'tindak_lanjut' => '<p>Mencoba ubah setelah selesai</p>',
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'Tindak lanjut sudah selesai diverifikasi oleh auditor dan tidak dapat diubah lagi.');
 
         // 5. Conversation message with optional file
         $chatFile = UploadedFile::fake()->create('chat-doc.pdf', 80, 'application/pdf');
@@ -189,9 +229,11 @@ class TindakLanjutAuditeeTest extends TestCase
         ], ['Accept' => 'application/json'])
             ->assertCreated()
             ->assertJsonPath('data.messages.0.pesan', 'Mohon dicek bukti setor terlampir.')
-            ->assertJsonPath('data.messages.0.file_name', 'chat-doc.pdf');
+            ->assertJsonPath('data.messages.0.file_name', 'chat-doc.pdf')
+            ->assertJsonPath('data.messages.0.user_id', $auditee->id)
+            ->assertJsonPath('data.messages.0.is_current_user', true);
 
-        // 6. Upload Lampiran (File & Link)
+        // 6. Upload Lampiran (Single File, Multi-File & Link)
         $file = UploadedFile::fake()->create('bukti-tinjut.pdf', 120, 'application/pdf');
         $this->actingAs($auditee)->post(route('audit.tindak-lanjut.lampiran', [$kka, $tabulasi]), [
             'jenis_unggahan' => 'file',
@@ -201,6 +243,17 @@ class TindakLanjutAuditeeTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.lampirans.0.file_name', 'bukti-tinjut.pdf')
             ->assertJsonPath('data.lampirans.0.keterangan', 'Bukti setor kas negara NTPN');
+
+        // Multi-file upload
+        $multiFile1 = UploadedFile::fake()->create('dokumen-1.pdf', 100, 'application/pdf');
+        $multiFile2 = UploadedFile::fake()->create('dokumen-2.docx', 80, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        $this->actingAs($auditee)->post(route('audit.tindak-lanjut.lampiran', [$kka, $tabulasi]), [
+            'jenis_unggahan' => 'file',
+            'lampiran' => [$multiFile1, $multiFile2],
+            'keterangan' => 'Dokumen lampiran ganda',
+        ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonCount(3, 'data.lampirans');
 
         $this->actingAs($auditee)->postJson(route('audit.tindak-lanjut.lampiran', [$kka, $tabulasi]), [
             'jenis_unggahan' => 'link',

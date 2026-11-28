@@ -154,11 +154,11 @@
                                         class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold leading-tight text-white"
                                         :class="{
                                             'bg-red-500': row.status_tinjut === 'Belum Ditinjut' || !row.status_tinjut,
-                                            'bg-sky-500': row.status_tinjut === 'Dalam Proses',
-                                            'bg-amber-500': row.status_tinjut === 'Belum Sesuai',
+                                            'bg-sky-500': row.status_tinjut === 'Sudah Ditinjut' || row.status_tinjut === 'Dalam Proses',
+                                            'bg-amber-500': row.status_tinjut === 'Koreksi' || row.status_tinjut === 'Belum Sesuai',
                                             'bg-emerald-600': row.status_tinjut === 'Selesai',
                                         }"
-                                        x-text="row.status_tinjut || 'Belum Ditinjut'"
+                                        x-text="formatStatusBadge(row.status_tinjut)"
                                     ></span>
                                 </td>
 
@@ -268,10 +268,14 @@
                                 </td>
 
                                 {{-- 12. KESIMPULAN --}}
-                                <td class="whitespace-normal break-words border-r border-neutral-200 px-2 py-3 text-neutral-800 dark:border-neutral-800 dark:text-neutral-200" x-text="row.kesimpulan_tinjut || ''"></td>
+                                <td class="whitespace-normal break-words border-r border-neutral-200 px-2 py-3 text-neutral-800 dark:border-neutral-800 dark:text-neutral-200">
+                                    <div class="prose prose-xs max-w-none break-words text-[11px] leading-relaxed dark:prose-invert" x-html="row.kesimpulan_tinjut || ''"></div>
+                                </td>
 
                                 {{-- 13. ALASAN --}}
-                                <td class="whitespace-normal break-words px-2 py-3 text-neutral-800 dark:text-neutral-200" x-text="row.alasan_tinjut || ''"></td>
+                                <td class="whitespace-normal break-words px-2 py-3 text-neutral-800 dark:text-neutral-200">
+                                    <div class="prose prose-xs max-w-none break-words text-[11px] leading-relaxed dark:prose-invert" x-html="row.alasan_tinjut || ''"></div>
+                                </td>
                             </tr>
                         </template>
                     </tbody>
@@ -315,16 +319,49 @@
                 {{-- Body Modal Scrollable --}}
                 <div class="flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
                     {{-- 1. KONVERSASI TANGGAPAN (SS ke-1) --}}
-                    <div class="rounded-lg border border-neutral-200 bg-white shadow-2xs dark:border-neutral-800 dark:bg-neutral-950">
-                        <div class="border-b border-neutral-200 px-5 py-3.5 dark:border-neutral-800">
-                            <h4 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
-                                Konversasi Tanggapan
-                            </h4>
+                    <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-2xs dark:border-neutral-800 dark:bg-neutral-950">
+                        <div
+                            x-on:click="toggleConversation()"
+                            class="group flex cursor-pointer select-none items-center justify-between px-5 py-3.5 transition-colors hover:bg-neutral-50/75 dark:hover:bg-neutral-900/50"
+                            :class="conversationOpen ? 'border-b border-neutral-200 dark:border-neutral-800' : ''"
+                        >
+                            <div class="flex items-center gap-2.5">
+                                <h4 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
+                                    Konversasi Tanggapan
+                                </h4>
+                                <span
+                                    class="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold transition-all"
+                                    :class="unreadMessagesCount > 0
+                                        ? 'bg-red-500 text-white shadow-xs animate-pulse'
+                                        : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'"
+                                    x-text="unreadMessagesCount"
+                                    title="Pesan baru yang belum dibaca"
+                                ></span>
+                            </div>
+
+                            <div class="flex items-center gap-1.5 text-xs font-semibold text-neutral-600 transition-colors group-hover:text-blue-600 dark:text-neutral-400 dark:group-hover:text-blue-400">
+                                <span x-text="conversationOpen ? 'Sembunyikan Percakapan' : 'Tampilkan Percakapan'"></span>
+                                <x-lucide-chevron-down
+                                    class="h-4 w-4 transition-transform duration-300"
+                                    x-bind:class="{ 'rotate-180': conversationOpen }"
+                                />
+                            </div>
                         </div>
 
-                        <div class="space-y-4 p-5">
+                        {{-- Collapsible Chat Body with Fade Down Animation --}}
+                        <div
+                            x-show="conversationOpen"
+                            x-cloak
+                            x-transition:enter="transition ease-out duration-300 transform"
+                            x-transition:enter-start="opacity-0 -translate-y-3"
+                            x-transition:enter-end="opacity-100 translate-y-0"
+                            x-transition:leave="transition ease-in duration-200 transform"
+                            x-transition:leave-start="opacity-100 translate-y-0"
+                            x-transition:leave-end="opacity-0 -translate-y-3"
+                            class="space-y-4 p-5"
+                        >
                             {{-- Daftar Pesan Chat --}}
-                            <div class="max-h-64 space-y-4 overflow-y-auto pr-1">
+                            <div x-ref="chatMessagesBox" class="max-h-64 space-y-4 overflow-y-auto pr-1">
                                 <template x-if="!activeRow?.messages || activeRow.messages.length === 0">
                                     <div class="py-4 text-center text-xs text-neutral-400 dark:text-neutral-500">
                                         Belum ada percakapan tanggapan. Mulai obrolan di bawah ini.
@@ -332,25 +369,70 @@
                                 </template>
 
                                 <template x-for="msg in (activeRow?.messages || [])" :key="msg.id">
-                                    <div class="space-y-1">
-                                        <div class="flex items-center gap-2">
-                                            <div class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-white">
-                                                <x-lucide-user class="h-4 w-4" />
+                                    <div
+                                        class="flex flex-col space-y-1.5"
+                                        :class="(msg.is_current_user || isCurrentUser(msg)) ? 'items-end' : 'items-start'"
+                                    >
+                                        <div
+                                            class="flex items-center gap-2"
+                                            :class="(msg.is_current_user || isCurrentUser(msg)) ? 'flex-row-reverse' : ''"
+                                        >
+                                            <div
+                                                class="flex h-7 w-7 items-center justify-center rounded-full text-white shadow-2xs"
+                                                :class="(msg.is_current_user || isCurrentUser(msg))
+                                                    ? 'bg-blue-600 ring-2 ring-blue-200 dark:ring-blue-800'
+                                                    : 'bg-neutral-500 dark:bg-neutral-600'"
+                                            >
+                                                <x-lucide-user class="h-3.5 w-3.5" />
                                             </div>
-                                            <span class="text-[11px] text-neutral-500 dark:text-neutral-400" x-text="msg.time_ago"></span>
+                                            <div
+                                                class="flex flex-wrap items-center gap-1.5"
+                                                :class="(msg.is_current_user || isCurrentUser(msg)) ? 'justify-end' : ''"
+                                            >
+                                                <span
+                                                    class="text-xs font-bold"
+                                                    :class="(msg.is_current_user || isCurrentUser(msg))
+                                                        ? 'text-blue-900 dark:text-blue-200'
+                                                        : 'text-neutral-800 dark:text-neutral-200'"
+                                                    x-text="msg.sender_name"
+                                                ></span>
+
+                                                <template x-if="msg.sender_role">
+                                                    <span
+                                                        class="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-none"
+                                                        :class="(msg.is_current_user || isCurrentUser(msg))
+                                                            ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
+                                                            : 'border-neutral-200 bg-neutral-100 text-neutral-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300'"
+                                                        x-text="msg.sender_role"
+                                                    ></span>
+                                                </template>
+                                            </div>
                                         </div>
 
-                                        <div class="rounded-lg bg-neutral-100/90 px-4 py-3 text-xs dark:bg-neutral-900">
-                                            <div class="font-bold text-neutral-800 dark:text-neutral-100" x-text="msg.sender_name"></div>
+                                        <div
+                                            class="max-w-[85%] rounded-lg border px-4 py-2.5 text-xs shadow-2xs transition-colors"
+                                            :class="(msg.is_current_user || isCurrentUser(msg))
+                                                ? 'border-blue-200 bg-blue-50/90 text-blue-950 dark:border-blue-800/70 dark:bg-blue-950/40 dark:text-blue-100'
+                                                : 'border-neutral-200 bg-neutral-100/90 text-neutral-800 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200'"
+                                        >
                                             <template x-if="msg.pesan">
-                                                <p class="mt-0.5 whitespace-pre-line text-neutral-700 dark:text-neutral-300" x-text="msg.pesan"></p>
+                                                <p
+                                                    class="whitespace-pre-line leading-relaxed break-words"
+                                                    :class="(msg.is_current_user || isCurrentUser(msg))
+                                                        ? 'text-blue-950 dark:text-blue-100'
+                                                        : 'text-neutral-700 dark:text-neutral-300'"
+                                                    x-text="msg.pesan"
+                                                ></p>
                                             </template>
                                             <template x-if="msg.file_url">
                                                 <div class="mt-2">
                                                     <a
                                                         :href="msg.file_url"
                                                         target="_blank"
-                                                        class="inline-flex items-center gap-1.5 rounded border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300"
+                                                        class="inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-[11px] font-semibold transition-colors"
+                                                        :class="(msg.is_current_user || isCurrentUser(msg))
+                                                            ? 'border-blue-300 bg-white text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/60 dark:text-blue-200'
+                                                            : 'border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200'"
                                                     >
                                                         <x-lucide-paperclip class="h-3 w-3" />
                                                         <span x-text="msg.file_name || 'Unduh Lampiran'"></span>
@@ -358,6 +440,12 @@
                                                 </div>
                                             </template>
                                         </div>
+
+                                        {{-- Waktu pengiriman di bawah chat box (di luar box) --}}
+                                        <span
+                                            class="px-1 text-[10px] text-neutral-400 dark:text-neutral-500"
+                                            x-text="msg.time_ago"
+                                        ></span>
                                     </div>
                                 </template>
                             </div>
@@ -455,11 +543,11 @@
                                             class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold text-white"
                                             :class="{
                                                 'bg-red-500': (activeRow?.status_tinjut || 'Belum Ditinjut') === 'Belum Ditinjut',
-                                                'bg-sky-500': activeRow?.status_tinjut === 'Dalam Proses',
-                                                'bg-amber-500': activeRow?.status_tinjut === 'Belum Sesuai',
+                                                'bg-sky-500': activeRow?.status_tinjut === 'Sudah Ditinjut' || activeRow?.status_tinjut === 'Dalam Proses',
+                                                'bg-amber-500': activeRow?.status_tinjut === 'Koreksi' || activeRow?.status_tinjut === 'Belum Sesuai',
                                                 'bg-emerald-600': activeRow?.status_tinjut === 'Selesai',
                                             }"
-                                            x-text="activeRow?.status_tinjut || 'Belum Ditinjut'"
+                                            x-text="formatStatusBadge(activeRow?.status_tinjut)"
                                         ></span>
                                     </button>
                                 </div>
@@ -565,83 +653,152 @@
 
                                                     {{-- Baris Tindak Lanjut Auditee --}}
                                                     <tr>
-                                                        <td class="border-r border-neutral-200 bg-neutral-50/50 px-3 py-3 align-top font-medium text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-300">
+                                                        <td class="border-r border-neutral-200 bg-neutral-50/50 px-3 py-2.5 align-top font-medium text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-300">
                                                             Tindak Lanjut Auditee
                                                         </td>
-                                                        <td class="border-r border-neutral-200 px-1.5 py-3 align-top text-center dark:border-neutral-800">:</td>
-                                                        <td class="p-3 align-top space-y-4">
-                                                            <div class="grid gap-3 sm:grid-cols-2">
-                                                                <div>
-                                                                    <x-searchable-select
-                                                                        label="Kode Tindak Lanjut *"
-                                                                        placeholder="Silahkan Pilih"
-                                                                        itemsExpr="kodeTinjutOptions"
-                                                                        valueModel="form.kode_tinjut_id"
-                                                                        changeAction="onKodeTinjutChange()"
-                                                                        :wrap="true"
-                                                                    />
+                                                        <td class="border-r border-neutral-200 px-1.5 py-2.5 align-top text-center dark:border-neutral-800">:</td>
+                                                        <td class="px-3 py-2.5 align-top">
+                                                            {{-- 1. Tampilan Auditor jika Auditee BELUM melakukan tindak lanjut --}}
+                                                            <template x-if="!isAuditee && !activeRow?.has_tinjut">
+                                                                <div class="flex items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+                                                                    <x-lucide-alert-circle class="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                                                                    <span class="font-medium">Auditee belum melakukan tinjut</span>
                                                                 </div>
-                                                                <div>
-                                                                    <x-searchable-select
-                                                                        label="Sub Kode Tindak Lanjut"
-                                                                        placeholder="Silahkan Pilih Sub Kode"
-                                                                        itemsExpr="subKodeTinjutOptions"
-                                                                        valueModel="form.sub_kode_tinjut_id"
-                                                                        changeAction="onSubKodeTinjutChange()"
-                                                                        disabledExpr="!form.kode_tinjut_id"
-                                                                        disabledMessage="Pilih Kode Tindak Lanjut terlebih dahulu"
-                                                                        :wrap="true"
-                                                                    />
-                                                                </div>
-                                                            </div>
+                                                            </template>
 
-                                                            <div class="space-y-1.5">
-                                                                <label class="block text-xs font-bold text-neutral-700 dark:text-neutral-300">
-                                                                    Isi Tindak Lanjut:
-                                                                </label>
-                                                                <div class="rounded-lg border border-neutral-200 bg-white shadow-2xs dark:border-neutral-800 dark:bg-neutral-950">
-                                                                    <x-tiptap-toolbar />
-                                                                    <div
-                                                                        x-ref="editor_tindak_lanjut"
-                                                                        data-tinjut-editor="tindak_lanjut"
-                                                                        x-on:click="focusActiveEditor($event)"
-                                                                        class="tiptap max-h-[260px] min-h-[160px] cursor-text overflow-y-auto bg-white dark:bg-neutral-950"
-                                                                    ></div>
-                                                                </div>
-                                                                <template x-if="errors.tindak_lanjut">
-                                                                    <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.tindak_lanjut[0]"></p>
-                                                                </template>
-                                                            </div>
+                                                            {{-- 2. Tampilan Read-Only jika:
+                                                                    a) Auditor melihat temuan yang sudah ditinjut auditee, ATAU
+                                                                    b) Auditee melihat temuan yang SUDAH SELESAI diuji nilai oleh auditor --}}
+                                                            <template x-if="(!isAuditee && activeRow?.has_tinjut) || (isAuditee && activeRow?.status_tinjut === 'Selesai')">
+                                                                <div class="space-y-4 text-xs">
+                                                                    <template x-if="activeRow?.status_tinjut === 'Selesai'">
+                                                                        <div class="flex items-center gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 p-3.5 text-xs text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">
+                                                                            <x-lucide-check-circle-2 class="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                                                            <span>Tindak lanjut telah diverifikasi dan dinyatakan <strong class="font-bold text-emerald-800 dark:text-emerald-300">Selesai</strong> oleh Auditor. Form tindak lanjut sudah dikunci dan tidak dapat diubah lagi.</span>
+                                                                        </div>
+                                                                    </template>
 
-                                                            <div class="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-900/50 dark:bg-emerald-950/30">
-                                                                <label class="mb-1.5 block text-xs font-semibold text-emerald-900 dark:text-emerald-200">
-                                                                    Nilai Pengembalian (IDR)
-                                                                </label>
-                                                                <div class="flex rounded-md shadow-xs">
-                                                                    <span class="inline-flex items-center rounded-l-md border border-r-0 border-neutral-200 bg-neutral-100 px-3 text-xs font-semibold text-neutral-700 dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-300">
-                                                                        IDR
-                                                                    </span>
-                                                                    <input
-                                                                        type="text"
-                                                                        inputmode="numeric"
-                                                                        :value="formatRupiahInput(form.nilai_pengembalian)"
-                                                                        x-on:input="onNilaiPengembalianInput($event)"
-                                                                        placeholder="Contoh: 125.000.000"
-                                                                        class="block h-9 w-full rounded-r-md border border-neutral-200 bg-white px-3 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                                                    />
-                                                                </div>
-                                                            </div>
+                                                                    <div class="grid gap-3 sm:grid-cols-2">
+                                                                        <div>
+                                                                            <span class="block text-xs font-semibold text-neutral-500 dark:text-neutral-400">Kode Tindak Lanjut</span>
+                                                                            <div class="mt-1 font-medium text-neutral-800 dark:text-neutral-200" x-text="activeRow?.kode_tinjut_kode ? ('(' + activeRow.kode_tinjut_kode + ') ' + (activeRow.kode_tinjut_nama || '')) : '-'"></div>
+                                                                        </div>
+                                                                        <div>
+                                                                            <span class="block text-xs font-semibold text-neutral-500 dark:text-neutral-400">Sub Kode Tindak Lanjut</span>
+                                                                            <div class="mt-1 font-medium text-neutral-800 dark:text-neutral-200" x-text="activeRow?.sub_kode_tinjut_kode ? ('(' + activeRow.sub_kode_tinjut_kode + ') ' + (activeRow.sub_kode_tinjut_nama || '')) : '-'"></div>
+                                                                        </div>
+                                                                    </div>
 
-                                                            <div>
-                                                                <button
-                                                                    type="submit"
-                                                                    x-bind:disabled="saving"
-                                                                    class="inline-flex h-8 items-center gap-1.5 rounded bg-blue-600 px-4 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-blue-700 disabled:opacity-50"
-                                                                >
-                                                                    <x-lucide-loader-circle x-show="saving" x-cloak class="h-3.5 w-3.5 animate-spin" />
-                                                                    <span>Simpan</span>
-                                                                </button>
-                                                            </div>
+                                                                    <div>
+                                                                        <span class="block text-xs font-semibold text-neutral-500 dark:text-neutral-400 mb-1.5">Isi Tindak Lanjut:</span>
+                                                                        <div class="prose prose-xs max-w-none rounded-lg border border-neutral-200 bg-neutral-50/50 p-3 text-neutral-800 dark:border-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-200 dark:prose-invert" x-html="activeRow?.tindak_lanjut || '-'"></div>
+                                                                    </div>
+
+                                                                    <div class="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                                                                        <span class="block text-xs font-semibold text-emerald-900 dark:text-emerald-200 mb-1">Nilai Pengembalian</span>
+                                                                        <div class="font-semibold text-emerald-700 dark:text-emerald-300" x-text="activeRow?.nilai_pengembalian_formatted || '-'"></div>
+                                                                    </div>
+                                                                </div>
+                                                            </template>
+
+                                                            {{-- 3. Tampilan Auditee (Form pengisian tindak lanjut jika belum Selesai) --}}
+                                                            <template x-if="canEditTinjut">
+                                                                <div class="space-y-4">
+                                                                    <template x-if="activeRow?.status_tinjut === 'Koreksi' || activeRow?.status_tinjut === 'Belum Sesuai'">
+                                                                        <div class="rounded-lg border border-amber-200 bg-amber-50/80 p-3.5 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+                                                                            <div class="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-300">
+                                                                                <x-lucide-alert-triangle class="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                                                                                <span>Catatan Evaluasi / Koreksi dari Auditor:</span>
+                                                                            </div>
+                                                                            <template x-if="activeRow?.kesimpulan_tinjut">
+                                                                                <div class="mt-2.5">
+                                                                                    <span class="font-semibold text-neutral-700 dark:text-neutral-300">Kesimpulan:</span>
+                                                                                    <div class="prose prose-xs max-w-none mt-0.5 text-neutral-800 dark:text-neutral-200 dark:prose-invert" x-html="activeRow.kesimpulan_tinjut"></div>
+                                                                                </div>
+                                                                            </template>
+                                                                            <template x-if="activeRow?.alasan_tinjut">
+                                                                                <div class="mt-2">
+                                                                                    <span class="font-semibold text-neutral-700 dark:text-neutral-300">Alasan:</span>
+                                                                                    <div class="prose prose-xs max-w-none mt-0.5 text-neutral-800 dark:text-neutral-200 dark:prose-invert" x-html="activeRow.alasan_tinjut"></div>
+                                                                                </div>
+                                                                            </template>
+                                                                        </div>
+                                                                    </template>
+
+                                                                    <div class="grid gap-3 sm:grid-cols-2">
+                                                                        <div>
+                                                                            <x-searchable-select
+                                                                                label="Kode Tindak Lanjut *"
+                                                                                placeholder="Silahkan Pilih"
+                                                                                itemsExpr="kodeTinjutOptions"
+                                                                                valueModel="form.kode_tinjut_id"
+                                                                                changeAction="onKodeTinjutChange()"
+                                                                                :wrap="true"
+                                                                            />
+                                                                        </div>
+                                                                        <div>
+                                                                            <x-searchable-select
+                                                                                label="Sub Kode Tindak Lanjut"
+                                                                                placeholder="Silahkan Pilih Sub Kode"
+                                                                                itemsExpr="subKodeTinjutOptions"
+                                                                                valueModel="form.sub_kode_tinjut_id"
+                                                                                changeAction="onSubKodeTinjutChange()"
+                                                                                disabledExpr="!form.kode_tinjut_id"
+                                                                                disabledMessage="Pilih Kode Tindak Lanjut terlebih dahulu"
+                                                                                :wrap="true"
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div class="space-y-1.5">
+                                                                        <label class="block text-xs font-bold text-neutral-700 dark:text-neutral-300">
+                                                                            Isi Tindak Lanjut:
+                                                                        </label>
+                                                                        <div class="rounded-lg border border-neutral-200 bg-white shadow-2xs dark:border-neutral-800 dark:bg-neutral-950" x-on:click="activeEditorKey = 'tindak_lanjut'">
+                                                                            <x-tiptap-toolbar />
+                                                                            <div
+                                                                                x-ref="editor_tindak_lanjut"
+                                                                                data-tinjut-editor="tindak_lanjut"
+                                                                                x-on:click="focusEditorKey('tindak_lanjut', $event)"
+                                                                                class="tiptap max-h-[260px] min-h-[160px] cursor-text overflow-y-auto bg-white dark:bg-neutral-950"
+                                                                            ></div>
+                                                                        </div>
+                                                                        <template x-if="errors.tindak_lanjut">
+                                                                            <p class="text-xs text-red-600 dark:text-red-400" x-text="errors.tindak_lanjut[0]"></p>
+                                                                        </template>
+                                                                    </div>
+
+                                                                    <div class="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                                                                        <label class="mb-1.5 block text-xs font-semibold text-emerald-900 dark:text-emerald-200">
+                                                                            Nilai Pengembalian (IDR)
+                                                                        </label>
+                                                                        <div class="flex rounded-md shadow-xs">
+                                                                            <span class="inline-flex items-center rounded-l-md border border-r-0 border-neutral-200 bg-neutral-100 px-3 text-xs font-semibold text-neutral-700 dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-300">
+                                                                                IDR
+                                                                            </span>
+                                                                            <input
+                                                                                type="text"
+                                                                                inputmode="numeric"
+                                                                                :value="formatRupiahInput(form.nilai_pengembalian)"
+                                                                                x-on:input="onNilaiPengembalianInput($event)"
+                                                                                placeholder="Contoh: 125.000.000"
+                                                                                class="block h-9 w-full rounded-r-md border border-neutral-200 bg-white px-3 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div>
+                                                                        <button
+                                                                            type="submit"
+                                                                            x-bind:disabled="saving"
+                                                                            class="inline-flex h-8 items-center gap-1.5 rounded bg-blue-600 px-4 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-blue-700 disabled:opacity-50"
+                                                                        >
+                                                                            <x-lucide-loader-circle x-show="saving" x-cloak class="h-3.5 w-3.5 animate-spin" />
+                                                                            <span>Simpan</span>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </template>
                                                         </td>
                                                     </tr>
                                                 </tbody>
@@ -660,39 +817,68 @@
                                 <div class="p-5">
                                     {{-- Jika user bukan Auditor ATAU Auditee belum mengisi tindak lanjut (SS ke-3) --}}
                                     <template x-if="!canEditUjiNilai">
-                                        <div class="space-y-3">
+                                        <div class="space-y-4">
+                                            <template x-if="activeRow?.status_tinjut === 'Koreksi' || activeRow?.status_tinjut === 'Belum Sesuai'">
+                                                <div class="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+                                                    <x-lucide-alert-triangle class="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                                                    <div>
+                                                        <span class="font-bold">Perlu Perbaikan / Koreksi:</span>
+                                                        <p class="mt-0.5 text-neutral-600 dark:text-neutral-300">Auditor memberikan catatan evaluasi atas tindak lanjut yang diajukan. Silakan periksa kesimpulan & alasan di bawah, kemudian lengkapi / perbaiki pada tab <strong>Tinjut Auditee</strong>.</p>
+                                                    </div>
+                                                </div>
+                                            </template>
+
+                                            <template x-if="activeRow?.status_tinjut === 'Selesai'">
+                                                <div class="flex items-center gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 p-3.5 text-xs text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">
+                                                    <x-lucide-check-circle-2 class="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                                    <span>Tindak lanjut telah diverifikasi dan dinyatakan <strong class="font-bold text-emerald-800 dark:text-emerald-300">Selesai</strong> oleh Auditor.</span>
+                                                </div>
+                                            </template>
+
                                             <div class="overflow-hidden rounded border border-neutral-200 dark:border-neutral-800">
                                                 <table class="w-full border-collapse text-left text-xs">
                                                     <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
                                                         <tr>
-                                                            <td class="w-36 border-r border-neutral-200 px-3 py-3 font-medium text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">Kesimpulan</td>
-                                                            <td class="w-4 border-r border-neutral-200 px-1.5 py-3 text-center dark:border-neutral-800">:</td>
-                                                            <td class="px-3 py-3 italic text-neutral-600 dark:text-neutral-400">
-                                                                <span x-text="!canUjiNilaiRole ? 'Untuk mengisi kesimpulan hanya akun dengan role Auditor' : 'Untuk mengisi kesimpulan, Auditee harus mengisi tindak lanjut terlebih dahulu'"></span>
+                                                            <td class="w-36 border-r border-neutral-200 px-3 py-3 align-top font-medium text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">Kesimpulan</td>
+                                                            <td class="w-4 border-r border-neutral-200 px-1.5 py-3 align-top text-center dark:border-neutral-800">:</td>
+                                                            <td class="px-3 py-3 align-top">
+                                                                <template x-if="activeRow?.kesimpulan_tinjut && activeRow.kesimpulan_tinjut.trim() !== ''">
+                                                                    <div class="prose prose-xs max-w-none text-xs text-neutral-900 dark:text-neutral-100 dark:prose-invert" x-html="activeRow.kesimpulan_tinjut"></div>
+                                                                </template>
+                                                                <template x-if="!activeRow?.kesimpulan_tinjut || activeRow.kesimpulan_tinjut.trim() === ''">
+                                                                    <span class="italic text-neutral-500 dark:text-neutral-400" x-text="!canUjiNilaiRole ? 'Belum diuji nilai oleh auditor' : 'Untuk mengisi kesimpulan, Auditee harus mengisi tindak lanjut terlebih dahulu'"></span>
+                                                                </template>
                                                             </td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="border-r border-neutral-200 px-3 py-3 font-medium text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">Alasan</td>
-                                                            <td class="border-r border-neutral-200 px-1.5 py-3 text-center dark:border-neutral-800">:</td>
-                                                            <td class="px-3 py-3 italic text-neutral-600 dark:text-neutral-400">
-                                                                <span x-text="!canUjiNilaiRole ? 'Untuk mengisi alasan hanya akun dengan role Auditor' : 'Untuk mengisi alasan, Auditee harus mengisi tindak lanjut terlebih dahulu'"></span>
+                                                            <td class="border-r border-neutral-200 px-3 py-3 align-top font-medium text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">Alasan</td>
+                                                            <td class="border-r border-neutral-200 px-1.5 py-3 align-top text-center dark:border-neutral-800">:</td>
+                                                            <td class="px-3 py-3 align-top">
+                                                                <template x-if="activeRow?.alasan_tinjut && activeRow.alasan_tinjut.trim() !== ''">
+                                                                    <div class="prose prose-xs max-w-none text-xs text-neutral-900 dark:text-neutral-100 dark:prose-invert" x-html="activeRow.alasan_tinjut"></div>
+                                                                </template>
+                                                                <template x-if="!activeRow?.alasan_tinjut || activeRow.alasan_tinjut.trim() === ''">
+                                                                    <span class="italic text-neutral-500 dark:text-neutral-400" x-text="!canUjiNilaiRole ? 'Tidak ada catatan alasan' : 'Untuk mengisi alasan, Auditee harus mengisi tindak lanjut terlebih dahulu'"></span>
+                                                                </template>
                                                             </td>
                                                         </tr>
                                                         <tr>
                                                             <td class="border-r border-neutral-200 px-3 py-3 align-top font-medium text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">Status</td>
                                                             <td class="border-r border-neutral-200 px-1.5 py-3 align-top text-center dark:border-neutral-800">:</td>
-                                                            <td class="px-3 py-3 space-y-1.5">
-                                                                <div class="italic text-neutral-600 dark:text-neutral-400" x-text="!canUjiNilaiRole ? 'Yang bisa uji nilai hanya akun auditor' : 'Menunggu tindak lanjut dari Auditee'"></div>
+                                                            <td class="px-3 py-3 align-top space-y-1.5">
+                                                                <template x-if="canUjiNilaiRole && !activeRow?.has_tinjut">
+                                                                    <div class="italic text-neutral-500 dark:text-neutral-400">Menunggu tindak lanjut dari Auditee</div>
+                                                                </template>
                                                                 <div>
                                                                     <span
-                                                                        class="inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold text-white"
+                                                                        class="inline-flex items-center rounded px-2.5 py-1 text-xs font-semibold text-white"
                                                                         :class="{
                                                                             'bg-red-500': (activeRow?.status_tinjut || 'Belum Ditinjut') === 'Belum Ditinjut',
-                                                                            'bg-sky-500': activeRow?.status_tinjut === 'Dalam Proses',
-                                                                            'bg-amber-500': activeRow?.status_tinjut === 'Belum Sesuai',
+                                                                            'bg-sky-500': activeRow?.status_tinjut === 'Sudah Ditinjut' || activeRow?.status_tinjut === 'Dalam Proses',
+                                                                            'bg-amber-500': activeRow?.status_tinjut === 'Koreksi' || activeRow?.status_tinjut === 'Belum Sesuai',
                                                                             'bg-emerald-600': activeRow?.status_tinjut === 'Selesai',
                                                                         }"
-                                                                        x-text="activeRow?.status_tinjut || 'Belum Ditinjut'"
+                                                                        x-text="formatStatusBadge(activeRow?.status_tinjut)"
                                                                     ></span>
                                                                 </div>
                                                             </td>
@@ -710,17 +896,20 @@
                                                 <table class="w-full border-collapse text-left text-xs">
                                                     <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
                                                         <tr>
-                                                            <td class="w-36 border-r border-neutral-200 px-3 py-3 font-medium text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">
+                                                            <td class="w-36 border-r border-neutral-200 px-3 py-3 align-top font-medium text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">
                                                                 Kesimpulan <span class="text-red-500">*</span>
                                                             </td>
-                                                            <td class="w-4 border-r border-neutral-200 px-1.5 py-3 text-center dark:border-neutral-800">:</td>
+                                                            <td class="w-4 border-r border-neutral-200 px-1.5 py-3 align-top text-center dark:border-neutral-800">:</td>
                                                             <td class="px-3 py-2.5">
-                                                                <select x-model="ujiForm.kesimpulan_tinjut" class="{{ $inputClass }}">
-                                                                    <option value="">-- Pilih Kesimpulan --</option>
-                                                                    <template x-for="ks in kesimpulanTinjuts" :key="ks">
-                                                                        <option :value="ks" x-text="ks"></option>
-                                                                    </template>
-                                                                </select>
+                                                                <div class="rounded-lg border border-neutral-200 bg-white shadow-2xs dark:border-neutral-800 dark:bg-neutral-950" x-on:click="activeEditorKey = 'kesimpulan_tinjut'">
+                                                                    <x-tiptap-toolbar />
+                                                                    <div
+                                                                        x-ref="editor_kesimpulan_tinjut"
+                                                                        data-tinjut-editor="kesimpulan_tinjut"
+                                                                        x-on:click="focusEditorKey('kesimpulan_tinjut', $event)"
+                                                                        class="tiptap max-h-[220px] min-h-[120px] cursor-text overflow-y-auto bg-white dark:bg-neutral-950"
+                                                                    ></div>
+                                                                </div>
                                                                 <template x-if="ujiErrors.kesimpulan_tinjut">
                                                                     <p class="mt-1 text-xs text-red-600 dark:text-red-400" x-text="ujiErrors.kesimpulan_tinjut[0]"></p>
                                                                 </template>
@@ -732,28 +921,58 @@
                                                             </td>
                                                             <td class="border-r border-neutral-200 px-1.5 py-3 align-top text-center dark:border-neutral-800">:</td>
                                                             <td class="px-3 py-2.5">
-                                                                <textarea
-                                                                    rows="3"
-                                                                    x-model="ujiForm.alasan_tinjut"
-                                                                    placeholder="Tuliskan alasan atau evaluasi atas tindak lanjut auditee..."
-                                                                    class="block w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-900 shadow-xs placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                                                                ></textarea>
+                                                                <div class="rounded-lg border border-neutral-200 bg-white shadow-2xs dark:border-neutral-800 dark:bg-neutral-950" x-on:click="activeEditorKey = 'alasan_tinjut'">
+                                                                    <x-tiptap-toolbar />
+                                                                    <div
+                                                                        x-ref="editor_alasan_tinjut"
+                                                                        data-tinjut-editor="alasan_tinjut"
+                                                                        x-on:click="focusEditorKey('alasan_tinjut', $event)"
+                                                                        class="tiptap max-h-[220px] min-h-[120px] cursor-text overflow-y-auto bg-white dark:bg-neutral-950"
+                                                                    ></div>
+                                                                </div>
                                                                 <template x-if="ujiErrors.alasan_tinjut">
                                                                     <p class="mt-1 text-xs text-red-600 dark:text-red-400" x-text="ujiErrors.alasan_tinjut[0]"></p>
                                                                 </template>
                                                             </td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="border-r border-neutral-200 px-3 py-3 font-medium text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">
+                                                            <td class="border-r border-neutral-200 px-3 py-3 align-top font-medium text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">
                                                                 Status <span class="text-red-500">*</span>
                                                             </td>
-                                                            <td class="border-r border-neutral-200 px-1.5 py-3 text-center dark:border-neutral-800">:</td>
+                                                            <td class="border-r border-neutral-200 px-1.5 py-3 align-top text-center dark:border-neutral-800">:</td>
                                                             <td class="px-3 py-2.5">
-                                                                <select x-model="ujiForm.status_tinjut" class="{{ $inputClass }}">
-                                                                    <template x-for="st in statusTinjuts" :key="st">
-                                                                        <option :value="st" x-text="st"></option>
-                                                                    </template>
-                                                                </select>
+                                                                <div class="space-y-2.5 py-1">
+                                                                    <label class="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-neutral-800 dark:text-neutral-200">
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="status_tinjut_radio"
+                                                                            value="Sudah Ditinjut"
+                                                                            x-model="ujiForm.status_tinjut"
+                                                                            class="h-4 w-4 border-neutral-300 text-blue-600 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900"
+                                                                        />
+                                                                        <span>Sudah Tinjut</span>
+                                                                    </label>
+                                                                    <label class="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-neutral-800 dark:text-neutral-200">
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="status_tinjut_radio"
+                                                                            value="Koreksi"
+                                                                            x-model="ujiForm.status_tinjut"
+                                                                            class="h-4 w-4 border-neutral-300 text-blue-600 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900"
+                                                                        />
+                                                                        <span>Koreksi</span>
+                                                                    </label>
+                                                                    <label class="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-neutral-800 dark:text-neutral-200">
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="status_tinjut_radio"
+                                                                            value="Selesai"
+                                                                            x-model="ujiForm.status_tinjut"
+                                                                            class="h-4 w-4 border-neutral-300 text-blue-600 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900"
+                                                                        />
+                                                                        <span>Selesai</span>
+                                                                    </label>
+                                                                </div>
                                                                 <template x-if="ujiErrors.status_tinjut">
                                                                     <p class="mt-1 text-xs text-red-600 dark:text-red-400" x-text="ujiErrors.status_tinjut[0]"></p>
                                                                 </template>
@@ -787,8 +1006,80 @@
                                     </div>
                                 </div>
 
-                                <div class="p-5 space-y-5">
-                                    <form x-on:submit.prevent="uploadLampiran()" class="space-y-4">
+                                <div class="p-5 space-y-6">
+                                    {{-- Daftar Lampiran yang Sudah Dikirim (Tampilan Card persis seperti referensi) --}}
+                                    <div class="space-y-3">
+                                        <div class="flex items-center justify-between">
+                                            <h5 class="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                                                Daftar Lampiran Terkirim (<span x-text="(activeRow?.lampirans || []).length"></span>)
+                                            </h5>
+                                        </div>
+
+                                        <template x-if="!activeRow?.lampirans || activeRow.lampirans.length === 0">
+                                            <div class="rounded-xl border border-dashed border-neutral-300 p-8 text-center text-xs text-neutral-400 dark:border-neutral-700 dark:text-neutral-500">
+                                                Belum ada lampiran pendukung yang diunggah.
+                                            </div>
+                                        </template>
+
+                                        <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+                                            <template x-for="item in (activeRow?.lampirans || [])" :key="item.id">
+                                                <div class="group relative flex flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-4 shadow-2xs transition-all hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                                                    {{-- Tombol Hapus Lampiran saat hover --}}
+                                                    <button
+                                                        type="button"
+                                                        x-on:click.stop="deleteLampiran(item)"
+                                                        title="Hapus Lampiran"
+                                                        class="absolute right-2 top-2 z-10 rounded-full p-1 text-neutral-400 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-red-950/60 dark:hover:text-red-400"
+                                                    >
+                                                        <x-lucide-trash-2 class="h-3.5 w-3.5" />
+                                                    </button>
+
+                                                    <a :href="item.url" target="_blank" class="flex flex-col items-center text-center">
+                                                        {{-- Icon Dokumen Merah (persis seperti SS) --}}
+                                                        <div class="mb-3 flex justify-center">
+                                                            <template x-if="item.jenis_unggahan === 'link'">
+                                                                <div class="flex h-16 w-14 items-center justify-center rounded-xl bg-blue-50 text-blue-600 shadow-2xs dark:bg-blue-950/60 dark:text-blue-400">
+                                                                    <x-lucide-link class="h-8 w-8" />
+                                                                </div>
+                                                            </template>
+                                                            <template x-if="item.jenis_unggahan !== 'link'">
+                                                                <svg class="h-16 w-14 text-red-600 drop-shadow-xs dark:text-red-500" viewBox="0 0 48 56" fill="currentColor">
+                                                                    <path d="M4 0C1.79 0 0 1.79 0 4V52C0 54.21 1.79 56 4 56H44C46.21 56 48 54.21 48 52V16L32 0H4Z" />
+                                                                    <path d="M32 0V16H48L32 0Z" fill="#b91c1c" />
+                                                                </svg>
+                                                            </template>
+                                                        </div>
+
+                                                        {{-- Nama File Bold Uppercase --}}
+                                                        <div
+                                                            class="line-clamp-2 w-full text-center text-xs font-bold uppercase text-neutral-800 dark:text-neutral-100"
+                                                            x-text="item.file_name || 'DOKUMEN'"
+                                                            :title="item.file_name"
+                                                        ></div>
+
+                                                        {{-- Metadata Italic (Oleh, Ket, Tgl) --}}
+                                                        <div class="mt-2.5 space-y-1 text-center text-[10.5px] italic text-neutral-500 dark:text-neutral-400">
+                                                            <div class="line-clamp-1">
+                                                                <span>Oleh: </span>
+                                                                <span class="font-normal" x-text="item.uploader_name || '-'"></span>
+                                                            </div>
+                                                            <div class="line-clamp-2">
+                                                                <span>Ket: </span>
+                                                                <span class="font-normal" x-text="item.keterangan || '-'"></span>
+                                                            </div>
+                                                            <div>
+                                                                <span>Tgl: </span>
+                                                                <span class="font-normal" x-text="item.created_at || '-'"></span>
+                                                            </div>
+                                                        </div>
+                                                    </a>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                    {{-- Form Upload Lampiran Baru --}}
+                                    <form x-on:submit.prevent="uploadLampiran()" class="border-t border-neutral-200 pt-6 space-y-4 dark:border-neutral-800">
                                         {{-- Pilihan Jenis Unggahan Lampiran * --}}
                                         <div class="space-y-2">
                                             <label class="block text-xs font-bold text-neutral-700 dark:text-neutral-300">
@@ -824,18 +1115,36 @@
                                         {{-- Input File atau Link URL --}}
                                         <div x-show="lampiranForm.jenis_unggahan === 'file'" class="space-y-1.5">
                                             <label class="block text-xs font-bold text-neutral-700 dark:text-neutral-300">
-                                                Upload Lampiran Pendukung (PDF, DOC, Gambar, dll) <span class="text-red-500">*</span>
+                                                Upload Lampiran Pendukung (Bisa pilih lebih dari satu file) <span class="text-red-500">*</span>
                                             </label>
                                             <input
                                                 type="file"
+                                                multiple
                                                 x-ref="lampiranInput"
                                                 x-on:change="onFileSelect($event)"
                                                 accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.bmp"
                                                 class="block h-9 w-full rounded-md border border-neutral-200 bg-white text-xs text-neutral-700 file:mr-3 file:h-full file:border-0 file:border-r file:border-neutral-200 file:bg-neutral-100 file:px-3.5 file:text-xs file:font-medium file:text-neutral-700 hover:file:bg-neutral-200 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:file:border-neutral-700 dark:file:bg-neutral-800 dark:file:text-neutral-200"
                                             />
                                             <p class="text-[11px] text-neutral-500 dark:text-neutral-400">
-                                                Format file yang diperbolehkan: PDF, DOC, DOCX, XLS, XLSX, JPG, JPEG, PNG, BMP (Maksimal 10MB)
+                                                Format file: PDF, DOC, DOCX, XLS, XLSX, JPG, JPEG, PNG, BMP (Maksimal 10MB per file). Anda dapat memilih beberapa file sekaligus.
                                             </p>
+
+                                            {{-- Preview Multi-file yang Dipilih --}}
+                                            <template x-if="lampiranFiles.length > 0">
+                                                <div class="mt-2 space-y-1.5 rounded-lg border border-neutral-200 bg-neutral-50 p-2.5 text-xs dark:border-neutral-800 dark:bg-neutral-900">
+                                                    <div class="font-semibold text-neutral-700 dark:text-neutral-300" x-text="lampiranFiles.length + ' file dipilih:'"></div>
+                                                    <div class="flex flex-wrap gap-1.5">
+                                                        <template x-for="(f, idx) in lampiranFiles" :key="idx">
+                                                            <span class="inline-flex items-center gap-1 rounded border border-neutral-200 bg-white px-2 py-1 text-[11px] font-medium text-neutral-700 shadow-2xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                                                                <x-lucide-file class="h-3 w-3 text-red-500" />
+                                                                <span class="max-w-[14rem] truncate" x-text="f.name"></span>
+                                                                <span class="text-neutral-400" x-text="'(' + formatFileSize(f.size) + ')'"></span>
+                                                            </span>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </template>
+
                                             <template x-if="lampiranErrors.lampiran">
                                                 <p class="text-xs text-red-600 dark:text-red-400" x-text="lampiranErrors.lampiran[0]"></p>
                                             </template>
@@ -859,12 +1168,12 @@
                                         {{-- Keterangan Lampiran * --}}
                                         <div class="space-y-1.5">
                                             <label class="block text-xs font-bold text-neutral-700 dark:text-neutral-300">
-                                                Keterangan Lampiran <span class="text-red-500">*</span>
+                                                Keterangan Lampiran
                                             </label>
                                             <input
                                                 type="text"
                                                 x-model="lampiranForm.keterangan"
-                                                placeholder="Tuliskan keterangan isi lampiran..."
+                                                placeholder="Tuliskan keterangan isi lampiran (opsional, jika kosong menggunakan nama file)..."
                                                 class="{{ $inputClass }}"
                                             />
                                             <template x-if="lampiranErrors.keterangan">
@@ -879,41 +1188,10 @@
                                                 class="inline-flex h-9 items-center gap-2 rounded-md bg-blue-600 px-5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-blue-700 disabled:opacity-50"
                                             >
                                                 <x-lucide-loader-circle x-show="uploadingLampiran" x-cloak class="h-3.5 w-3.5 animate-spin" />
-                                                <span>Kirim Lampiran</span>
+                                                <span x-text="lampiranForm.jenis_unggahan === 'file' && lampiranFiles.length > 1 ? ('Kirim ' + lampiranFiles.length + ' Lampiran') : 'Kirim Lampiran'"></span>
                                             </button>
                                         </div>
                                     </form>
-
-                                    {{-- Daftar Lampiran yang Sudah Dikirim --}}
-                                    <template x-if="(activeRow?.lampirans || []).length > 0">
-                                        <div class="border-t border-neutral-200 pt-4 dark:border-neutral-800 space-y-2.5">
-                                            <h5 class="text-xs font-bold text-neutral-700 dark:text-neutral-300">Daftar Lampiran Terkirim</h5>
-                                            <div class="divide-y divide-neutral-200 rounded-lg border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
-                                                <template x-for="item in activeRow.lampirans" :key="item.id">
-                                                    <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 text-xs">
-                                                        <div class="space-y-0.5">
-                                                            <div class="font-semibold text-neutral-800 dark:text-neutral-100" x-text="item.keterangan"></div>
-                                                            <div class="text-[11px] text-neutral-500">
-                                                                <span x-text="item.file_name"></span>
-                                                                <span> • </span>
-                                                                <span x-text="item.created_at"></span>
-                                                            </div>
-                                                        </div>
-                                                        <template x-if="item.url">
-                                                            <a
-                                                                :href="item.url"
-                                                                target="_blank"
-                                                                class="inline-flex items-center gap-1 rounded bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 dark:bg-blue-950/50 dark:text-blue-300"
-                                                            >
-                                                                <x-lucide-external-link class="h-3 w-3" />
-                                                                <span>Buka Lampiran</span>
-                                                            </a>
-                                                        </template>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </div>
-                                    </template>
                                 </div>
                             </div>
                         </div>

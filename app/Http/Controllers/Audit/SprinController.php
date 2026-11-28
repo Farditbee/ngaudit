@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Audit\SprinRequest;
 use App\Models\Sprin;
 use App\Models\SprinReview;
+use App\Models\StrukturPerangkatDaerah;
 use App\Models\Tim;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -66,6 +67,12 @@ class SprinController extends Controller
 
     public function update(SprinRequest $request, Sprin $sprin): JsonResponse
     {
+        if (! $this->canAccessSprin($request->user(), $sprin)) {
+            return response()->json([
+                'message' => 'Anda tidak memiliki hak akses untuk memperbarui Sprin ini.',
+            ], 403);
+        }
+
         $validated = $request->validated();
 
         DB::transaction(function () use ($request, $sprin, $validated): void {
@@ -81,8 +88,14 @@ class SprinController extends Controller
         ]);
     }
 
-    public function destroy(Sprin $sprin): JsonResponse
+    public function destroy(Request $request, Sprin $sprin): JsonResponse
     {
+        if (! $this->canAccessSprin($request->user(), $sprin)) {
+            return response()->json([
+                'message' => 'Anda tidak memiliki hak akses untuk menghapus Sprin ini.',
+            ], 403);
+        }
+
         $sprin->delete();
 
         return response()->json([
@@ -234,7 +247,7 @@ class SprinController extends Controller
         return $attributes;
     }
 
-    protected function canAccessSprin(?User $user, Sprin $sprin): bool
+    public function canAccessSprin(?User $user, Sprin $sprin): bool
     {
         if (! $user) {
             return false;
@@ -245,24 +258,53 @@ class SprinController extends Controller
         }
 
         if (in_array($user->role, ['Admin Nasional', 'Admin Dinas'], true)) {
-            return ! $user->plotting_id || (int) $sprin->plotting_id === (int) $user->plotting_id;
+            if (! in_array($sprin->sprin_tipe, ['Nasional', 'Dinas'], true)) {
+                return false;
+            }
+
+            if ($user->struktur_perangkat_daerah_id) {
+                $allowedIds = StrukturPerangkatDaerah::getDescendantIds((int) $user->struktur_perangkat_daerah_id);
+
+                return in_array($sprin->struktur_perangkat_daerah_id, $allowedIds, true);
+            }
+
+            return true;
         }
 
         if (in_array($user->role, ['Admin Wilayah', 'Admin Kecamatan'], true)) {
-            $provinceCode = substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2);
+            if (! in_array($sprin->sprin_tipe, ['Wilayah', 'Kecamatan'], true)) {
+                return false;
+            }
 
-            return ! $provinceCode || ($sprin->sprin_tipe === 'Wilayah' && $sprin->kode_wilayah === $provinceCode);
-        }
+            if ($user->struktur_perangkat_daerah_id) {
+                $allowedIds = StrukturPerangkatDaerah::getDescendantIds((int) $user->struktur_perangkat_daerah_id);
 
-        if ($user->role === 'Koordinator dan Pengendali') {
-            if ($user->plotting_id) {
-                return (int) $sprin->plotting_id === (int) $user->plotting_id;
+                return in_array($sprin->struktur_perangkat_daerah_id, $allowedIds, true);
             }
 
             if ($user->kode_wilayah) {
-                $provinceCode = substr(str_replace('.', '', (string) $user->kode_wilayah), 0, 2);
+                $cleanAuthWilayah = str_replace('.', '', (string) $user->kode_wilayah);
+                $cleanSprinWilayah = str_replace('.', '', (string) $sprin->kode_wilayah);
 
-                return $sprin->sprin_tipe === 'Wilayah' && $sprin->kode_wilayah === $provinceCode;
+                return str_starts_with($cleanSprinWilayah, $cleanAuthWilayah);
+            }
+
+            return true;
+        }
+
+        if ($user->role === 'Koordinator dan Pengendali') {
+            if ($user->struktur_perangkat_daerah_id) {
+                $allowedIds = StrukturPerangkatDaerah::getDescendantIds((int) $user->struktur_perangkat_daerah_id);
+
+                return in_array($sprin->struktur_perangkat_daerah_id, $allowedIds, true);
+            }
+
+            if ($user->kode_wilayah) {
+                $cleanAuthWilayah = str_replace('.', '', (string) $user->kode_wilayah);
+                $cleanSprinWilayah = str_replace('.', '', (string) $sprin->kode_wilayah);
+
+                return in_array($sprin->sprin_tipe, ['Wilayah', 'Kecamatan'], true)
+                    && str_starts_with($cleanSprinWilayah, $cleanAuthWilayah);
             }
 
             return (int) $user->id === (int) $sprin->daltu;
