@@ -29,6 +29,18 @@
         ],
 
         [
+            'label' => 'Anev',
+            'items' => [
+                ['label' => 'Dinas', 'icon' => 'landmark', 'open' => request()->routeIs('anev.dinas*'), 'children' => [
+                    ['label' => 'Tabulasi Per Bidang', 'href' => route('anev.dinas'), 'active' => request()->routeIs('anev.dinas*')],
+                ]],
+                ['label' => 'Kecamatan', 'icon' => 'locate-fixed', 'open' => request()->routeIs('anev.kecamatan*'), 'children' => [
+                    ['label' => 'Tabulasi Per Bidang', 'href' => route('anev.kecamatan'), 'active' => request()->routeIs('anev.kecamatan*')],
+                ]],
+            ],
+        ],
+
+        [
             'label' => 'Data Master',
             'items' => [
                 ['label' => 'User', 'icon' => 'user', 'href' => route('master.user.index'), 'active' => request()->routeIs('master.user.*')],
@@ -102,6 +114,17 @@
                     ['label' => 'Auditee', 'icon' => 'book-user', 'open' => request()->routeIs('audit.tindak-lanjut.*'), 'children' => [
                         ['label' => 'Tindak Lanjut Auditee', 'href' => route('audit.tindak-lanjut.index'), 'active' => request()->routeIs('audit.tindak-lanjut.*')],
                         'Dummy',
+                    ]],
+                ],
+            ],
+            [
+                'label' => 'Anev',
+                'items' => [
+                    ['label' => 'Dinas', 'icon' => 'landmark', 'open' => request()->routeIs('anev.dinas*'), 'children' => [
+                        ['label' => 'Tabulasi Per Bidang', 'href' => route('anev.dinas'), 'active' => request()->routeIs('anev.dinas*')],
+                    ]],
+                    ['label' => 'Kecamatan', 'icon' => 'locate-fixed', 'open' => request()->routeIs('anev.kecamatan*'), 'children' => [
+                        ['label' => 'Tabulasi Per Bidang', 'href' => route('anev.kecamatan'), 'active' => request()->routeIs('anev.kecamatan*')],
                     ]],
                 ],
             ],

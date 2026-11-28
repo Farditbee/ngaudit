@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Anev\AnevTabulasiController;
 use App\Http\Controllers\Audit\KkaController;
 use App\Http\Controllers\Audit\KkaTabulasiController;
 use App\Http\Controllers\Audit\PkaController;
@@ -157,6 +158,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/audit/tindak-lanjut/{kka}/{tab?}', [TindakLanjutAuditeeController::class, 'show'])
         ->where('tab', 'tabulasi|konsultasi|positif')
         ->name('audit.tindak-lanjut.show');
+
+    Route::prefix('anev')->name('anev.')->group(function () {
+        Route::get('/dinas', [AnevTabulasiController::class, 'dinas'])->name('dinas');
+        Route::get('/kecamatan', [AnevTabulasiController::class, 'kecamatan'])->name('kecamatan');
+    });
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
